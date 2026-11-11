@@ -142,44 +142,44 @@ has been set up). Record `uname -a` and the PYNQ image version here.
 
 ### G11. UIO interrupts (UNVERIFIED)
 - `hardroxide-irq::UioIrq` implements the standard UIO protocol and is
-  tested only against a socketpair. On the stock PYNQ image PL interrupts need
-  a `generic-uio` device-tree node (overlay) per IP; none is generated yet.
-- The generated PAC reports the PS7 `IRQ_F2P` bit per interrupt. Mapping the
-  bit to a GIC SPI (Zynq-7000: bits 0-7 -> SPI 61-68, bits 8-15 -> SPI 84-91;
-  UG585 table 7-4, unverified here) and to the Linux IRQ number is not
-  implemented.
-- Check: add a DT overlay exposing `axi_dma_0` (or `vadd_0`) as `uio` with the
-  matching `interrupts = <0 29 4>` (SPI 61 -> GIC `29`), then wait on it while
-  triggering a transfer and verify `wait()` returns, `ack` works, and the line
-  is re-armed.
-
-### G12. Timer / IIC / SPI on hardware (UNVERIFIED)
-- All three were written from the product guides and checked only against
-  the HWH register map and mock/fake device models. No pin constraints exist
-  in the fixture, so IIC/SPI I/O cannot be exercised with it as built.
-- Timer: `cargo run --example timer_delay` should report ~100 ms. Check
-  down-count + LOAD sequencing and that TINT clears with a write of 1.
-- SPI: `cargo run --example spi_loopback` uses the internal LOOP bit (no
-  wiring). Check the inhibit/SS sequencing, that RX counts match TX counts,
-  and the SPISR TX/RX flag usage. Known simplification: `SpiDevice`
-  transactions deassert CS between operations (each bus call completes with
-  SS released); a multi-op transaction needing CS held across ops is not
-  supported yet. Rebuild the fixture with real PMOD/Arduino pin constraints
-  for external SPI tests; SCK rate is fixed by `C_SCK_RATIO`.
-- IIC: `cargo run --example i2c_scan` on a pulled-up bus with a known device.
-  Unverified guesses: an empty write is encoded as START|STOP on the address
-  byte; repeated-start handling for read-after-write; completion detected by
-  TX_FIFO_Empty then BB=0; NACK reported through ISR `int1`; the core's
-  timing registers (TSUSTA etc.) are left at reset values, so the bus speed
-  is whatever the IP defaults give.
+  tested only against a socketpair. `IrqLine::open` finds `/dev/uioN` by
+  scanning `/sys/class/uio` (tested on a fake tree only).
+- The generator emits `interrupts.dtso` (one `generic-uio` node per interrupt
+  line, `interrupt-parent = <&intc>`, `target-path = "/"`). Verified offline:
+  it compiles with `dtc` 1.6.1 and merges onto a Zynq-7000-style base tree with
+  `fdtoverlay`, producing the expected `interrupts = <0 29 4>` cells. Not
+  verified: that the stock PYNQ kernel/DT accepts it.
+- Assumptions to check on the board, in order:
+  1. The kernel has `uio_pdrv_genirq` and the command line contains
+     `uio_pdrv_genirq.of_id=generic-uio` (otherwise `generic-uio` nodes do not
+     bind).
+  2. The base DT is built with symbols (`dtc -@`) so `&intc` resolves, and the
+     GIC label is really `intc`; otherwise edit the generated overlay.
+  3. Overlays can be applied (configfs `/sys/kernel/config/device-tree/overlays`)
+     on this kernel, and nodes added under `target-path = "/"` get platform
+     devices. If not, put the nodes under the PL bus node (`/amba` or
+     `/amba_pl`) instead.
+  4. Two nodes may share one register window (an AXI DMA has two interrupts and
+     the overlay has two nodes with the same `reg`); the kernel may reject
+     overlapping resources. If it does, give the second node no `reg` window
+     or use an AXI interrupt controller.
+  5. The UIO device `name` equals the node name (without `@addr`);
+     `find_uio` falls back to the unique `maps/map0/addr`. Check
+     `cat /sys/class/uio/uio*/name`.
+  6. The IRQ_F2P to SPI mapping (bits 0-7 -> IDs 61-68, 8-15 -> 84-91, DT cell =
+     ID - 32; UG585 table 7-4) and the level-high trigger type.
+- Run `cargo run --example irq_probe`, then wait on a real event: HLS
+  (`enable_done_interrupt`, `start`, `wait`, `ack_interrupts`) and DMA
+  (`set_interrupts(true)`, start, `wait`, then `Transfer::wait(ZERO)`), and
+  confirm the line re-arms on the second round.
 
 ## Design gaps (implemented partially or not at all)
 
-- **D1 Interrupts**: ports, sinks and PS7 `IRQ_F2P` bits (direct or through
-  `xlconcat`) are parsed and exposed in the PAC; `hardroxide-irq` provides UIO
-  blocking and feature-gated async waiting. Not done: GIC/Linux IRQ number
-  mapping, DT overlay generation, wiring `UioIrq` into generated `Design`,
-  routes through logic other than `xlconcat`/direct.
+- **D1 Interrupts**: traced and wired into the generated crate (`IrqLine`
+  constants, `interrupts.dtso`, `irq_probe`); see G11 for what is unverified.
+  Not done: `axi_intc` (AXI interrupt controller) designs, interrupts through
+  logic other than `xlconcat`/direct, an overlay variant targeting the PL bus
+  node, and PS-side GPIO/other interrupt sources.
 - **D2 Other IP**: AXI GPIO is curated and HLS IP gets generated typed
   accessors (scalar 32-bit registers only: no memory-mapped arrays, no 64-bit
   pointer register pairs helper, no `ap_ctrl_chain` specifics, no m_axi

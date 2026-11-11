@@ -20,3 +20,16 @@ fn dma_transfer_through_generated_design() {
     assert_eq!(pac::axi_dma_0::s2mm_length::OFFSET, 0x58);
     assert_eq!(pac::axi_dma_0::INTERRUPTS, &[("mm2s_introut", Some(0)), ("s2mm_introut", Some(1))]);
 }
+
+#[test]
+fn interrupt_lines_carry_gic_mapping() {
+    let l = pac::axi_dma_0::IRQ_MM2S_INTROUT;
+    assert_eq!((l.f2p_bit, l.gic_spi, l.base), (Some(0), Some(29), 0x4040_0000));
+    assert_eq!(l.dt_node, "axi_dma_0_mm2s_introut");
+    let l = pac::axi_dma_0::IRQ_S2MM_INTROUT;
+    assert_eq!((l.f2p_bit, l.gic_spi), (Some(1), Some(30)));
+    assert_eq!(pac::axi_dma_0::IRQS.len(), 2);
+    // Without the overlay applied, opening reports a helpful error.
+    let e = l.open_in(std::path::Path::new("/nonexistent"), std::path::Path::new("/dev")).err().unwrap();
+    assert!(e.to_string().contains("interrupts.dtso"));
+}

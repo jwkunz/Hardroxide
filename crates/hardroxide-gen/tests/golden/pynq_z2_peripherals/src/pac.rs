@@ -6,6 +6,9 @@ pub mod axi_iic_0 {
     pub const VLNV: &str = "xilinx.com:ip:axi_iic:2.1";
     pub const BASE_ADDRESS: u64 = 0x41600000;
     pub const SIZE: usize = 0x10000;
+    /// Interrupt `iic2intc_irpt` (PS7 `IRQ_F2P` bit Some(1)); open with `.open()`.
+    pub const IRQ_IIC2INTC_IRPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_iic_0", port: "iic2intc_irpt", f2p_bit: Some(1), gic_spi: Some(30), dt_node: "axi_iic_0_iic2intc_irpt", base: 0x41600000 };
+    pub const IRQS: &[hardroxide_irq::IrqLine] = &[IRQ_IIC2INTC_IRPT];
     /// Connected interrupt outputs: `(port, PS7 IRQ_F2P bit if routed directly)`.
     pub const INTERRUPTS: &[(&str, Option<u32>)] = &[("iic2intc_irpt", Some(1))];
 
@@ -504,6 +507,9 @@ pub mod axi_quad_spi_0 {
     pub const VLNV: &str = "xilinx.com:ip:axi_quad_spi:3.2";
     pub const BASE_ADDRESS: u64 = 0x41e00000;
     pub const SIZE: usize = 0x10000;
+    /// Interrupt `ip2intc_irpt` (PS7 `IRQ_F2P` bit Some(2)); open with `.open()`.
+    pub const IRQ_IP2INTC_IRPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_quad_spi_0", port: "ip2intc_irpt", f2p_bit: Some(2), gic_spi: Some(31), dt_node: "axi_quad_spi_0_ip2intc_irpt", base: 0x41e00000 };
+    pub const IRQS: &[hardroxide_irq::IrqLine] = &[IRQ_IP2INTC_IRPT];
     /// Connected interrupt outputs: `(port, PS7 IRQ_F2P bit if routed directly)`.
     pub const INTERRUPTS: &[(&str, Option<u32>)] = &[("ip2intc_irpt", Some(2))];
 
@@ -1032,6 +1038,9 @@ pub mod axi_timer_0 {
     pub const VLNV: &str = "xilinx.com:ip:axi_timer:2.0";
     pub const BASE_ADDRESS: u64 = 0x42800000;
     pub const SIZE: usize = 0x10000;
+    /// Interrupt `interrupt` (PS7 `IRQ_F2P` bit Some(0)); open with `.open()`.
+    pub const IRQ_INTERRUPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_timer_0", port: "interrupt", f2p_bit: Some(0), gic_spi: Some(29), dt_node: "axi_timer_0_interrupt", base: 0x42800000 };
+    pub const IRQS: &[hardroxide_irq::IrqLine] = &[IRQ_INTERRUPT];
     /// Connected interrupt outputs: `(port, PS7 IRQ_F2P bit if routed directly)`.
     pub const INTERRUPTS: &[(&str, Option<u32>)] = &[("interrupt", Some(0))];
 

@@ -41,8 +41,8 @@ is done offline. **Docs site: an mdBook (`book.toml`, source = `docs/`) is the a
 API documentation, deployed to GitHub Pages by `.github/workflows/pages.yml`.
 When you change a public API or the CLI, update `docs/reference/` in the same
 change; `cargo test -p hardroxide-cli --test book` fails if signatures, help
-text or links drift. Logo: `docs/assets/logo.png`.** Remaining offline work:
-generated UIO/IRQ integration into `Design`, the docs site, more fixtures.
+text or links drift. Logo: `docs/assets/logo.png`.** Interrupts are wired into generated crates (`IrqLine`, `interrupts.dtso`).
+Remaining offline work: compile-testing the guide examples, `axi_intc`, more fixtures.
 
 ## Conventions
 

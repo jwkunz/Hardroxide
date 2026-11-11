@@ -19,6 +19,101 @@ pub enum IrqError {
         #[source]
         source: std::io::Error,
     },
+    #[error(
+        "no UIO device for interrupt `{instance}.{port}` (device-tree node `{node}`, base {base:#x}); \
+         is the generated overlay (interrupts.dtso) applied?"
+    )]
+    NotFound {
+        instance: &'static str,
+        port: &'static str,
+        node: &'static str,
+        base: u64,
+    },
+}
+
+/// One interrupt output of a PL IP and where it lands. The generator emits a
+/// constant per connected interrupt in the generated crate's `pac`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IrqLine {
+    pub instance: &'static str,
+    pub port: &'static str,
+    /// Bit of the PS7 `IRQ_F2P` vector, if it could be traced.
+    pub f2p_bit: Option<u32>,
+    /// Zynq-7000 GIC SPI device-tree cell for that bit.
+    pub gic_spi: Option<u32>,
+    /// Name of the `uio` node in the generated overlay (`interrupts.dtso`).
+    pub dt_node: &'static str,
+    /// Physical base address of the IP's register window.
+    pub base: u64,
+}
+
+/// Parse a sysfs hex value such as `0x40400000\n`.
+fn parse_hex(s: &str) -> Option<u64> {
+    let t = s.trim();
+    u64::from_str_radix(t.strip_prefix("0x").unwrap_or(t), 16).ok()
+}
+
+/// Find the `uioN` device for an interrupt by scanning a `/sys/class/uio`
+/// tree: first a device whose `name` equals `node`, otherwise the *only*
+/// device whose `maps/map0/addr` equals `base`. Returns the device number.
+pub fn find_uio(sysfs_uio: &Path, node: &str, base: u64) -> Result<Option<u32>, IrqError> {
+    let rd = match std::fs::read_dir(sysfs_uio) {
+        Ok(rd) => rd,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(source) => {
+            return Err(IrqError::Io {
+                path: sysfs_uio.to_path_buf(),
+                source,
+            });
+        }
+    };
+    let mut devs: Vec<(u32, PathBuf)> = rd
+        .filter_map(|e| {
+            let p = e.ok()?.path();
+            let n = p.file_name()?.to_str()?.strip_prefix("uio")?.parse().ok()?;
+            Some((n, p))
+        })
+        .collect();
+    devs.sort();
+    let mut by_addr = Vec::new();
+    for (n, p) in &devs {
+        let name = std::fs::read_to_string(p.join("name")).unwrap_or_default();
+        if name.trim() == node {
+            return Ok(Some(*n));
+        }
+        let addr = std::fs::read_to_string(p.join("maps/map0/addr"))
+            .ok()
+            .and_then(|a| parse_hex(&a));
+        if addr == Some(base) {
+            by_addr.push(*n);
+        }
+    }
+    Ok(if by_addr.len() == 1 {
+        Some(by_addr[0])
+    } else {
+        None
+    })
+}
+
+impl IrqLine {
+    /// Open this interrupt's UIO device (`/sys/class/uio`, `/dev/uioN`).
+    pub fn open(&self) -> Result<UioIrq, IrqError> {
+        self.open_in(Path::new("/sys/class/uio"), Path::new("/dev"))
+    }
+
+    /// Like [`open`](Self::open) with the sysfs and device directories given
+    /// (for tests).
+    pub fn open_in(&self, sysfs_uio: &Path, dev_dir: &Path) -> Result<UioIrq, IrqError> {
+        match find_uio(sysfs_uio, self.dt_node, self.base)? {
+            Some(n) => UioIrq::open(dev_dir.join(format!("uio{n}"))),
+            None => Err(IrqError::NotFound {
+                instance: self.instance,
+                port: self.port,
+                node: self.dt_node,
+                base: self.base,
+            }),
+        }
+    }
 }
 
 pub struct UioIrq {
@@ -170,6 +265,61 @@ mod tests {
         );
         // SAFETY: fresh descriptors we own.
         unsafe { (File::from_raw_fd(fds[0]), File::from_raw_fd(fds[1])) }
+    }
+
+    fn fake_sysfs(tag: &str, devs: &[(&str, &str, &str)]) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("hrx-uio-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for (dev, name, addr) in devs {
+            let d = root.join(dev);
+            std::fs::create_dir_all(d.join("maps/map0")).unwrap();
+            std::fs::write(d.join("name"), format!("{name}\n")).unwrap();
+            std::fs::write(d.join("maps/map0/addr"), format!("{addr}\n")).unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn finds_uio_by_node_name_then_unique_address() {
+        let r = fake_sysfs(
+            "find",
+            &[
+                ("uio0", "other", "0x1000"),
+                ("uio1", "dma_mm2s", "0x40400000"),
+                ("uio2", "dma_s2mm", "0x40400000"),
+            ],
+        );
+        assert_eq!(find_uio(&r, "dma_s2mm", 0x40400000).unwrap(), Some(2));
+        // No name match, address is shared by two devices: ambiguous.
+        assert_eq!(find_uio(&r, "missing", 0x40400000).unwrap(), None);
+        // No name match, unique address.
+        assert_eq!(find_uio(&r, "missing", 0x1000).unwrap(), Some(0));
+        assert_eq!(find_uio(&r.join("nonexistent"), "x", 0).unwrap(), None);
+        std::fs::remove_dir_all(r).unwrap();
+    }
+
+    #[test]
+    fn irq_line_open_in_reports_missing_overlay() {
+        let line = IrqLine {
+            instance: "axi_dma_0",
+            port: "mm2s_introut",
+            f2p_bit: Some(0),
+            gic_spi: Some(29),
+            dt_node: "axi_dma_0_mm2s_introut",
+            base: 0x40400000,
+        };
+        let r = fake_sysfs("missing", &[("uio0", "unrelated", "0x1000")]);
+        let e = line.open_in(&r, Path::new("/dev")).err().unwrap();
+        assert!(matches!(e, IrqError::NotFound { .. }));
+        assert!(e.to_string().contains("interrupts.dtso"));
+        // Found: opens the device node (a regular file stands in for /dev/uioN).
+        let r2 = fake_sysfs("found", &[("uio3", "axi_dma_0_mm2s_introut", "0x40400000")]);
+        let devdir = r2.join("devs");
+        std::fs::create_dir_all(&devdir).unwrap();
+        std::fs::write(devdir.join("uio3"), "").unwrap();
+        line.open_in(&r2, &devdir).unwrap();
+        std::fs::remove_dir_all(r).unwrap();
+        std::fs::remove_dir_all(r2).unwrap();
     }
 
     #[test]

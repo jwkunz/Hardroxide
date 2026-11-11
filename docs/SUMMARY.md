@@ -7,6 +7,7 @@
 - [Getting started](guide/getting-started.md)
 - [Generating a crate](guide/generating.md)
 - [Using a generated crate](guide/using.md)
+- [Interrupts](guide/interrupts.md)
 - [Updating a bitstream](guide/updating.md)
 - [Running on hardware](guide/hardware.md)
 

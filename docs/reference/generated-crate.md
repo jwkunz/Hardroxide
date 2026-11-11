@@ -9,6 +9,7 @@ interface.sha256           SHA-256 of interface.txt
 bitstream/design.bin       raw configuration stream (byte-swapped, see below)
 bitstream/design.sha256    SHA-256 of design.bin, checked at load
 bitstream/load.cfg         ps_clk_hz and fclkN targets
+interrupts.dtso            device-tree overlay exposing each routed PL interrupt as UIO
 src/lib.rs                 Design, LoadOptions, Error
 src/pac.rs                 register layer
 src/ips.rs                 typed wrappers for HLS IP (only if the design has HLS IP)
@@ -25,7 +26,7 @@ Cargo features and dependencies:
 | Item | Meaning |
 |---|---|
 | `dev-bitstream` (feature) | enables `Design::load_with_bitstream` (pulls in `hardroxide-hwh`) |
-| `hardroxide-mmio`, `-fpga`, `-ip` | runtime |
+| `hardroxide-mmio`, `-fpga`, `-ip`, `-irq` | runtime |
 | `hardroxide-dma`, `embedded-hal` | dev-dependencies, used by examples |
 
 ## `lib.rs`
@@ -77,13 +78,28 @@ pub const SIZE: usize = 0x10000;
 pub const INTERRUPTS: &[(&str, Option<u32>)] = &[("interrupt", Some(0))];
 ```
 
-(The values above are examples.) For each register `r` of the instance's first
+(The values above are examples.) For each connected interrupt output the
+module also has `pub const IRQ_<PORT>: hardroxide_irq::IrqLine` and an
+`IRQS: &[hardroxide_irq::IrqLine]` slice (see
+[Interrupts](../guide/interrupts.md)). For each register `r` of the instance's first
 address block: `pac::<inst>::<r>::OFFSET: usize` and `RESET_VALUE: u32`; for
 each field `f`: `pac::<inst>::<r>::<f>::{SHIFT, WIDTH, MASK}` (`u32`).
 `INTERRUPTS` lists connected interrupt outputs as `(port, PS7 IRQ_F2P bit)`;
 the bit is `None` if the net does not reach `IRQ_F2P` directly or through an
 `xlconcat`. Only the first address range of an instance is described (see
 [Verification gaps, D3](../08-verification-gaps.md)).
+
+## `interrupts.dtso`
+
+Present when at least one interrupt is connected. A device-tree overlay with
+one `generic-uio` node per interrupt line (named `<instance>_<port>@<base>`),
+whose `interrupts` cell is `<0 SPI trigger>` from the traced `IRQ_F2P` bit
+(level-high unless the HWH says edge-rising) and `interrupt-parent = <&intc>`.
+Interrupts that cannot be traced to `IRQ_F2P[15:0]` are listed in a comment and
+skipped. Offline checks: it compiles with `dtc` and merges onto a
+Zynq-7000-style base tree with `fdtoverlay` (a test does this when the tools
+are installed). Whether the stock PYNQ image can apply and use it is
+unverified ([G11](../08-verification-gaps.md)).
 
 ## Examples
 
@@ -95,5 +111,6 @@ the bit is `None` if the net does not reach `IRQ_F2P` directly or through an
 | `timer_delay` | AXI Timer | a 100 ms hardware delay vs. the system clock |
 | `spi_loopback` | AXI Quad SPI | internal-loopback transfer, no wiring needed |
 | `i2c_scan` | AXI IIC | probes addresses `0x08..0x78` on a pulled-up bus |
+| `irq_probe` | any routed interrupt | opens the UIO device of every interrupt line (checks the overlay); does not wait |
 
 All require root on the board and have **not** been run on hardware.

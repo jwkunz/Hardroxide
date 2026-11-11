@@ -108,6 +108,12 @@ impl<R: Mmio> AxiDma<R> {
         self
     }
 
+    /// Enable or disable completion/error interrupt generation in place
+    /// (for use through a `&mut` to a driver owned by a generated `Design`).
+    pub fn set_interrupts(&mut self, on: bool) {
+        self.irq = on;
+    }
+
     pub fn max_transfer_len(&self) -> usize {
         self.max_len
     }
@@ -319,6 +325,19 @@ mod tests {
         let buf = t.wait(Duration::from_secs(1)).unwrap();
         h.join().unwrap();
         assert_eq!(buf.len(), 4096);
+    }
+
+    #[test]
+    fn set_interrupts_enables_ioc_and_error_irqs() {
+        let (be, mut dma) = setup();
+        dma.set_interrupts(true);
+        let _t = dma
+            .start(Direction::MemToStream, MockBuffer::new(16, 0x1000), 8)
+            .unwrap();
+        assert_eq!(
+            be.peek(BASE) & (CR_IOC_IRQ_EN | CR_ERR_IRQ_EN),
+            CR_IOC_IRQ_EN | CR_ERR_IRQ_EN
+        );
     }
 
     #[test]

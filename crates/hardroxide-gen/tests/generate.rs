@@ -236,3 +236,69 @@ fn update_interface_change_needs_regen() {
     assert_eq!(update(&dir, &x, false).unwrap(), Outcome::Unchanged);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+fn tool(env: &str, name: &str) -> Option<PathBuf> {
+    if let Some(p) = std::env::var_os(env) {
+        return Some(p.into());
+    }
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|d| d.join(name))
+        .find(|p| p.is_file())
+}
+
+/// The generated overlay must apply cleanly to a Zynq-7000-style base tree
+/// with a labelled `intc`, and the SPI cells must survive the merge.
+/// Needs `dtc` and `fdtoverlay` (env `DTC` / `FDTOVERLAY` or PATH); skipped
+/// when they are absent (CI installs `device-tree-compiler`).
+#[test]
+fn interrupts_overlay_applies_with_fdtoverlay() {
+    let (Some(dtc), Some(fdt)) = (tool("DTC", "dtc"), tool("FDTOVERLAY", "fdtoverlay")) else {
+        eprintln!("skipping: dtc/fdtoverlay not found");
+        return;
+    };
+    let tmp = std::env::temp_dir().join(format!("hrx-dtso-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let g = generate(&fixture_named("pynq_z2_dma_loopback"), &Options::default()).unwrap();
+    std::fs::write(tmp.join("ov.dts"), &g.files[Path::new("interrupts.dtso")]).unwrap();
+    std::fs::write(
+        tmp.join("base.dts"),
+        "/dts-v1/;\n/ {\n #address-cells = <1>;\n #size-cells = <1>;\n intc: interrupt-controller@f8f01000 {\n  compatible = \"arm,cortex-a9-gic\";\n  #interrupt-cells = <3>;\n  interrupt-controller;\n  reg = <0xf8f01000 0x1000 0xf8f00100 0x100>;\n };\n};\n",
+    )
+    .unwrap();
+    let run = |cmd: &Path, args: &[&str]| {
+        let o = Command::new(cmd)
+            .args(args)
+            .current_dir(&tmp)
+            .output()
+            .unwrap();
+        assert!(
+            o.status.success(),
+            "{} {args:?}: {}",
+            cmd.display(),
+            String::from_utf8_lossy(&o.stderr)
+        );
+        o
+    };
+    run(
+        &dtc,
+        &["-@", "-I", "dts", "-O", "dtb", "-o", "base.dtb", "base.dts"],
+    );
+    run(
+        &dtc,
+        &["-@", "-I", "dts", "-O", "dtb", "-o", "ov.dtb", "ov.dts"],
+    );
+    run(&fdt, &["-i", "base.dtb", "-o", "merged.dtb", "ov.dtb"]);
+    let dts = run(&dtc, &["-I", "dtb", "-O", "dts", "merged.dtb"]).stdout;
+    let dts = String::from_utf8_lossy(&dts);
+    for want in [
+        "axi_dma_0_mm2s_introut@40400000",
+        "axi_dma_0_s2mm_introut@40400000",
+        "interrupts = <0x00 0x1d 0x04>",
+        "interrupts = <0x00 0x1e 0x04>",
+    ] {
+        assert!(dts.contains(want), "merged tree lacks `{want}`:\n{dts}");
+    }
+    std::fs::remove_dir_all(tmp).unwrap();
+}

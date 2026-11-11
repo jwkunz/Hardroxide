@@ -20,6 +20,18 @@ pub struct Design {
     pub ps_clk_hz: u64,
 }
 
+/// Zynq-7000 GIC SPI *device-tree cell* for PS7 `IRQ_F2P[bit]` (UG585 table
+/// 7-4: `IRQ_F2P[7:0]` are interrupt IDs 61..=68 and `[15:8]` are 84..=91; the
+/// device-tree `interrupts = <0 N 4>` cell is ID - 32). `None` for bits >= 16.
+/// UNVERIFIED on hardware (see docs, G11).
+pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32> {
+    match bit {
+        0..=7 => Some(29 + bit),
+        8..=15 => Some(52 + (bit - 8)),
+        _ => None,
+    }
+}
+
 impl Instance {
     /// Frequency of the AXI-Lite clock (`s_axi_aclk`, else the first clock
     /// port that reports one), in Hz.
@@ -145,6 +157,9 @@ pub struct InterruptPort {
     pub sinks: Vec<(String, String)>,
     /// Port width in bits.
     pub width: u32,
+    /// `SENSITIVITY` attribute, e.g. `LEVEL_HIGH` or `EDGE_RISING`
+    /// (empty if absent).
+    pub sensitivity: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

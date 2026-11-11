@@ -106,3 +106,12 @@ fn irq_routes_direct_and_through_concat() {
         None
     );
 }
+
+#[test]
+fn gic_spi_cells_follow_the_trm_table() {
+    assert_eq!(zynq7000_f2p_spi_cell(0), Some(29)); // interrupt ID 61
+    assert_eq!(zynq7000_f2p_spi_cell(7), Some(36)); // ID 68
+    assert_eq!(zynq7000_f2p_spi_cell(8), Some(52)); // ID 84
+    assert_eq!(zynq7000_f2p_spi_cell(15), Some(59)); // ID 91
+    assert_eq!(zynq7000_f2p_spi_cell(16), None);
+}

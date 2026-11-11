@@ -26,7 +26,7 @@ Success criteria:
 
 2. `hardroxide update` and interface/bitstream hashing, `dev-bitstream` loader. **Done offline** (see 08, D4); hardware unverified.
 3. HLS / custom IP generation from HWH register maps. **Done offline** for scalar AXI-Lite HLS IP (vadd fixture); hardware unverified (08, G9).
-4. AXI DMA with uncached `DmaBuffer`, UIO interrupts (sync, then async feature). **Done offline** (08, G10/G11); not yet integrated into generated `Design` for IRQs.
+4. AXI DMA with uncached `DmaBuffer`, UIO interrupts (sync, then async feature). **Done offline** (08, G10/G11); generated `IrqLine` constants, `interrupts.dtso` and `irq_probe` now integrate interrupts (G11).
 5. AXI Timer, IIC, SPI with `embedded-hal` trait impls. **Done offline** (08, G12): `DelayNs`, `I2c`, `SpiBus`/`SpiDevice`.
 6. Cached DMA backend, then partial reconfiguration and UltraScale+ support.
 

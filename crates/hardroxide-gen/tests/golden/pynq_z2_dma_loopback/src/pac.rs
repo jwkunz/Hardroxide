@@ -6,6 +6,11 @@ pub mod axi_dma_0 {
     pub const VLNV: &str = "xilinx.com:ip:axi_dma:7.1";
     pub const BASE_ADDRESS: u64 = 0x40400000;
     pub const SIZE: usize = 0x10000;
+    /// Interrupt `mm2s_introut` (PS7 `IRQ_F2P` bit Some(0)); open with `.open()`.
+    pub const IRQ_MM2S_INTROUT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_dma_0", port: "mm2s_introut", f2p_bit: Some(0), gic_spi: Some(29), dt_node: "axi_dma_0_mm2s_introut", base: 0x40400000 };
+    /// Interrupt `s2mm_introut` (PS7 `IRQ_F2P` bit Some(1)); open with `.open()`.
+    pub const IRQ_S2MM_INTROUT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_dma_0", port: "s2mm_introut", f2p_bit: Some(1), gic_spi: Some(30), dt_node: "axi_dma_0_s2mm_introut", base: 0x40400000 };
+    pub const IRQS: &[hardroxide_irq::IrqLine] = &[IRQ_MM2S_INTROUT, IRQ_S2MM_INTROUT];
     /// Connected interrupt outputs: `(port, PS7 IRQ_F2P bit if routed directly)`.
     pub const INTERRUPTS: &[(&str, Option<u32>)] = &[("mm2s_introut", Some(0)), ("s2mm_introut", Some(1))];
 

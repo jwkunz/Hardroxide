@@ -24,6 +24,37 @@ line masked until re-enabled.
 - `wait_event` waits without re-enabling.
 - `from_file` wraps an already-open descriptor (tests use a socketpair).
 
+## Interrupt lines and UIO discovery
+
+```rust,ignore
+pub struct IrqLine
+pub instance: &'static str,
+pub port: &'static str,
+pub f2p_bit: Option<u32>,
+pub gic_spi: Option<u32>,
+pub dt_node: &'static str,
+pub base: u64,
+pub fn open(&self) -> Result<UioIrq, IrqError>
+pub fn open_in(&self, sysfs_uio: &Path, dev_dir: &Path) -> Result<UioIrq, IrqError>
+pub fn find_uio(sysfs_uio: &Path, node: &str, base: u64) -> Result<Option<u32>, IrqError>
+```
+
+`IrqLine` describes one interrupt output of a PL IP; the generator emits one
+constant per connected interrupt in the generated crate's `pac`
+([Generated crate](generated-crate.md#pacrs)). `f2p_bit`/`gic_spi` come from
+the HWH (`None` if the net could not be traced to `IRQ_F2P`), `dt_node` is the
+name of the `uio` node in the generated `interrupts.dtso`, `base` the IP's
+register base.
+
+`find_uio` scans a `/sys/class/uio`-style tree and returns the device number
+`N` of `uioN`: a device whose `name` equals `node` wins; otherwise the *only*
+device whose `maps/map0/addr` equals `base`; otherwise `None` (also `None` if
+the directory does not exist). `open()` uses `/sys/class/uio` and `/dev`;
+`open_in` lets tests substitute both. If no device is found the error is
+`IrqError::NotFound { instance, port, node, base }`, whose message points at
+the overlay. Discovery behaviour on the real kernel is unverified
+([G11](../08-verification-gaps.md)).
+
 ## Async (feature `async`)
 
 ```rust,ignore

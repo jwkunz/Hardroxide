@@ -9,6 +9,7 @@ pub struct AxiDma<R: Mmio>
 pub fn with_length_width(regs: R, length_width: u32) -> Self
 pub fn new(regs: R) -> Self
 pub fn with_interrupts(mut self, on: bool) -> Self
+pub fn set_interrupts(&mut self, on: bool)
 pub fn max_transfer_len(&self) -> usize
 pub fn regs(&self) -> &R
 pub fn reset(&self) -> Result<(), DmaIpError>
@@ -27,8 +28,10 @@ pub buffer: B,
 - `with_length_width(regs, w)`: `w` is the IP's buffer-length-register width
   (HWH `C_SG_LENGTH_WIDTH`); the maximum transfer is `2^w - 1` bytes. `new`
   assumes the Vivado default of 14.
-- `with_interrupts(true)` sets the IOC and error interrupt enables for
-  subsequent transfers.
+- `with_interrupts(true)` / `set_interrupts(true)` set the IOC and error
+  interrupt enables for subsequent transfers (`set_interrupts` works through a
+  `&mut` to a driver you do not own by value, such as a field of the generated
+  `Design`). See [Interrupts](../guide/interrupts.md).
 - `reset()` soft-resets both channels and waits for the reset bits to clear.
 - `start` validates `0 < len <= min(buffer length, max_transfer_len())` and
   that the channel is halted or idle (`DmaIpError::Busy`), enables the channel,

@@ -69,6 +69,7 @@ pub sinks: Vec<(String, String)>,
 pub clk_hz: Option<u64>,
 pub struct InterruptPort
 pub signal: String,
+pub sensitivity: String,
 pub struct AddressBlock
 pub interface: String,
 pub range: u64,
@@ -109,6 +110,19 @@ Conventions and quirks (see [HWH findings](../07-hwh-findings.md)):
 - `axi_clk_hz()` returns the frequency of `s_axi_aclk`, else of the first port
   that reports one.
 - Collections keep document order, except `parameters` (sorted by name).
+
+## Interrupt numbering
+
+```rust,ignore
+pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32>
+```
+
+Maps a PS7 `IRQ_F2P` bit to the Zynq-7000 GIC SPI *device-tree cell*
+(`interrupts = <0 N 4>`): bits 0..=7 give 29..=36 (interrupt IDs 61..=68) and
+bits 8..=15 give 52..=59 (IDs 84..=91); `None` above 15. From UG585 table 7-4,
+unverified on hardware ([G11](../08-verification-gaps.md)).
+`InterruptPort::sensitivity` is the HWH `SENSITIVITY` attribute (for example
+`LEVEL_HIGH`), empty if absent.
 
 ## Interface hash
 

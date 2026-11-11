@@ -110,6 +110,12 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     if let Some(ex) = render::dma_example(&model, &crate_name) {
         files.insert("examples/dma_loopback.rs".into(), ex.into_bytes());
     }
+    if let Some(dtso) = render::interrupts_dtso(&model, &xsa.design) {
+        files.insert("interrupts.dtso".into(), dtso.into_bytes());
+    }
+    if let Some(ex) = render::irq_example(&model, &xsa.design, &crate_name) {
+        files.insert("examples/irq_probe.rs".into(), ex.into_bytes());
+    }
     if let Some(ips) = render::ips_rs(&model) {
         files.insert("src/ips.rs".into(), ips.into_bytes());
     }

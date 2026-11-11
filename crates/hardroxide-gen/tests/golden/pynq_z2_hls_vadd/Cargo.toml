@@ -12,6 +12,7 @@ dev-bitstream = ["dep:hardroxide-hwh"]
 hardroxide-mmio = { path = "/hardroxide/crates/hardroxide-mmio" }
 hardroxide-fpga = { path = "/hardroxide/crates/hardroxide-fpga" }
 hardroxide-ip = { path = "/hardroxide/crates/hardroxide-ip" }
+hardroxide-irq = { path = "/hardroxide/crates/hardroxide-irq" }
 hardroxide-hwh = { path = "/hardroxide/crates/hardroxide-hwh", optional = true }
 thiserror = "2"
 

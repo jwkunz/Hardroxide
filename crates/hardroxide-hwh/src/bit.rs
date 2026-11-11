@@ -35,7 +35,7 @@ impl<'a> BitFile<'a> {
         take(l)?; // magic field
         take(2)?; // length-of-1 marker
         let mut strings = Vec::new();
-        for want in [b'a', b'b', b'c', b'd'] {
+        for want in *b"abcd" {
             let tag = take(1)?[0];
             if tag != want {
                 return Err(BitError::BadTag(tag));
@@ -71,9 +71,9 @@ impl<'a> BitFile<'a> {
         if !self.payload.len().is_multiple_of(4) {
             return Err(BitError::Unaligned(self.payload.len()));
         }
-        let mut out: Vec<u8> = self
-            .payload
-            .chunks_exact(4)
+        let (words, _) = self.payload.as_chunks::<4>();
+        let mut out: Vec<u8> = words
+            .iter()
             .flat_map(|w| [w[3], w[2], w[1], w[0]])
             .collect();
         // bootgen pads the stream with NOP packets (0x20000000) to a multiple

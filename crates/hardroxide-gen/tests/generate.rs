@@ -7,9 +7,15 @@ fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().unwrap()
 }
 
-fn fixture() -> Xsa {
-    Xsa::open(root().join("fixtures/pynq_z2_gpio.xsa")).unwrap()
+fn fixture_named(n: &str) -> Xsa {
+    Xsa::open(root().join(format!("fixtures/{n}.xsa"))).unwrap()
 }
+
+fn fixture() -> Xsa {
+    fixture_named("pynq_z2_gpio")
+}
+
+const FIXTURES: &[&str] = &["pynq_z2_gpio", "pynq_z2_hls_vadd"];
 
 #[test]
 fn deterministic() {
@@ -22,34 +28,34 @@ fn deterministic() {
 #[test]
 fn golden_snapshot() {
     let opts = Options { hardroxide_path: Some("/hardroxide".into()), ..Default::default() };
-    let g = generate(&fixture(), &opts).unwrap();
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden");
-    for (rel, data) in &g.files {
-        if rel.extension().is_some_and(|e| e == "bin") {
-            continue; // big; covered by BITSTREAM_SHA256 in lib.rs
-        }
-        let p = dir.join(rel);
-        if std::env::var_os("UPDATE_GOLDEN").is_some() {
-            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-            std::fs::write(&p, data).unwrap();
-        } else {
-            let want = std::fs::read(&p).unwrap_or_else(|_| panic!("missing golden {}", p.display()));
-            assert_eq!(String::from_utf8_lossy(data), String::from_utf8_lossy(&want), "{}", rel.display());
+    for name in FIXTURES {
+        let g = generate(&fixture_named(name), &opts).unwrap();
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden").join(name);
+        for (rel, data) in &g.files {
+            if rel.extension().is_some_and(|e| e == "bin") {
+                continue; // big; covered by bitstream/design.sha256
+            }
+            let p = dir.join(rel);
+            if std::env::var_os("UPDATE_GOLDEN").is_some() {
+                std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+                std::fs::write(&p, data).unwrap();
+            } else {
+                let want = std::fs::read(&p).unwrap_or_else(|_| panic!("missing golden {}", p.display()));
+                assert_eq!(String::from_utf8_lossy(data), String::from_utf8_lossy(&want), "{name}/{}", rel.display());
+            }
         }
     }
 }
 
-/// Generate the crate, compile it, and run a mock-MMIO test against it.
-#[test]
-fn generated_crate_builds_and_works_with_mock() {
-    let tmp = std::env::temp_dir().join(format!("hrx-gen-{}", std::process::id()));
+/// Generate each crate, compile it, and run a mock-MMIO test against it.
+fn build_and_test(fixture: &str, crate_name: &str, test_src: &str) {
+    let tmp = std::env::temp_dir().join(format!("hrx-gen-{crate_name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
-    let opts = Options { hardroxide_path: Some(root()), crate_name: Some("pynq_z2_gpio_test".into()) };
-    let g = generate(&fixture(), &opts).unwrap();
-    g.write_to(&tmp).unwrap();
+    let opts = Options { hardroxide_path: Some(root()), crate_name: Some(crate_name.into()) };
+    generate(&fixture_named(fixture), &opts).unwrap().write_to(&tmp).unwrap();
     std::fs::create_dir_all(tmp.join("tests")).unwrap();
-    std::fs::write(tmp.join("tests/mock.rs"), include_str!("data/generated_mock_test.rs")
-            .replace("__FIXTURE__", root().join("fixtures/pynq_z2_gpio.xsa").to_str().unwrap())).unwrap();
+    let fixture_path = root().join(format!("fixtures/{fixture}.xsa"));
+    std::fs::write(tmp.join("tests/mock.rs"), test_src.replace("__FIXTURE__", fixture_path.to_str().unwrap())).unwrap();
     // Standalone package, not part of this workspace.
     let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
     manifest.push_str("\n[workspace]\n");
@@ -64,6 +70,16 @@ fn generated_crate_builds_and_works_with_mock() {
     assert!(out.status.success(), "{text}");
     assert!(!text.contains("warning"), "generated crate has warnings:\n{text}");
     std::fs::remove_dir_all(tmp).unwrap();
+}
+
+#[test]
+fn generated_gpio_crate_builds_and_works_with_mock() {
+    build_and_test("pynq_z2_gpio", "pynq_z2_gpio_test", include_str!("data/generated_mock_test.rs"));
+}
+
+#[test]
+fn generated_hls_crate_builds_and_works_with_mock() {
+    build_and_test("pynq_z2_hls_vadd", "pynq_z2_hls_test", include_str!("data/generated_hls_test.rs"));
 }
 
 fn fresh_crate(tag: &str) -> PathBuf {

@@ -20,6 +20,13 @@ pub struct Design {
     pub ps_clk_hz: u64,
 }
 
+impl Instance {
+    /// Vitis HLS-generated IP (`vendor:hls:name:version`).
+    pub fn is_hls(&self) -> bool {
+        self.vlnv.split(':').nth(1) == Some("hls")
+    }
+}
+
 impl Design {
     /// `(FCLK index, Hz)` for each enabled PL clock.
     pub fn enabled_fclks(&self) -> Vec<(u8, u64)> {
@@ -55,8 +62,23 @@ pub struct Instance {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterruptPort {
     pub name: String,
-    /// Name of the signal net, used to find the sink.
+    /// Name of the signal net.
     pub signal: String,
+    /// Connected `(instance, port)` sinks, in document order. Empty if the
+    /// interrupt output is unconnected.
+    pub sinks: Vec<(String, String)>,
+    /// Port width in bits.
+    pub width: u32,
+}
+
+impl InterruptPort {
+    /// Index into the PS7 `IRQ_F2P` vector when this single-bit port feeds
+    /// PS7 `IRQ_F2P` directly. Ports routed through concat/other logic are
+    /// not resolved (None).
+    pub fn ps7_irq_f2p_bit(&self) -> Option<u32> {
+        let direct = self.sinks.len() == 1 && self.sinks[0].1 == "IRQ_F2P" && self.width == 1;
+        direct.then_some(0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

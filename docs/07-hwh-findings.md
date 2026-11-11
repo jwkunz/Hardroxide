@@ -35,3 +35,24 @@ Flat zip: `design_1.hwh`, `<name>.bit`, `ps7_init.{c,h,tcl,html}`, `sysdef.xml`,
 
 `hardroxide-hwh`: `Xsa::open`, `parse_hwh`, `BitFile` (header strip and
 byte-swapped `.bin`). The byte-swap convention is **unverified on hardware**.
+
+## HLS fixture (`fixtures/pynq_z2_hls_vadd.xsa`)
+
+Built from `fixtures/hls/vadd.cpp` (`out = a + b`, all `s_axilite`, `ap_ctrl_hs`)
+with `vitis-run --mode hls --package --config fixtures/hls/hls.cfg`, then
+`fixtures/scripts/build_pynq_z2_hls.tcl` (PS7 + vadd_0, `interrupt` on
+`IRQ_F2P`). Findings:
+
+- VLNV `xilinx.com:hls:vadd:1.0`; the library field `hls` identifies HLS IP.
+- The HWH carries the full register map: `CTRL` (0x00: AP_START, AP_DONE,
+  AP_IDLE, AP_READY, AUTO_RESTART, INTERRUPT), `GIER` 0x04, `IP_IER` 0x08,
+  `IP_ISR` 0x0C, then user registers (`a` 0x10 write-only, `b` 0x18,
+  `out_r` 0x20 read-only, `out_r_ctrl` 0x24 with `out_r_ap_vld`).
+  Register `ACCESS` is accurate here (write-only / read-only per register).
+- User register names keep the C argument names (lower-case); a returned
+  pointer argument `out` is renamed `out_r` by HLS.
+- Interrupts: the HLS module has `PORT DIR="O" SIGIS="INTERRUPT"` with a
+  `CONNECTIONS/CONNECTION INSTANCE="processing_system7_0" PORT="IRQ_F2P"`.
+  The PS7 `IRQ_F2P` port lists the reverse connection. With a single source
+  the vector is 1 bit wide; sources behind `xlconcat` are not resolved yet.
+- AXI GPIO's `ip2intc_irpt` also appears as an (unconnected) interrupt port.

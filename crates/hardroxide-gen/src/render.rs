@@ -14,20 +14,33 @@ pub struct Inst<'a> {
     pub ranges: Vec<&'a MemRange>,
     pub regs: Vec<Reg<'a>>,
     /// Rust type of the driver given backend `B`, if curated.
-    pub driver: Option<&'static str>,
+    pub driver: Option<String>,
+    /// Generated typed wrapper (HLS IP): its type name.
+    pub generated: Option<String>,
 }
 
 pub struct Model<'a> {
     pub insts: Vec<Inst<'a>>,
 }
 
-/// VLNV (version-less) -> (driver type path, constructor path).
+/// VLNV (version-less) -> curated driver type path.
 fn driver_for(vlnv: &str) -> Option<&'static str> {
     let base = vlnv.rsplit_once(':').map_or(vlnv, |(b, _)| b);
     match base {
         "xilinx.com:ip:axi_gpio" => Some("hardroxide_ip::gpio::AxiGpio"),
         _ => None,
     }
+}
+
+fn camel(ident: &str) -> String {
+    ident
+        .split('_')
+        .filter(|p| !p.is_empty())
+        .map(|p| {
+            let mut c = p.chars();
+            c.next().map(|f| f.to_ascii_uppercase().to_string() + c.as_str()).unwrap_or_default()
+        })
+        .collect()
 }
 
 impl<'a> Model<'a> {
@@ -58,10 +71,26 @@ impl<'a> Model<'a> {
                         reg,
                     })
                     .collect();
-                Inst { ident, inst, ranges, regs, driver: driver_for(&inst.vlnv) }
+                let (driver, generated) = if inst.is_hls() {
+                    let t = camel(&ident);
+                    (Some(format!("crate::ips::{t}")), Some(t))
+                } else {
+                    (driver_for(&inst.vlnv).map(String::from), None)
+                };
+                Inst { ident, inst, ranges, regs, driver, generated }
             })
             .collect();
-        Model { insts }
+        let mut m = Model { insts };
+        let mut seen = std::collections::BTreeSet::new();
+        for i in &mut m.insts {
+            if let Some(t) = &mut i.generated {
+                while !seen.insert(t.clone()) {
+                    t.push('X');
+                }
+                i.driver = Some(format!("crate::ips::{t}"));
+            }
+        }
+        m
     }
 }
 
@@ -91,6 +120,15 @@ pub fn pac_rs(m: &Model) -> String {
         let _ = writeln!(s, "    pub const VLNV: &str = {:?};", i.inst.vlnv);
         let _ = writeln!(s, "    pub const BASE_ADDRESS: u64 = {:#x};", r0.base);
         let _ = writeln!(s, "    pub const SIZE: usize = {:#x};", r0.size());
+        let irqs: Vec<String> = i
+            .inst
+            .interrupts
+            .iter()
+            .filter(|p| !p.sinks.is_empty())
+            .map(|p| format!("({:?}, {:?})", p.name, p.ps7_irq_f2p_bit()))
+            .collect();
+        let _ = writeln!(s, "    /// Connected interrupt outputs: `(port, PS7 IRQ_F2P bit if routed directly)`.");
+        let _ = writeln!(s, "    pub const INTERRUPTS: &[(&str, Option<u32>)] = &[{}];", irqs.join(", "));
         for r in &i.regs {
             let _ = writeln!(s, "\n    /// {}", one_line(&r.reg.description));
             let _ = writeln!(s, "    pub mod {} {{", r.ident);
@@ -122,7 +160,7 @@ pub fn lib_rs(m: &Model, d: &Design) -> String {
     let fields: String = m
         .insts
         .iter()
-        .map(|i| match i.driver {
+        .map(|i| match &i.driver {
             Some(t) => format!("    pub {}: {t}<B::Region>,\n", i.ident),
             None => format!("    /// No curated driver for `{}`: raw register window.\n    pub {}: B::Region,\n", i.inst.vlnv, i.ident),
         })
@@ -132,18 +170,19 @@ pub fn lib_rs(m: &Model, d: &Design) -> String {
         .iter()
         .map(|i| {
             let map = format!("backend.map(pac::{0}::BASE_ADDRESS, pac::{0}::SIZE)?", i.ident);
-            match i.driver {
+            match &i.driver {
                 Some(t) => format!("            {}: {t}::new({map}),\n", i.ident),
                 None => format!("            {}: {map},\n", i.ident),
             }
         })
         .collect();
-    s.push_str(&LIB_TEMPLATE.replace("//FIELDS//", &fields).replace("//INITS//", &inits));
+    let mods = if m.insts.iter().any(|i| i.generated.is_some()) { "pub mod ips;\n" } else { "" };
+    s.push_str(&LIB_TEMPLATE.replace("//MODS//", mods).replace("//FIELDS//", &fields).replace("//INITS//", &inits));
     s
 }
 
 const LIB_TEMPLATE: &str = r#"pub mod pac;
-
+//MODS//
 use hardroxide_fpga::{FpgaError, FpgaPaths, LoadConfig};
 use hardroxide_mmio::{DevMem, MmioBackend, MmioError};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -282,7 +321,7 @@ impl<B: MmioBackend> Drop for Design<B> {
 
 /// Hardware smoke-test example for the first AXI GPIO, if the design has one.
 pub fn gpio_example(m: &Model, crate_name: &str) -> Option<String> {
-    let i = m.insts.iter().find(|i| i.driver == Some("hardroxide_ip::gpio::AxiGpio"))?;
+    let i = m.insts.iter().find(|i| i.driver.as_deref() == Some("hardroxide_ip::gpio::AxiGpio"))?;
     let p = |k: &str, d: &str| i.inst.parameters.get(k).cloned().unwrap_or_else(|| d.into());
     let w1: u32 = p("C_GPIO_WIDTH", "32").parse().unwrap_or(32).clamp(1, 32);
     let out1 = p("C_ALL_OUTPUTS", "0") == "1";
@@ -307,6 +346,57 @@ pub fn gpio_example(m: &Model, crate_name: &str) -> Option<String> {
         let _ = writeln!(s, "    gpio.write(Channel::One, 0)?;");
     } else {
         let _ = writeln!(s, "    println!(\"channel 1: {{:#x}}\", gpio.read(Channel::One)?);");
+    }
+    let _ = writeln!(s, "    Ok(())\n}}");
+    Some(s)
+}
+
+/// Typed wrappers for HLS instances, from their HWH register maps.
+pub fn ips_rs(m: &Model) -> Option<String> {
+    let hls: Vec<_> = m.insts.iter().filter(|i| i.generated.is_some()).collect();
+    if hls.is_empty() {
+        return None;
+    }
+    let mut s = String::from(HEADER);
+    s.push_str("//! Typed accessors for HLS IP. Control (`ap_start` etc.) comes from\n//! `HlsIp` via `Deref`; user registers are the named methods below.\n\n");
+    s.push_str("use crate::pac;\nuse hardroxide_ip::hls::HlsIp;\nuse hardroxide_mmio::{Mmio, MmioError};\nuse std::ops::Deref;\n");
+    for i in hls {
+        let t = i.generated.as_ref().unwrap();
+        let _ = writeln!(s, "\n/// `{}` (`{}`).", i.inst.name, i.inst.vlnv);
+        let _ = writeln!(s, "pub struct {t}<R: Mmio>(HlsIp<R>);\n");
+        let _ = writeln!(s, "impl<R: Mmio> {t}<R> {{");
+        let _ = writeln!(s, "    pub fn new(regs: R) -> Self {{\n        Self(HlsIp::new(regs))\n    }}");
+        for r in i.regs.iter().filter(|r| r.reg.offset >= 0x10) {
+            let readable = r.reg.access != hardroxide_hwh::Access::WriteOnly;
+            let writable = r.reg.access != hardroxide_hwh::Access::ReadOnly;
+            if readable {
+                let _ = writeln!(s, "\n    /// Read `{}` (offset {:#x}).", r.reg.name, r.reg.offset);
+                let _ = writeln!(s, "    pub fn {}(&self) -> Result<u32, MmioError> {{\n        self.0.regs().read32(pac::{}::{}::OFFSET)\n    }}", r.ident, i.ident, r.ident);
+            }
+            if writable {
+                let _ = writeln!(s, "\n    /// Write `{}` (offset {:#x}).", r.reg.name, r.reg.offset);
+                let _ = writeln!(s, "    pub fn set_{}(&self, value: u32) -> Result<(), MmioError> {{\n        self.0.regs().write32(pac::{}::{}::OFFSET, value)\n    }}", r.ident, i.ident, r.ident);
+            }
+        }
+        let _ = writeln!(s, "}}\n");
+        let _ = writeln!(s, "impl<R: Mmio> Deref for {t}<R> {{\n    type Target = HlsIp<R>;\n    fn deref(&self) -> &HlsIp<R> {{\n        &self.0\n    }}\n}}");
+    }
+    Some(s)
+}
+
+/// Hardware smoke test for the first HLS instance: non-destructive status read.
+pub fn hls_example(m: &Model, crate_name: &str) -> Option<String> {
+    let i = m.insts.iter().find(|i| i.generated.is_some())?;
+    let lib = crate_name.replace('-', "_");
+    let mut s = String::from(HEADER);
+    let _ = writeln!(s, "//! Hardware smoke test for `{}`: prints the control block and every", i.inst.name);
+    let _ = writeln!(s, "//! readable user register. Does not start the core. Run as root on the board.\n");
+    let _ = writeln!(s, "fn main() -> Result<(), Box<dyn std::error::Error>> {{");
+    let _ = writeln!(s, "    let d = {lib}::Design::load()?;");
+    let _ = writeln!(s, "    let ip = &d.{};", i.ident);
+    let _ = writeln!(s, "    println!(\"idle={{}} ready={{}} done={{}}\", ip.is_idle()?, ip.is_ready()?, ip.is_done()?);");
+    for r in i.regs.iter().filter(|r| r.reg.offset >= 0x10 && r.reg.access != hardroxide_hwh::Access::WriteOnly) {
+        let _ = writeln!(s, "    println!(\"{} = {{:#x}}\", ip.{}()?);", r.reg.name, r.ident);
     }
     let _ = writeln!(s, "    Ok(())\n}}");
     Some(s)

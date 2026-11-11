@@ -110,13 +110,31 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   release build runs on the stock image's glibc. The embedded bitstream makes
   binaries ~4 MB.
 
+### G9. HLS IP on hardware (UNVERIFIED)
+- `hardroxide-ip::hls::HlsIp` follows the `ap_ctrl_hs` layout from the
+  generated RTL header (CTRL/GIER/IP_IER/IP_ISR, user regs from 0x10).
+  `start()` reads CTRL first (to preserve `auto_restart`), which clears the
+  read-to-clear `ap_done`/`ap_ready` bits as a side effect, as in Xilinx's own
+  driver.
+- Check with the vadd fixture: load it, `cargo run --example hls_smoke`
+  (reads status only), then in a scratch program `set_a(40)`, `set_b(2)`,
+  `start()`, `wait_done(..)`, `out_r() == 42`, also `ap_ready`/`ap_idle`
+  transitions and `out_r_ctrl` bit 0 (`ap_vld`).
+- Interrupt wiring (`PS7 IRQ_F2P[0]`) is only recorded in the PAC
+  (`INTERRUPTS`); no interrupt delivery exists yet (D1).
+
 ## Design gaps (implemented partially or not at all)
 
-- **D1 Interrupts**: HWH output ports with `SIGIS="INTERRUPT"` are parsed, but
-  routing to PS7 `IRQ_F2P`, UIO, and `hardroxide-irq` are not implemented.
-  Needs an IRQ-bearing fixture.
-- **D2 Other IP**: only AXI GPIO has a curated driver. HLS/custom/DMA/timer/IIC/
-  SPI need their own fixtures (docs/05 milestones 3-5). Unknown IP is exposed
+- **D1 Interrupts**: HWH interrupt ports and their sinks are parsed, and a
+  direct 1-bit route to PS7 `IRQ_F2P[0]` is exposed in the PAC. Not done:
+  routes through `xlconcat` (multi-bit `IRQ_F2P` index), mapping to Linux IRQ
+  numbers / UIO device-tree nodes, and `hardroxide-irq` (blocking and async
+  waiting).
+- **D2 Other IP**: AXI GPIO is curated and HLS IP gets generated typed
+  accessors (scalar 32-bit registers only: no memory-mapped arrays, no 64-bit
+  pointer register pairs helper, no `ap_ctrl_chain` specifics, no m_axi
+  buffers). Custom RTL without register data gets a raw window. DMA/timer/IIC/
+  SPI need their own fixtures (docs/05 milestones 4-5). Unknown IP is exposed
   as a raw MMIO window.
 - **D3 Multiple address blocks / segments**: the PAC emits only the first
   address range of an instance and the registers of its matching block.

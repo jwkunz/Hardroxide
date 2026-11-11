@@ -6,6 +6,8 @@ pub mod axi_gpio_0 {
     pub const VLNV: &str = "xilinx.com:ip:axi_gpio:2.0";
     pub const BASE_ADDRESS: u64 = 0x41200000;
     pub const SIZE: usize = 0x10000;
+    /// Connected interrupt outputs: `(port, PS7 IRQ_F2P bit if routed directly)`.
+    pub const INTERRUPTS: &[(&str, Option<u32>)] = &[];
 
     /// Channel-1 AXI GPIO Data register
     pub mod gpio_data {

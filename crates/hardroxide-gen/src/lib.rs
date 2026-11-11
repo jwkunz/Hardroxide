@@ -80,6 +80,12 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     if let Some(ex) = render::gpio_example(&model, &crate_name) {
         files.insert("examples/gpio_smoke.rs".into(), ex.into_bytes());
     }
+    if let Some(ips) = render::ips_rs(&model) {
+        files.insert("src/ips.rs".into(), ips.into_bytes());
+    }
+    if let Some(ex) = render::hls_example(&model, &crate_name) {
+        files.insert("examples/hls_smoke.rs".into(), ex.into_bytes());
+    }
     files.insert("interface.txt".into(), xsa.design.interface_text().into_bytes());
     files.insert("interface.sha256".into(), xsa.design.interface_hash().into_bytes());
     for (k, v) in bitstream_files(xsa)? {

@@ -25,7 +25,7 @@ Success criteria:
 ## Suggested later milestones
 
 2. `hardroxide update` and interface/bitstream hashing, `dev-bitstream` loader. **Done offline** (see 08, D4); hardware unverified.
-3. HLS / custom IP generation from HWH register maps.
+3. HLS / custom IP generation from HWH register maps. **Done offline** for scalar AXI-Lite HLS IP (vadd fixture); hardware unverified (08, G9).
 4. AXI DMA with uncached `DmaBuffer`, UIO interrupts (sync, then async feature).
 5. AXI Timer, IIC, SPI with `embedded-hal` trait impls.
 6. Cached DMA backend, then partial reconfiguration and UltraScale+ support.

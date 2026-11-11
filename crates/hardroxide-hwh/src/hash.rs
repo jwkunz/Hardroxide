@@ -23,7 +23,7 @@ impl Design {
                 }
             }
             for p in &i.interrupts {
-                let _ = writeln!(s, " irq {}", p.name);
+                let _ = writeln!(s, " irq {} w{} -> {:?}", p.name, p.width, p.sinks);
             }
         }
         let mut rs: Vec<_> = self.memory_ranges.iter().collect();

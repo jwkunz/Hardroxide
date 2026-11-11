@@ -14,6 +14,10 @@ fn num(s: &str) -> Option<u64> {
     }
 }
 
+fn num_attr(n: Node, k: &str) -> Option<i64> {
+    n.attribute(k)?.trim().parse().ok()
+}
+
 fn access(s: &str) -> Access {
     match s {
         "read-write" => Access::ReadWrite,
@@ -110,9 +114,19 @@ fn parse_instance(m: Node) -> Result<Instance, Error> {
                 && c.attribute("DIR") == Some("O")
                 && c.attribute("SIGIS").is_some_and(|s| s.eq_ignore_ascii_case("INTERRUPT"))
         })
-        .map(|c| InterruptPort {
-            name: c.attribute("NAME").unwrap_or("").into(),
-            signal: c.attribute("SIGNAME").unwrap_or("").into(),
+        .map(|c| {
+            let sinks = c
+                .descendants()
+                .filter(|x| x.has_tag_name("CONNECTION"))
+                .filter_map(|x| Some((x.attribute("INSTANCE")?.to_string(), x.attribute("PORT")?.to_string())))
+                .collect();
+            let (l, r) = (num_attr(c, "LEFT"), num_attr(c, "RIGHT"));
+            InterruptPort {
+                name: c.attribute("NAME").unwrap_or("").into(),
+                signal: c.attribute("SIGNAME").unwrap_or("").into(),
+                sinks,
+                width: l.zip(r).map_or(1, |(l, r)| l.abs_diff(r) as u32 + 1),
+            }
         })
         .collect();
     Ok(Instance {

@@ -26,11 +26,15 @@ decision changes.
 
 ## Current state and next step
 
-Milestone 1 in progress, hardware-free portion. `fixtures/pynq_z2_gpio.xsa`
-exists (built with Vivado 2025.2 at `~/AMD/2025.2`; see
-`docs/07-hwh-findings.md`) and `hardroxide-hwh` parses it. No board is attached
-to the dev machine; hardware validation (fpga_manager `.bin` format, /dev/mem
-mapping, LED blink) remains manual.
+Milestone 1 hardware-free portion is done: `hardroxide generate` produces a
+crate from `fixtures/pynq_z2_gpio.xsa` (Vivado 2025.2 at `~/AMD/2025.2`), with
+golden snapshots and mock-MMIO tests passing (`cargo test --workspace`). Crates:
+hwh, mmio, fpga, ip (GPIO), gen, cli. No board is attached to the dev machine.
+
+**Next step: run the checklist in `docs/08-verification-gaps.md` on the
+PYNQ-Z2**, in order (G1 bitstream load first; do not touch PL addresses before
+it passes). Known likely bug: the PS crystal is assumed 33.333 MHz in
+`hardroxide-fpga::slcr` (G2). Then milestone 2 (`hardroxide update`).
 
 ## Conventions
 

@@ -1,0 +1,11 @@
+[package]
+name = "hardroxide-mmio"
+description = "MMIO backend trait with /dev/mem, UIO and mock backends"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+libc.workspace = true

@@ -1,0 +1,12 @@
+[package]
+name = "hardroxide-gen"
+description = "Generate a Rust HAL crate from a parsed XSA"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+hardroxide-hwh.workspace = true
+hardroxide-fpga.workspace = true
+thiserror.workspace = true

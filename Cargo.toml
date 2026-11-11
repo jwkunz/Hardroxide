@@ -12,3 +12,12 @@ repository = "https://github.com/jwkunz/Hardroxide"
 thiserror = "2"
 roxmltree = "0.21"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+libc = "0.2"
+sha2 = "0.10"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+hardroxide-hwh = { path = "crates/hardroxide-hwh" }
+hardroxide-mmio = { path = "crates/hardroxide-mmio" }
+hardroxide-fpga = { path = "crates/hardroxide-fpga" }
+hardroxide-ip = { path = "crates/hardroxide-ip" }
+hardroxide-gen = { path = "crates/hardroxide-gen" }

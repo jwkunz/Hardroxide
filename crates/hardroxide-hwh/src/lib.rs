@@ -4,6 +4,7 @@
 //! document order or `BTreeMap`s.
 
 mod bit;
+mod hash;
 mod model;
 mod parse;
 mod xsa;

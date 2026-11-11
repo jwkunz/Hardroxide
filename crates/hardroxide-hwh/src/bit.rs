@@ -63,17 +63,24 @@ impl<'a> BitFile<'a> {
 
     /// Payload as the `.bin` expected by the Linux `fpga_manager` on
     /// Zynq-7000 (`xlnx,zynq-devcfg`): the configuration words byte-swapped
-    /// to little-endian, matching `bootgen -process_bitstream bin`.
+    /// to little-endian, matching `bootgen -arch zynq -process_bitstream bin`
+    /// byte for byte (verified against Vivado 2025.2 bootgen).
     ///
     /// NOTE: not yet validated on hardware (see docs/06-session-handoff.md).
     pub fn to_bin_swapped(&self) -> Result<Vec<u8>, BitError> {
-        if self.payload.len() % 4 != 0 {
+        if !self.payload.len().is_multiple_of(4) {
             return Err(BitError::Unaligned(self.payload.len()));
         }
-        Ok(self
+        let mut out: Vec<u8> = self
             .payload
             .chunks_exact(4)
             .flat_map(|w| [w[3], w[2], w[1], w[0]])
-            .collect())
+            .collect();
+        // bootgen pads the stream with NOP packets (0x20000000) to a multiple
+        // of 16 bytes; do the same so output is byte-identical to bootgen's.
+        while !out.len().is_multiple_of(16) {
+            out.extend_from_slice(&[0x00, 0x00, 0x00, 0x20]);
+        }
+        Ok(out)
     }
 }

@@ -47,6 +47,19 @@ fn bit_header_and_bin() {
     assert!(b.part.starts_with("7z020"), "{}", b.part);
     // Configuration stream starts with 0xFFFFFFFF dummy words then sync 0xAA995566.
     let bin = b.to_bin_swapped().unwrap();
-    assert_eq!(bin.len(), b.payload.len());
+    assert!(bin.len() >= b.payload.len() && bin.len().is_multiple_of(16));
+    assert_eq!(&bin[bin.len() - 4..], [0, 0, 0, 0x20]);
     assert!(b.payload.windows(4).take(64).any(|w| w == [0xAA, 0x99, 0x55, 0x66]));
+}
+
+#[test]
+fn interface_hash_is_stable_and_ignores_clocks() {
+    let mut d = xsa().design;
+    let h = d.interface_hash();
+    assert_eq!(h.len(), 64);
+    d.pl_clocks[0].freq_hz = 50_000_000;
+    d.vivado_version = "9999".into();
+    assert_eq!(d.interface_hash(), h);
+    d.memory_ranges[0].base += 0x10000;
+    assert_ne!(d.interface_hash(), h);
 }

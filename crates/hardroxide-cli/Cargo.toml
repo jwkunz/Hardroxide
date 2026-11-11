@@ -1,0 +1,17 @@
+[package]
+name = "hardroxide-cli"
+description = "The `hardroxide` command-line tool"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "hardroxide"
+path = "src/main.rs"
+
+[dependencies]
+hardroxide-hwh.workspace = true
+hardroxide-gen.workspace = true
+clap.workspace = true
+anyhow.workspace = true

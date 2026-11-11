@@ -1,0 +1,11 @@
+[package]
+name = "hardroxide-ip"
+description = "Curated drivers for Xilinx IP, keyed by VLNV"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+hardroxide-mmio.workspace = true
+thiserror.workspace = true

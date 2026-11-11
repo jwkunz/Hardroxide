@@ -1,0 +1,12 @@
+[package]
+name = "hardroxide-fpga"
+description = "Bitstream loading and PL clock control via Linux fpga_manager"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+hardroxide-mmio.workspace = true
+sha2.workspace = true

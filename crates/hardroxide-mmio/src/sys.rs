@@ -57,6 +57,11 @@ impl SysRegion {
         let aligned = file_offset & !(page - 1);
         let delta = (file_offset - aligned) as usize;
         let map_len = len + delta;
+        // On 32-bit glibc targets `off_t` is 32-bit, so offsets >= 2 GiB (the
+        // SLCR at 0xF800_0000) become negative here; glibc's `mmap` passes
+        // them to the kernel's `mmap2` as an unsigned page count, so the full
+        // 4 GiB range works. `maps_above_two_gib_on_every_target` guards this
+        // and runs on armv7 under qemu (`scripts/test-armv7.sh`, CI).
         // SAFETY: arguments are valid; the result is checked against MAP_FAILED.
         let map = unsafe {
             libc::mmap(
@@ -191,6 +196,31 @@ mod tests {
             u32::from_ne_bytes(bytes[off..off + 4].try_into().unwrap()),
             0x1234_5678
         );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Physical addresses at or above 2 GiB (the Zynq SLCR is at 0xF800_0000)
+    /// must map on 32-bit targets too, where `off_t` is 32-bit.
+    #[test]
+    fn maps_above_two_gib_on_every_target() {
+        let dir = std::env::temp_dir().join(format!("hrx-mmio-hi-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("sparse_mem");
+        let f = std::fs::File::create(&p).unwrap();
+        f.set_len(0xF800_0000 + 0x2000).unwrap(); // sparse
+        drop(f);
+        let be = DevMem::with_path(&p);
+        let r = be.map(0xF800_0000 + 0x170, 0x10).unwrap();
+        r.write32(0, 0xCAFE_F00D).unwrap();
+        assert_eq!(r.read32(0).unwrap(), 0xCAFE_F00D);
+        drop(r);
+        // The write must land at that exact file offset, not a wrapped one.
+        use std::io::{Read, Seek, SeekFrom};
+        let mut f = std::fs::File::open(&p).unwrap();
+        f.seek(SeekFrom::Start(0xF800_0170)).unwrap();
+        let mut b = [0u8; 4];
+        f.read_exact(&mut b).unwrap();
+        assert_eq!(u32::from_ne_bytes(b), 0xCAFE_F00D);
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

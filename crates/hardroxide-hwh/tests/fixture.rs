@@ -146,11 +146,19 @@ fn constructor_parameters_are_part_of_the_interface() {
     let base = open("pynq_z2_peripherals");
     let h0 = base.interface_hash();
     let mut d = base.clone();
-    let spi = d.instances.iter_mut().find(|i| i.name == "axi_quad_spi_0").unwrap();
+    let spi = d
+        .instances
+        .iter_mut()
+        .find(|i| i.name == "axi_quad_spi_0")
+        .unwrap();
     spi.parameters.insert("C_FIFO_DEPTH".into(), "256".into());
     assert_ne!(d.interface_hash(), h0, "SPI FIFO depth");
     let mut d = base.clone();
-    let t = d.instances.iter_mut().find(|i| i.name == "axi_timer_0").unwrap();
+    let t = d
+        .instances
+        .iter_mut()
+        .find(|i| i.name == "axi_timer_0")
+        .unwrap();
     for p in &mut t.ports {
         if p.clk_hz.is_some() {
             p.clk_hz = Some(50_000_000);
@@ -158,10 +166,20 @@ fn constructor_parameters_are_part_of_the_interface() {
     }
     assert_ne!(d.interface_hash(), h0, "timer clock");
     let mut d = base.clone();
-    let t = d.instances.iter_mut().find(|i| i.name == "axi_timer_0").unwrap();
-    t.parameters.insert("C_SOME_UNUSED_PARAM".into(), "1".into());
+    let t = d
+        .instances
+        .iter_mut()
+        .find(|i| i.name == "axi_timer_0")
+        .unwrap();
+    t.parameters
+        .insert("C_SOME_UNUSED_PARAM".into(), "1".into());
     assert_eq!(d.interface_hash(), h0, "unrelated parameter");
     let dma = open("pynq_z2_dma_loopback");
     let i = dma.instance("axi_dma_0").unwrap();
-    assert_eq!(i.driver_config().get("C_SG_LENGTH_WIDTH").map(String::as_str), Some("23"));
+    assert_eq!(
+        i.driver_config()
+            .get("C_SG_LENGTH_WIDTH")
+            .map(String::as_str),
+        Some("23")
+    );
 }

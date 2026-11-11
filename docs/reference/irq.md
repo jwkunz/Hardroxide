@@ -82,6 +82,7 @@ Returns a future resolving to `Result<Option<u32>, IrqError>`. Each call
 spawns a helper thread that blocks in `wait` and wakes the task, so it works
 under any executor; it needs the `UioIrq` in an `Arc`.
 
-**Status:** tested only against a fake descriptor. On the stock PYNQ image PL
-interrupts need a `generic-uio` device-tree node per IP, which Hardroxide does
-not generate yet ([G11](../08-verification-gaps.md)).
+**Status:** tested only against a fake descriptor. On the board each interrupt
+needs a `generic-uio` device-tree node; the generated crate's
+`interrupts.dtso` provides them, but applying it on the stock PYNQ image is
+unverified ([G11](../08-verification-gaps.md)).

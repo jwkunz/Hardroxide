@@ -5,6 +5,7 @@
 # User Guide
 
 - [Getting started](guide/getting-started.md)
+- [How it works](guide/concepts.md)
 - [Generating a crate](guide/generating.md)
 - [Using a generated crate](guide/using.md)
 - [Interrupts](guide/interrupts.md)

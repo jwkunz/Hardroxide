@@ -25,11 +25,28 @@ the IP Hardroxide recognises.
 | `xilinx.com:ip:axi_timer` | [`AxiTimer`](../reference/ip-timer.md) |
 | `xilinx.com:ip:axi_iic` | [`AxiIic`](../reference/ip-iic.md) |
 | `xilinx.com:ip:axi_quad_spi` | [`AxiSpi`](../reference/ip-spi.md) |
-| `vendor:hls:*` (Vitis HLS) | generated wrapper over [`HlsIp`](../reference/ip-hls.md) with named registers |
+| `xilinx.com:ip:axi_intc` | [`AxiIntc`](../reference/ip-intc.md) |
+| `xilinx.com:ip:axi_bram_ctrl` | [`AxiBram`](../reference/ip-bram.md) |
+| `xilinx.com:ip:axi_uartlite` | [`AxiUart`](../reference/ip-uart.md) |
+| `xilinx.com:ip:axi_fifo_mm_s` | [`AxiFifo`](../reference/ip-fifo.md) |
+| `vendor:hls:*` (Vitis HLS) | generated wrapper over [`HlsIp`](../reference/ip-hls.md) with named registers, and 64-bit address/buffer setters for pointer arguments |
 | anything else | a raw MMIO region (`B::Region`) |
 
-Instances without an address window (interconnects, reset blocks) and the
-processing system itself are not exposed.
+Instances without an address window (interconnects, reset blocks, `xlconcat`)
+and the processing system itself are not exposed. For a raw region you get the
+`pac` constants (offsets and field masks) and `read32`/`write32` on the region,
+which is enough to drive a custom RTL block by hand.
+
+Some driver constructors need a value from the design (for example the AXI
+Timer's clock or an AXI DMA's maximum transfer length). The generator reads
+them from the HWH and passes them in; see [Generated crate](../reference/generated-crate.md).
+
+## Checking the result
+
+The generated crate builds on its own (`cargo build`), and `cargo test` runs
+nothing hardware-related. Before going to the board, read through
+`src/lib.rs` (the `Design` fields tell you what was recognised) and
+`interrupts.dtso` (its comments list any interrupt that could not be traced).
 
 ## Naming
 

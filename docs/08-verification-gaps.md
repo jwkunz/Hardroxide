@@ -9,20 +9,20 @@ and record the date and image/kernel version.
 Status key: **VERIFIED-OFFLINE** (checked against a vendor tool, no board
 needed), **UNVERIFIED** (needs the board), **DESIGN-GAP** (known incomplete).
 
-Prerequisites on the board: stock PYNQ-Z2 image, root shell, Rust toolchain
-or a cross-compile (`rustup target add armv7-unknown-linux-gnueabihf`; the
-workspace is known to `cargo check` for that target, but no linker/sysroot
-has been set up). Record `uname -a` and the PYNQ image version here.
+Prerequisites on the board: stock PYNQ-Z2 image, root shell, and either a Rust
+toolchain on the board or a cross-compile
+([Getting started](guide/getting-started.md#build-for-the-board)). Record
+`uname -a`, `ldd --version` and the PYNQ image version here.
 
 ## Verified offline
 
 | ID | Item | Evidence |
 |---|---|---|
 | V1 | `.bit` -> `.bin` conversion (header strip, per-word byte swap, NOP padding to 16 bytes) | Output of `hardroxide generate` is byte-identical to `bootgen -arch zynq -process_bitstream bin` (Vivado 2025.2) for `fixtures/pynq_z2_gpio.xsa`. Reproduce: bif `all:{pynq_z2_gpio.bit}`, `bootgen -image a.bif -arch zynq -process_bitstream bin -w on`, `cmp` against `bitstream/design.bin`. Whether the *kernel* accepts this format is G1. |
-| V2 | HWH parsing (instances, registers, fields, address map, FCLK) | Single fixture, 2025.2 only (see 07). Not yet tested on HLS/DMA/other Vivado versions. |
+| V2 | HWH parsing (instances, registers, fields, address map, FCLK, interrupt nets) | Eight 2025.2 fixtures (GPIO, HLS scalar, HLS `m_axi`, DMA, Timer/IIC/SPI, interrupt controller, BRAM/UART, AXI4-Stream FIFO); every driver's register offsets and control bits are asserted against them. Other Vivado versions untested (D5). |
 | V3 | Generated crate compiles warning-free; mock-MMIO behaviour; singleton semantics; load-failure releases the singleton | `cargo test -p hardroxide-gen` generates, builds and tests a real crate. |
 | V4 | `/dev/mem`-style mmap path (page alignment, offsets, volatile access) | Unit test maps a regular file at an unaligned offset. Does not exercise real `/dev/mem`. |
-| V5 | Workspace type-checks for `armv7-unknown-linux-gnueabihf` | `cargo check --workspace --target armv7-unknown-linux-gnueabihf`. |
+| V5 | Runtime crates work as 32-bit ARM binaries | `scripts/test-armv7.sh` builds the runtime crates' tests for `armv7-unknown-linux-gnueabihf` and runs them under `qemu-arm` user-mode emulation (in CI too). Includes mapping a window above 2 GiB (the SLCR at `0xF800_0000`) through a 32-bit `off_t`. Emulates the CPU and libc only, not the Zynq or its kernel. |
 
 ## Needs the board
 
@@ -109,9 +109,11 @@ touches no IP register.
   running; registers keep state). Document the intended semantic.
 
 ### G8. Cross-compilation and deployment (UNVERIFIED)
-- Only `cargo check` for armv7 was run. Set up a linker
-  (`arm-linux-gnueabihf-gcc` or `cargo-zigbuild`/`cross`) and confirm a
-  release build runs on the stock image's glibc. The embedded bitstream makes
+- armv7 binaries link with `arm-linux-gnueabihf-gcc` and the runtime tests
+  pass under `qemu-arm` (V5). Not verified: that a cross-built binary runs on
+  the stock image's glibc (a newer workstation glibc gives `GLIBC_2.xx not
+  found`; then build on the board or use `cargo zigbuild` with the board's
+  glibc version). The embedded bitstream makes
   binaries ~4 MB.
 
 ### G9. HLS IP on hardware (UNVERIFIED)
@@ -124,8 +126,8 @@ touches no IP register.
   (reads status only), then in a scratch program `set_a(40)`, `set_b(2)`,
   `start()`, `wait_done(..)`, `out_r() == 42`, also `ap_ready`/`ap_idle`
   transitions and `out_r_ctrl` bit 0 (`ap_vld`).
-- Interrupt wiring (`PS7 IRQ_F2P[0]`) is only recorded in the PAC
-  (`INTERRUPTS`); no interrupt delivery exists yet (D1).
+- Interrupt delivery: `enable_done_interrupt`, wait on `IRQ_INTERRUPT`,
+  `ack_interrupts` (see G11 and the [Interrupts](guide/interrupts.md) guide).
 
 - **Pointer arguments** (`fixtures/pynq_z2_hls_scale.xsa`): `set_in_r_buffer`
   / `set_out_r_buffer` write the buffer's physical address into the two halves
@@ -231,14 +233,15 @@ touches no IP register.
   Not done: interrupts through
   logic other than `xlconcat`/direct, an overlay variant targeting the PL bus
   node, and PS-side GPIO/other interrupt sources.
-- **D2 Other IP**: AXI GPIO is curated and HLS IP gets generated typed
-  accessors (scalar 32-bit registers only: no memory-mapped arrays, no 64-bit
-  `ap_ctrl_chain` specifics; 64-bit pointer register pairs have
-  `set_*_addr` / `set_*_buffer` helpers but no size or bounds checking against
-  the buffer, and no AXI-Stream or array-port arguments). Custom RTL without register data gets a raw window. AXI DMA has a direct-mode driver (no SG, no 64-bit addressing check, no
-  mixed MM2S/S2MM-only configuration handling). Timer/IIC/SPI need their own
-  fixtures (docs/05 milestone 5). Unknown IP is exposed
-  as a raw MMIO window.
+- **D2 Other IP**: curated drivers exist for AXI GPIO, DMA (direct mode),
+  Timer, IIC, Quad SPI (standard mode), interrupt controller, BRAM Controller,
+  UART Lite and AXI4-Stream FIFO (AXI4-Lite mode). HLS IP gets generated typed
+  accessors for 32-bit scalar registers and 64-bit pointer register pairs
+  (`set_*_addr` / `set_*_buffer`, no size check against the buffer). Not done:
+  DMA scatter-gather, 64-bit DMA addressing, HLS AXI-Stream and array (BRAM)
+  ports, `ap_ctrl_chain` specifics, Timer 1 / PWM / capture, SPI dual/quad
+  modes. Any other IP (custom RTL included) is exposed as a raw register
+  window with its `pac` constants.
 - **D3 Multiple address blocks / segments**: the PAC emits only the first
   address range of an instance and the registers of its matching block.
 - **D4 `hardroxide update` / `dev-bitstream`** (milestone 2): implemented and
@@ -250,8 +253,17 @@ touches no IP register.
   accept a new dependency path; the interface hash is compared only at update
   and `load_with_bitstream`, never against the running hardware. Not exercised
   on the board (G1 prerequisite).
-- **D5 Other Vivado versions / designs**: HWH parsing is validated against one
-  2025.2 file. Collect more samples (older versions, HLS, DMA, UltraScale+).
+- **D5 Other Vivado versions / designs**: HWH parsing is validated against
+  eight 2025.2 designs, all Zynq-7000. Collect samples from other Vivado versions
+  and from UltraScale+.
 - **D6 `cargo hardroxide` shim, optional zstd, rename map, async**: not done.
 - **D7 UIO backend**: `Uio` maps map 0 only; untested against a real device.
-- **D8 CI**: `.github/workflows/ci.yml` runs fmt, clippy, tests and the armv7 check (hardware-free). Not yet observed running on GitHub.
+- **D8 CI**: `.github/workflows/ci.yml` runs fmt, clippy, all tests (including
+  the `fdtoverlay` merge and the compile-tested guide examples), the mdBook
+  build, and the armv7 tests under `qemu-arm`. Runs green on GitHub.
+- **D9 Bitstream-only updates and examples**: `hardroxide update` replaces only
+  the bitstream files; it does not regenerate `examples/`, which also read
+  some IP parameters (for example the GPIO width in `gpio_smoke`). Those are
+  not part of the interface hash, so after such an update an example may be
+  stale (driver constructors are covered, see `driver_config`). Rerun with
+  `--regen` to refresh them.

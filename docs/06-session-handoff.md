@@ -3,6 +3,12 @@
 Context from the original design session (machine without Vivado), written so a
 new Claude session on the Vivado machine can resume without the chat history.
 
+> **Historical.** This records the starting point. Several open questions below
+> have since been answered: HWH content is documented in
+> [07 - HWH findings](07-hwh-findings.md) (catalog IP *does* carry full
+> register maps in 2025.2), and the current state and next steps are in
+> [05 - Roadmap](05-roadmap.md) and [08 - Verification gaps](08-verification-gaps.md).
+
 ## Origin of the idea
 
 The user wanted a PYNQ-like overlay system for AMD hardware but in Rust instead

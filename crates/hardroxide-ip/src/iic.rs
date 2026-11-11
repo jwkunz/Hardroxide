@@ -209,13 +209,7 @@ mod tests {
                         }
                 }
                 RX_FIFO => self.rx.borrow_mut().pop_front().unwrap_or(0) as u32,
-                ISR => {
-                    if *self.nack.borrow() {
-                        ISR_TX_ERR
-                    } else {
-                        0
-                    }
-                }
+                ISR if *self.nack.borrow() => ISR_TX_ERR,
                 _ => 0,
             })
         }

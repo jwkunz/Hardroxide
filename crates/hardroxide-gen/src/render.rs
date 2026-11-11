@@ -32,6 +32,7 @@ fn driver_for(vlnv: &str) -> Option<&'static str> {
         "xilinx.com:ip:axi_timer" => Some("hardroxide_ip::timer::AxiTimer"),
         "xilinx.com:ip:axi_iic" => Some("hardroxide_ip::iic::AxiIic"),
         "xilinx.com:ip:axi_quad_spi" => Some("hardroxide_ip::spi::AxiSpi"),
+        "xilinx.com:ip:axi_intc" => Some("hardroxide_ip::intc::AxiIntc"),
         _ => None,
     }
 }
@@ -116,6 +117,8 @@ pub struct Irq {
     pub node: String,
     pub f2p_bit: Option<u32>,
     pub gic_spi: Option<u32>,
+    /// `(controller, bit)` when the signal feeds an `axi_intc` input.
+    pub via_intc: Option<(String, u32)>,
     /// Device-tree trigger type cell (4 = level high, 1 = rising edge).
     pub trigger: u32,
 }
@@ -133,7 +136,12 @@ pub fn irq_lines(i: &Inst, d: &Design) -> Vec<Irq> {
         .zip(konsts)
         .map(|(p, k)| {
             let f2p_bit = d.ps7_irq_f2p_bit(&i.inst.name, &p.name);
+            let via_intc = match d.irq_route(&i.inst.name, &p.name) {
+                Some(hardroxide_hwh::IrqRoute::Intc { controller, bit }) => Some((controller, bit)),
+                _ => None,
+            };
             Irq {
+                via_intc,
                 port: p.name.clone(),
                 konst: format!("IRQ_{}", k.to_uppercase()),
                 node: format!("{}_{}", i.ident, names::snake(&p.name)),
@@ -155,6 +163,14 @@ pub fn interrupts_dtso(m: &Model, d: &Design) -> Option<String> {
     let mut skipped = String::new();
     for i in &m.insts {
         for l in irq_lines(i, d) {
+            if let Some((c, bit)) = &l.via_intc {
+                let _ = writeln!(
+                    skipped,
+                    "// {}.{}: input {bit} of {c}; served by that controller's own interrupt",
+                    i.inst.name, l.port
+                );
+                continue;
+            }
             match l.gic_spi {
                 Some(spi) => {
                     let r = i.ranges[0];
@@ -206,6 +222,10 @@ pub fn irq_example(m: &Model, d: &Design, crate_name: &str) -> Option<String> {
     for i in &m.insts {
         if !irq_lines(i, d).is_empty() {
             let _ = writeln!(s, "    for line in pac::{}::IRQS {{", i.ident);
+            let _ = writeln!(
+                s,
+                "        if let Some((c, bit)) = line.via_intc {{\n            println!(\"{{}}.{{}}: via {{c}} input {{bit}}\", line.instance, line.port);\n            continue;\n        }}"
+            );
             let _ = writeln!(s, "        match line.open() {{");
             let _ = writeln!(
                 s,
@@ -281,8 +301,15 @@ pub fn pac_rs(m: &Model, d: &Design) -> String {
             );
             let _ = writeln!(
                 s,
-                "    pub const {}: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine {{ instance: {:?}, port: {:?}, f2p_bit: {:?}, gic_spi: {:?}, dt_node: {:?}, base: {:#x} }};",
-                l.konst, i.inst.name, l.port, l.f2p_bit, l.gic_spi, l.node, i.ranges[0].base
+                "    pub const {}: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine {{ instance: {:?}, port: {:?}, f2p_bit: {:?}, gic_spi: {:?}, dt_node: {:?}, base: {:#x}, via_intc: {:?} }};",
+                l.konst,
+                i.inst.name,
+                l.port,
+                l.f2p_bit,
+                l.gic_spi,
+                l.node,
+                i.ranges[0].base,
+                l.via_intc.as_ref().map(|(c, b)| (c.as_str(), *b))
             );
         }
         let names: Vec<_> = lines.iter().map(|l| l.konst.as_str()).collect();
@@ -570,10 +597,11 @@ pub fn gpio_example(m: &Model, crate_name: &str) -> Option<String> {
         s,
         "//! and prints channel 2. Run as root on the board: `cargo run --example gpio_smoke`.\n"
     );
-    let _ = writeln!(
-        s,
-        "use hardroxide_ip::gpio::Channel;\nuse std::{{thread::sleep, time::Duration}};\n"
-    );
+    let _ = writeln!(s, "use hardroxide_ip::gpio::Channel;");
+    if out1 {
+        let _ = writeln!(s, "use std::{{thread::sleep, time::Duration}};");
+    }
+    s.push('\n');
     let _ = writeln!(s, "fn main() -> Result<(), Box<dyn std::error::Error>> {{");
     let _ = writeln!(s, "    let d = {lib}::Design::load()?;");
     let _ = writeln!(s, "    let gpio = &d.{};", i.ident);

@@ -29,7 +29,7 @@ decision changes.
 Milestone 1 hardware-free portion is done: `hardroxide generate` produces a
 crate from `fixtures/pynq_z2_gpio.xsa` (Vivado 2025.2 at `~/AMD/2025.2`), with
 golden snapshots and mock-MMIO tests passing (`cargo test --workspace`). Crates:
-hwh, mmio, fpga, dma, irq, ip (GPIO, HLS, DMA, Timer, IIC, SPI), gen, cli. No board is attached to the dev machine.
+hwh, mmio, fpga, dma, irq, ip (GPIO, HLS, DMA, Timer, IIC, SPI, INTC), gen, cli. No board is attached to the dev machine.
 
 **Next step: run the checklist in `docs/08-verification-gaps.md` on the
 PYNQ-Z2**, in order (G1 bitstream load first; do not touch PL addresses before
@@ -42,7 +42,7 @@ API documentation, deployed to GitHub Pages by `.github/workflows/pages.yml`.
 When you change a public API or the CLI, update `docs/reference/` in the same
 change; `cargo test -p hardroxide-cli --test book` fails if signatures, help
 text or links drift. Logo: `docs/assets/logo.png`.** Interrupts are wired into generated crates (`IrqLine`, `interrupts.dtso`).
-Guide examples are compile-tested (`cargo test -p hardroxide-gen --test guide`; tag blocks `rust,ignore,fixture=<name>`, `# ` lines are hidden setup). Remaining offline work: `axi_intc`, more fixtures.
+Guide examples are compile-tested (`cargo test -p hardroxide-gen --test guide`; tag blocks `rust,ignore,fixture=<name>`, `# ` lines are hidden setup). AXI interrupt controller fan-in is supported (`AxiIntc`, `via_intc`, `fixtures/pynq_z2_intc.xsa`). Remaining offline work: more IP drivers, more fixtures.
 
 ## Conventions
 

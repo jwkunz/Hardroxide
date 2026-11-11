@@ -63,8 +63,20 @@ impl Design {
 
     /// Bit of the PS7 `IRQ_F2P` vector driven by output port `port` of
     /// `instance`, following `xlconcat` blocks. `None` if the port is wider
-    /// than one bit, unconnected, fans out, or goes through other logic.
+    /// than one bit, unconnected, fans out, goes through other logic, or
+    /// ends at an AXI interrupt controller (see [`Design::irq_route`]).
     pub fn ps7_irq_f2p_bit(&self, instance: &str, port: &str) -> Option<u32> {
+        match self.irq_route(instance, port)? {
+            IrqRoute::Ps7 { bit } => Some(bit),
+            IrqRoute::Intc { .. } => None,
+        }
+    }
+
+    /// Where the one-bit output `port` of `instance` ends up: a bit of the
+    /// PS7 `IRQ_F2P` vector or an input of an `axi_intc`, following
+    /// `xlconcat` blocks. `None` if wider than one bit, unconnected, fanned
+    /// out, or routed through other logic.
+    pub fn irq_route(&self, instance: &str, port: &str) -> Option<IrqRoute> {
         let p = self
             .instance(instance)?
             .ports
@@ -76,7 +88,7 @@ impl Design {
         self.trace_irq(instance, port, 0)
     }
 
-    fn trace_irq(&self, instance: &str, port: &str, depth: u32) -> Option<u32> {
+    fn trace_irq(&self, instance: &str, port: &str, depth: u32) -> Option<IrqRoute> {
         if depth > 8 {
             return None;
         }
@@ -90,7 +102,11 @@ impl Design {
         };
         let sink = self.instance(sink_inst)?;
         match sink.mod_type.as_str() {
-            "processing_system7" if sink_port == "IRQ_F2P" => Some(0),
+            "processing_system7" if sink_port == "IRQ_F2P" => Some(IrqRoute::Ps7 { bit: 0 }),
+            "axi_intc" if sink_port == "intr" => Some(IrqRoute::Intc {
+                controller: sink_inst.clone(),
+                bit: 0,
+            }),
             "xlconcat" => {
                 let k: u32 = sink_port.strip_prefix("In")?.parse().ok()?;
                 let below: u32 = (0..k)
@@ -100,7 +116,13 @@ impl Design {
                             .and_then(|v| v.parse::<u32>().ok())
                     })
                     .sum::<Option<u32>>()?;
-                Some(below + self.trace_irq(sink_inst, "dout", depth + 1)?)
+                Some(match self.trace_irq(sink_inst, "dout", depth + 1)? {
+                    IrqRoute::Ps7 { bit } => IrqRoute::Ps7 { bit: below + bit },
+                    IrqRoute::Intc { controller, bit } => IrqRoute::Intc {
+                        controller,
+                        bit: below + bit,
+                    },
+                })
             }
             _ => None,
         }
@@ -116,6 +138,15 @@ impl Design {
             .iter()
             .filter(move |r| r.instance == instance)
     }
+}
+
+/// Destination of a PL interrupt signal (see [`Design::irq_route`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IrqRoute {
+    /// Bit of the PS7 `IRQ_F2P` vector.
+    Ps7 { bit: u32 },
+    /// Input `bit` of the AXI interrupt controller `controller`.
+    Intc { controller: String, bit: u32 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

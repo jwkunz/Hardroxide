@@ -4,6 +4,7 @@ pub mod dma;
 pub mod gpio;
 pub mod hls;
 pub mod iic;
+pub mod intc;
 pub mod spi;
 pub mod timer;
 pub use hardroxide_mmio::{Mmio, MmioError};

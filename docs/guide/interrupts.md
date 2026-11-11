@@ -66,6 +66,28 @@ irq.wait(Some(Duration::from_secs(1)))?;
 let buf = t.wait(Duration::ZERO)?;               // collects the result, clears the flags
 ```
 
+### Many interrupts through an AXI Interrupt Controller
+
+When several IPs feed an `axi_intc`, only the controller's `irq` output reaches
+the PS, so only the controller has a UIO device. Each device's constant
+(`pac::axi_timer_0::IRQ_INTERRUPT`, ...) records `via_intc: Some((controller,
+bit))` and refuses to `open()`; wait on the controller's line and ask the
+[driver](../reference/ip-intc.md) which input fired:
+
+```rust,ignore,fixture=pynq_z2_intc
+# use my_design::{Design, pac};
+# use std::time::Duration;
+# let d: Design<hardroxide_mmio::DevMem> = todo!();
+let irq = pac::axi_intc_0::IRQ_IRQ.open()?;
+d.axi_intc_0.init()?;
+d.axi_intc_0.enable(1 << 0)?;                     // input 0 = the timer
+d.axi_timer_0.start(100_000, false, true)?;
+if let Some(fired) = d.axi_intc_0.wait(&irq, 1 << 0, Some(Duration::from_secs(1)))? {
+    d.axi_timer_0.clear()?;                       // clear the device FIRST (level input)
+    d.axi_intc_0.ack(fired)?;                     // then the controller
+}
+```
+
 ### Async
 
 With the `async` feature of `hardroxide-irq`, wrap the `UioIrq` in an `Arc` and
@@ -79,7 +101,8 @@ With the `async` feature of `hardroxide-irq`, wrap the `UioIrq` in an `Arc` and
 | IP output straight to PS7 `IRQ_F2P` | traced (bit 0) |
 | IP output through one or more `xlconcat` blocks | traced (bit from the `INk_WIDTH` offsets) |
 | Multi-bit output, fan-out, or other logic in between | `f2p_bit`/`gic_spi` are `None`; the line is skipped in the overlay |
-| AXI interrupt controller (`axi_intc`) | not supported yet |
+| IP output (directly or through `xlconcat`) into an `axi_intc` input | traced as `via_intc: Some((controller, bit))`; no UIO node of its own (listed in a comment in the overlay) |
+| `axi_intc` `irq` output to PS7 | traced like any other IP interrupt (`IRQ_IRQ` on the controller) |
 
 The `IRQ_F2P` bit maps to a GIC SPI per UG585 (bits 0-7: interrupt IDs 61-68,
 bits 8-15: IDs 84-91), written into the overlay as `interrupts = <0 ID-32 4>`.

@@ -6,6 +6,10 @@ fn main() {
     use design_1::pac;
     let mut missing = 0;
     for line in pac::axi_iic_0::IRQS {
+        if let Some((c, bit)) = line.via_intc {
+            println!("{}.{}: via {c} input {bit}", line.instance, line.port);
+            continue;
+        }
         match line.open() {
             Ok(_) => println!("{}.{}: UIO ok (IRQ_F2P bit {:?}, SPI cell {:?})", line.instance, line.port, line.f2p_bit, line.gic_spi),
             Err(e) => {
@@ -15,6 +19,10 @@ fn main() {
         }
     }
     for line in pac::axi_quad_spi_0::IRQS {
+        if let Some((c, bit)) = line.via_intc {
+            println!("{}.{}: via {c} input {bit}", line.instance, line.port);
+            continue;
+        }
         match line.open() {
             Ok(_) => println!("{}.{}: UIO ok (IRQ_F2P bit {:?}, SPI cell {:?})", line.instance, line.port, line.f2p_bit, line.gic_spi),
             Err(e) => {
@@ -24,6 +32,10 @@ fn main() {
         }
     }
     for line in pac::axi_timer_0::IRQS {
+        if let Some((c, bit)) = line.via_intc {
+            println!("{}.{}: via {c} input {bit}", line.instance, line.port);
+            continue;
+        }
         match line.open() {
             Ok(_) => println!("{}.{}: UIO ok (IRQ_F2P bit {:?}, SPI cell {:?})", line.instance, line.port, line.f2p_bit, line.gic_spi),
             Err(e) => {

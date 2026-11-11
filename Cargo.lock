@@ -280,6 +280,7 @@ dependencies = [
  "embedded-hal",
  "hardroxide-dma",
  "hardroxide-hwh",
+ "hardroxide-irq",
  "hardroxide-mmio",
  "thiserror",
 ]

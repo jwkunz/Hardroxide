@@ -29,6 +29,16 @@ pub enum IrqError {
         node: &'static str,
         base: u64,
     },
+    #[error(
+        "interrupt `{instance}.{port}` feeds input {bit} of the interrupt controller \
+         `{controller}`; open that controller's own `IRQ_*` line and use the `AxiIntc` driver"
+    )]
+    ViaController {
+        instance: &'static str,
+        port: &'static str,
+        controller: &'static str,
+        bit: u32,
+    },
 }
 
 /// One interrupt output of a PL IP and where it lands. The generator emits a
@@ -45,6 +55,10 @@ pub struct IrqLine {
     pub dt_node: &'static str,
     /// Physical base address of the IP's register window.
     pub base: u64,
+    /// `(controller instance, input bit)` if the signal feeds an AXI
+    /// interrupt controller rather than the PS directly; then there is no UIO
+    /// device of its own (use the controller's line).
+    pub via_intc: Option<(&'static str, u32)>,
 }
 
 /// Parse a sysfs hex value such as `0x40400000\n`.
@@ -104,6 +118,14 @@ impl IrqLine {
     /// Like [`open`](Self::open) with the sysfs and device directories given
     /// (for tests).
     pub fn open_in(&self, sysfs_uio: &Path, dev_dir: &Path) -> Result<UioIrq, IrqError> {
+        if let Some((controller, bit)) = self.via_intc {
+            return Err(IrqError::ViaController {
+                instance: self.instance,
+                port: self.port,
+                controller,
+                bit,
+            });
+        }
         match find_uio(sysfs_uio, self.dt_node, self.base)? {
             Some(n) => UioIrq::open(dev_dir.join(format!("uio{n}"))),
             None => Err(IrqError::NotFound {
@@ -113,6 +135,25 @@ impl IrqLine {
                 base: self.base,
             }),
         }
+    }
+}
+
+/// Something that can be unmasked and waited on; implemented by [`UioIrq`].
+/// Drivers that multiplex interrupts (the AXI interrupt controller) are
+/// generic over it so they can be tested without a device.
+pub trait IrqWaiter {
+    /// Unmask the interrupt.
+    fn enable(&self) -> Result<(), IrqError>;
+    /// Wait for the next event without re-enabling; `None` on timeout.
+    fn wait_event(&self, timeout: Option<Duration>) -> Result<Option<u32>, IrqError>;
+}
+
+impl IrqWaiter for UioIrq {
+    fn enable(&self) -> Result<(), IrqError> {
+        UioIrq::enable(self)
+    }
+    fn wait_event(&self, timeout: Option<Duration>) -> Result<Option<u32>, IrqError> {
+        UioIrq::wait_event(self, timeout)
     }
 }
 
@@ -307,6 +348,7 @@ mod tests {
             gic_spi: Some(29),
             dt_node: "axi_dma_0_mm2s_introut",
             base: 0x40400000,
+            via_intc: None,
         };
         let r = fake_sysfs("missing", &[("uio0", "unrelated", "0x1000")]);
         let e = line.open_in(&r, Path::new("/dev")).err().unwrap();
@@ -318,6 +360,14 @@ mod tests {
         std::fs::create_dir_all(&devdir).unwrap();
         std::fs::write(devdir.join("uio3"), "").unwrap();
         line.open_in(&r2, &devdir).unwrap();
+        // Behind an interrupt controller: no UIO device of its own.
+        let behind = IrqLine {
+            via_intc: Some(("axi_intc_0", 2)),
+            ..line
+        };
+        let e = behind.open_in(&r2, &devdir).err().unwrap();
+        assert!(matches!(e, IrqError::ViaController { bit: 2, .. }));
+        assert!(e.to_string().contains("axi_intc_0"));
         std::fs::remove_dir_all(r).unwrap();
         std::fs::remove_dir_all(r2).unwrap();
     }

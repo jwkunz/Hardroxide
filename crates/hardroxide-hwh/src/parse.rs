@@ -118,8 +118,13 @@ fn parse_instance(m: Node) -> Result<Instance, Error> {
         .filter(|c| {
             c.has_tag_name("PORT")
                 && c.attribute("DIR") == Some("O")
-                && c.attribute("SIGIS")
+                && (c
+                    .attribute("SIGIS")
                     .is_some_and(|s| s.eq_ignore_ascii_case("INTERRUPT"))
+                    // The AXI INTC marks its output `SIGIS="undef"` and carries
+                    // the sensitivity in parameters instead.
+                    || (m.attribute("MODTYPE") == Some("axi_intc")
+                        && c.attribute("NAME") == Some("irq")))
         })
         .map(|c| {
             let sinks = c
@@ -138,7 +143,28 @@ fn parse_instance(m: Node) -> Result<Instance, Error> {
                 signal: c.attribute("SIGNAME").unwrap_or("").into(),
                 sinks,
                 width: l.zip(r).map_or(1, |(l, r)| l.abs_diff(r) as u32 + 1),
-                sensitivity: c.attribute("SENSITIVITY").unwrap_or("").into(),
+                sensitivity: match c.attribute("SENSITIVITY") {
+                    Some(v) => v.into(),
+                    None if m.attribute("MODTYPE") == Some("axi_intc") => {
+                        let par = |k: &str| {
+                            m.descendants()
+                                .find(|x| {
+                                    x.has_tag_name("PARAMETER") && x.attribute("NAME") == Some(k)
+                                })
+                                .and_then(|x| x.attribute("VALUE"))
+                                .and_then(num)
+                        };
+                        let high = par("C_IRQ_ACTIVE").unwrap_or(1) != 0;
+                        match (par("C_IRQ_IS_LEVEL").unwrap_or(1) != 0, high) {
+                            (true, true) => "LEVEL_HIGH",
+                            (true, false) => "LEVEL_LOW",
+                            (false, true) => "EDGE_RISING",
+                            (false, false) => "EDGE_FALLING",
+                        }
+                        .into()
+                    }
+                    None => String::new(),
+                },
             }
         })
         .collect();

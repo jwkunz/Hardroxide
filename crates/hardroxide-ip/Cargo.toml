@@ -11,6 +11,7 @@ repository.workspace = true
 hardroxide-mmio.workspace = true
 thiserror.workspace = true
 hardroxide-dma.workspace = true
+hardroxide-irq.workspace = true
 embedded-hal.workspace = true
 
 [dev-dependencies]

@@ -108,6 +108,29 @@ fn irq_routes_direct_and_through_concat() {
 }
 
 #[test]
+fn irq_routes_through_an_interrupt_controller() {
+    use hardroxide_hwh::IrqRoute;
+    let d = open("pynq_z2_intc");
+    let via = |inst: &str, port: &str, bit| {
+        Some(IrqRoute::Intc {
+            controller: "axi_intc_0".into(),
+            bit,
+        })
+        .eq(&d.irq_route(inst, port))
+    };
+    assert!(via("axi_timer_0", "interrupt", 0));
+    assert!(via("axi_iic_0", "iic2intc_irpt", 1));
+    assert!(via("axi_gpio_0", "ip2intc_irpt", 2));
+    // Devices behind the controller have no direct PS7 bit...
+    assert_eq!(d.ps7_irq_f2p_bit("axi_timer_0", "interrupt"), None);
+    // ...but the controller's own output does.
+    assert_eq!(
+        d.irq_route("axi_intc_0", "irq"),
+        Some(IrqRoute::Ps7 { bit: 0 })
+    );
+}
+
+#[test]
 fn gic_spi_cells_follow_the_trm_table() {
     assert_eq!(zynq7000_f2p_spi_cell(0), Some(29)); // interrupt ID 61
     assert_eq!(zynq7000_f2p_spi_cell(7), Some(36)); // ID 68

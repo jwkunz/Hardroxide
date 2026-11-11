@@ -38,6 +38,10 @@ pub fn instance(&self, name: &str) -> Option<&Instance>
 pub fn ranges_of<'a>(&'a self, instance: &'a str) -> impl Iterator<Item = &'a MemRange>
 pub fn enabled_fclks(&self) -> Vec<(u8, u64)>
 pub fn ps7_irq_f2p_bit(&self, instance: &str, port: &str) -> Option<u32>
+pub fn irq_route(&self, instance: &str, port: &str) -> Option<IrqRoute>
+pub enum IrqRoute
+Ps7 { bit: u32 },
+Intc { controller: String, bit: u32 },
 ```
 
 - `ps_clk_hz` is the PS reference clock (`PCW_CRYSTAL_PERIPHERAL_FREQMHZ`), `0`
@@ -47,7 +51,14 @@ pub fn ps7_irq_f2p_bit(&self, instance: &str, port: &str) -> Option<u32>
 - `ps7_irq_f2p_bit(instance, port)` follows the net from a 1-bit output port
   to the PS7 `IRQ_F2P` vector, through any chain of `xlconcat` blocks (using
   their `INk_WIDTH` parameters). Returns `None` for wider ports, unconnected
-  or fanned-out nets, depth beyond 8, or other logic in between.
+  or fanned-out nets, depth beyond 8, or other logic in between. It also
+  returns `None` for a signal that ends at an AXI interrupt controller.
+- `irq_route(instance, port)` is the general form: `IrqRoute::Ps7 { bit }`, or
+  `IrqRoute::Intc { controller, bit }` when the net (again through `xlconcat`)
+  ends at the `intr` input of an `axi_intc` instance. The controller's own
+  `irq` output is routed to the PS like any other interrupt (the HWH marks it
+  `SIGIS="undef"`; the parser treats it as an interrupt and derives its
+  sensitivity from `C_IRQ_IS_LEVEL`/`C_IRQ_ACTIVE`).
 
 ## Model types
 

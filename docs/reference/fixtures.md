@@ -11,6 +11,7 @@ board-accurate; the PL side is).
 | `pynq_z2_gpio.xsa` | AXI GPIO: 4 LEDs out, 4 buttons + 2 switches in | `build_pynq_z2_gpio.tcl` |
 | `pynq_z2_hls_vadd.xsa` | HLS `vadd` (`a + b`) with interrupt on `IRQ_F2P` | `build_pynq_z2_hls.tcl`, `fixtures/hls/` |
 | `pynq_z2_dma_loopback.xsa` | AXI DMA looped back through an AXIS FIFO; two interrupts via `xlconcat` | `build_pynq_z2_dma.tcl` |
+| `pynq_z2_intc.xsa` | AXI Timer + IIC + GPIO interrupts combined by an AXI Interrupt Controller (`xlconcat` → `intr`), whose `irq` drives `IRQ_F2P[0]`. GPIO/IIC pins unconstrained | `build_pynq_z2_intc.tcl` |
 | `pynq_z2_peripherals.xsa` | AXI Timer + IIC + Quad SPI; three interrupts via `xlconcat`. IIC/SPI pins unconstrained | `build_pynq_z2_peripherals.tcl` |
 
 Rebuild one (Vivado 2025.2 required; not needed to use Hardroxide):

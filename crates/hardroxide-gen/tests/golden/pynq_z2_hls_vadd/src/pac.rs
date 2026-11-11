@@ -7,7 +7,7 @@ pub mod vadd_0 {
     pub const BASE_ADDRESS: u64 = 0x40000000;
     pub const SIZE: usize = 0x10000;
     /// Interrupt `interrupt` (PS7 `IRQ_F2P` bit Some(0)); open with `.open()`.
-    pub const IRQ_INTERRUPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "vadd_0", port: "interrupt", f2p_bit: Some(0), gic_spi: Some(29), dt_node: "vadd_0_interrupt", base: 0x40000000 };
+    pub const IRQ_INTERRUPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "vadd_0", port: "interrupt", f2p_bit: Some(0), gic_spi: Some(29), dt_node: "vadd_0_interrupt", base: 0x40000000, via_intc: None };
     pub const IRQS: &[hardroxide_irq::IrqLine] = &[IRQ_INTERRUPT];
     /// Connected interrupt outputs: `(port, PS7 IRQ_F2P bit if routed directly)`.
     pub const INTERRUPTS: &[(&str, Option<u32>)] = &[("interrupt", Some(0))];

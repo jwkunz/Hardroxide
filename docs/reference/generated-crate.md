@@ -84,6 +84,10 @@ module also has `pub const IRQ_<PORT>: hardroxide_irq::IrqLine` and an
 [Interrupts](../guide/interrupts.md)). For each register `r` of the instance's first
 address block: `pac::<inst>::<r>::OFFSET: usize` and `RESET_VALUE: u32`; for
 each field `f`: `pac::<inst>::<r>::<f>::{SHIFT, WIDTH, MASK}` (`u32`).
+An `IrqLine` whose signal feeds an `axi_intc` input has `via_intc:
+Some((controller, bit))`, no `f2p_bit`/`gic_spi`, and no UIO node in the overlay
+(use the controller's own `IRQ_IRQ`; see
+[AXI Interrupt Controller](ip-intc.md)).
 `INTERRUPTS` lists connected interrupt outputs as `(port, PS7 IRQ_F2P bit)`;
 the bit is `None` if the net does not reach `IRQ_F2P` directly or through an
 `xlconcat`. Only the first address range of an instance is described (see

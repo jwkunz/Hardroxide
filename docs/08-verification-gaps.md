@@ -162,7 +162,7 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   4. Two nodes may share one register window (an AXI DMA has two interrupts and
      the overlay has two nodes with the same `reg`); the kernel may reject
      overlapping resources. If it does, give the second node no `reg` window
-     or use an AXI interrupt controller.
+     or use an AXI interrupt controller (now supported, see G13).
   5. The UIO device `name` equals the node name (without `@addr`);
      `find_uio` falls back to the unique `maps/map0/addr`. Check
      `cat /sys/class/uio/uio*/name`.
@@ -173,11 +173,28 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   (`set_interrupts(true)`, start, `wait`, then `Transfer::wait(ZERO)`), and
   confirm the line re-arms on the second round.
 
+### G13. AXI Interrupt Controller (UNVERIFIED)
+- `hardroxide_ip::intc::AxiIntc` is tested against the mock and a fake
+  `IrqWaiter`; register offsets and the `MER` bit positions are asserted against
+  the HWH of `fixtures/pynq_z2_intc.xsa`. The fixture builds in Vivado and its
+  `interrupts.dtso` compiles and merges like the others.
+- To check on the board: with only the controller's UIO node applied, enable
+  one source (for example the timer, input 0), wait on `IRQ_IRQ`, and confirm
+  `pending()` reports exactly that bit; clear the device, `ack`, and confirm
+  the line re-arms. Check `ISR`/`IPR`/`IVR` agree.
+- The driver assumes level-sensitive inputs for its ack order guidance; the
+  per-input edge/level choice (`C_KIND_OF_INTR`) is not read. Confirm for any
+  edge-sensitive source.
+- The controller's `irq` sensitivity comes from `C_IRQ_IS_LEVEL`/`C_IRQ_ACTIVE`
+  (the HWH marks the port `SIGIS="undef"`); confirm the overlay's trigger cell
+  (`4` = level high) matches the hardware behaviour.
+
 ## Design gaps (implemented partially or not at all)
 
 - **D1 Interrupts**: traced and wired into the generated crate (`IrqLine`
-  constants, `interrupts.dtso`, `irq_probe`); see G11 for what is unverified.
-  Not done: `axi_intc` (AXI interrupt controller) designs, interrupts through
+  constants, `interrupts.dtso`, `irq_probe`), including fan-in through an
+  `axi_intc` (`via_intc`, `AxiIntc`); see G11 and G13 for what is unverified.
+  Not done: interrupts through
   logic other than `xlconcat`/direct, an overlay variant targeting the PL bus
   node, and PS-side GPIO/other interrupt sources.
 - **D2 Other IP**: AXI GPIO is curated and HLS IP gets generated typed

@@ -37,9 +37,11 @@ it passes). Milestone 2 (`hardroxide update`, `dev-bitstream`) is done
 offline. Milestone 3 (scalar HLS IP, `fixtures/pynq_z2_hls_vadd.xsa`) is done offline.
 Milestone 4 (AXI DMA direct mode, `hardroxide-dma`, `hardroxide-irq`, DMA loopback
 fixture) is done offline. Milestone 5 (Timer/IIC/SPI with embedded-hal, `fixtures/pynq_z2_peripherals.xsa`)
-is done offline. **Requested, not started: a GitHub Pages site built around an
-mdBook that is the authoritative API documentation (see the end of
-`docs/05-roadmap.md`). Logo: `docs/assets/logo.png`.** Remaining offline work:
+is done offline. **Docs site: an mdBook (`book.toml`, source = `docs/`) is the authoritative
+API documentation, deployed to GitHub Pages by `.github/workflows/pages.yml`.
+When you change a public API or the CLI, update `docs/reference/` in the same
+change; `cargo test -p hardroxide-cli --test book` fails if signatures, help
+text or links drift. Logo: `docs/assets/logo.png`.** Remaining offline work:
 generated UIO/IRQ integration into `Design`, the docs site, more fixtures.
 
 ## Conventions

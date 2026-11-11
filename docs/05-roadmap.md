@@ -35,7 +35,7 @@ Success criteria:
 - Obtain real XSA fixtures (GPIO-only first) from Vivado 2025.2.
 - Inspect what register data a real HWH exposes before finalizing the model.
 
-## Documentation site (requested, not started)
+## Documentation site (started)
 
 Publish a GitHub Pages site built around an **mdBook** that is the
 authoritative API documentation for Hardroxide: generator CLI, generated-crate
@@ -51,3 +51,14 @@ checklist. Requirements to settle when starting:
 - Absorb `docs/` (specs, ADRs, HWH findings, verification gaps) into the book
   rather than keeping two copies.
 - Use `docs/assets/logo.png` (see README/branding below).
+
+Status: the mdBook exists (`book.toml`, `src = "docs"`, so the existing design
+docs are part of the book). Done: user guide, reference chapters for the CLI,
+generated crate and every runtime crate, and guard tests
+(`crates/hardroxide-cli/tests/book.rs`) that check reference signatures against
+the source, CLI help blocks against the real output, and relative links.
+`.github/workflows/pages.yml` builds the book plus `cargo doc` and deploys to
+GitHub Pages; CI builds the book on every push. Remaining: enable Pages in the
+repository settings (Source: GitHub Actions), compile-test the guide's code
+examples (currently `rust,ignore`), and keep the reference in step with every
+API change (the guard test fails when it drifts).

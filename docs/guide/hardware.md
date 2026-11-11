@@ -1,0 +1,20 @@
+# Running on hardware
+
+No driver has been validated on a board yet. Before relying on anything,
+work through the checklist in [Verification gaps](../08-verification-gaps.md)
+**in order**:
+
+1. **G1**: the kernel accepts the embedded `.bin` and programs the PL. Do not
+   read PL addresses before this passes: an AXI access to unprogrammed PL
+   usually hangs the CPU.
+2. **G2/G3**: PL clocks and resets.
+3. **G4/G5**: `/dev/mem` mapping and the GPIO smoke test.
+4. **G9–G12**: HLS, DMA, UIO interrupts, Timer/IIC/SPI.
+
+Each generated crate carries ready-made smoke tests under `examples/`
+(`gpio_smoke`, `hls_smoke`, `dma_loopback`, `timer_delay`, `spi_loopback`,
+`i2c_scan`), present when the design contains the matching IP:
+
+```console
+$ sudo -E env "PATH=$PATH" cargo run --example gpio_smoke
+```

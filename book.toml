@@ -1,0 +1,14 @@
+[book]
+title = "Hardroxide"
+authors = ["Hardroxide contributors"]
+description = "Rust HAL generator and runtime for AMD FPGAs"
+language = "en"
+src = "docs"
+
+[build]
+build-dir = "target/book"
+create-missing = false
+
+[output.html]
+git-repository-url = "https://github.com/jwkunz/Hardroxide"
+edit-url-template = "https://github.com/jwkunz/Hardroxide/edit/main/{path}"

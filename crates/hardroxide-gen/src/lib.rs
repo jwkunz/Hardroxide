@@ -109,6 +109,10 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
             files.insert(format!("examples/{name}.rs").into(), ex.into_bytes());
         }
     }
+    files.insert(
+        "examples/board_check.rs".into(),
+        render::board_check_example(&model, &xsa.design, &crate_name).into_bytes(),
+    );
     if let Some(ex) = render::dma_example(&model, &crate_name) {
         files.insert("examples/dma_loopback.rs".into(), ex.into_bytes());
     }

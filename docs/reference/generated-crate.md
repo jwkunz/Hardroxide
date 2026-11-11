@@ -109,6 +109,7 @@ unverified ([G11](../08-verification-gaps.md)).
 
 | File | Present when | Checks |
 |---|---|---|
+| `board_check` | always | loads the bitstream, reads each FCLK back from the SLCR, opens every interrupt's UIO device; touches no IP register |
 | `gpio_smoke` | AXI GPIO | walks a one-hot pattern on channel 1, prints channel 2 |
 | `bram_test` | AXI BRAM Controller | writes a pattern over the whole block RAM and reads it back |
 | `uart_hello` | AXI UART Lite | sends a greeting and prints what is received in one second |

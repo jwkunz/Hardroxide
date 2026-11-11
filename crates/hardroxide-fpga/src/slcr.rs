@@ -44,6 +44,23 @@ pub fn best_divisors(src_hz: u64, target_hz: u64) -> (u32, u32, u64) {
     best
 }
 
+/// Current frequency of FCLK `index` computed from the SLCR registers
+/// (source PLL multiplier and the two divisors). `Ok(0)` if the divisors are
+/// zero (clock gated or unprogrammed). Read-only: needs no unlock.
+pub fn read_pl_clock(slcr: &impl Mmio, ps_clk_hz: u64, index: u8) -> Result<u64, FpgaError> {
+    let reg = *FPGA_CLK_CTRL
+        .get(index as usize)
+        .ok_or(FpgaError::BadClockIndex(index))?;
+    let ctrl = slcr.read32(reg)?;
+    let pll = slcr.read32(pll_ctrl((ctrl >> 4) & 0x3))?;
+    let fdiv = ((pll >> 12) & 0x7f) as u64;
+    let (d0, d1) = (((ctrl >> 8) & 0x3f) as u64, ((ctrl >> 20) & 0x3f) as u64);
+    if d0 == 0 || d1 == 0 {
+        return Ok(0);
+    }
+    Ok(ps_clk_hz * fdiv / (d0 * d1))
+}
+
 /// `ps_clk_hz` is the PS reference clock (50 MHz on PYNQ-Z2).
 /// Set FCLK `index` to (approximately) `hz`, accepting up to 1% error.
 /// Returns the achieved frequency.
@@ -110,6 +127,18 @@ mod tests {
             LOCK_KEY,
             "left locked"
         );
+    }
+
+    #[test]
+    fn read_back_matches_what_was_set() {
+        let be = MockBackend::new();
+        be.poke(SLCR_BASE + IO_PLL_CTRL as u64, 20 << 12); // 20 * 50 MHz = 1 GHz
+        be.poke(SLCR_BASE + 0x170, 0x0010_0A00);
+        let r = be.map(SLCR_BASE, SLCR_SIZE).unwrap();
+        assert_eq!(read_pl_clock(&r, 50_000_000, 0).unwrap(), 100_000_000);
+        let got = set_pl_clock(&r, 50_000_000, 0, 125_000_000).unwrap();
+        assert_eq!(read_pl_clock(&r, 50_000_000, 0).unwrap(), got);
+        assert_eq!(read_pl_clock(&r, 50_000_000, 1).unwrap(), 0); // never programmed
     }
 
     #[test]

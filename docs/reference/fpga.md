@@ -43,6 +43,7 @@ FCLK through [`slcr::set_pl_clock`](#pl-clocks).
 pub const SLCR_BASE: u64 = 0xF800_0000;
 pub const SLCR_SIZE: usize = 0x1000;
 pub fn set_pl_clock(slcr: &impl Mmio, ps_clk_hz: u64, index: u8, hz: u64) -> Result<u64, FpgaError>
+pub fn read_pl_clock(slcr: &impl Mmio, ps_clk_hz: u64, index: u8) -> Result<u64, FpgaError>
 pub fn best_divisors(src_hz: u64, target_hz: u64) -> (u32, u32, u64)
 ```
 
@@ -52,6 +53,9 @@ frequency as `ps_clk_hz * fdiv`, picks two 6-bit divisors (1..=63) minimising
 the error, and writes them. It accepts up to 1% error and returns the achieved
 frequency. The SLCR is unlocked for the write and relocked afterwards. Errors:
 `BadClockIndex`, `PllNotRunning` (zero divider or bypass), `ClockUnreachable`.
+`read_pl_clock` is the read-only inverse: it computes the current FCLK
+frequency from the same registers (`0` if a divisor is zero), which the
+generated `board_check` example uses to compare against the design.
 `best_divisors` returns `(div0, div1, achieved_hz)`; ties prefer the smaller
 `div1`. The register layout is transcribed from the Zynq-7000 TRM and
 **unverified on hardware** ([G2](../08-verification-gaps.md)). PL resets are

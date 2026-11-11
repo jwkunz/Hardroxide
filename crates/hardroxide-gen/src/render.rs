@@ -840,6 +840,41 @@ fn first_with<'a>(m: &'a Model, suffix: &str) -> Option<&'a Inst<'a>> {
         .find(|i| i.driver.as_deref().is_some_and(|d| d.ends_with(suffix)))
 }
 
+/// First thing to run on a board: load the design, read the FCLKs back from the
+/// SLCR and compare with the HWH, then check that every interrupt has a UIO device.
+pub fn board_check_example(m: &Model, d: &Design, crate_name: &str) -> String {
+    let lib = crate_name.replace('-', "_");
+    let mut s = String::from(HEADER);
+    s.push_str("//! First on-board check (docs/08-verification-gaps.md: G1, G2, G4, G11): loads\n//! the bitstream, reads each FCLK back from the SLCR, and opens every interrupt's\n//! UIO device. Touches no IP register. Run as root: `cargo run --example board_check`.\n\n");
+    let _ = writeln!(
+        s,
+        "use hardroxide_mmio::MmioBackend;\n\nfn main() {{\n    let mut failed = 0;\n    println!(\"1. loading bitstream and applying clocks ...\");\n    let design = match {lib}::Design::load() {{\n        Ok(d) => {{\n            println!(\"   ok\");\n            Some(d)\n        }}\n        Err(e) => {{\n            println!(\"   FAILED: {{e}}\");\n            failed += 1;\n            None\n        }}\n    }};\n    if design.is_some() {{\n        println!(\"2. FCLK readback (SLCR) vs. the design:\");\n        let cfg = {lib}::embedded_load_config();\n        match hardroxide_mmio::DevMem::new().map(hardroxide_fpga::slcr::SLCR_BASE, hardroxide_fpga::slcr::SLCR_SIZE) {{\n            Ok(slcr) => for (i, want) in cfg.fclks {{\n                match hardroxide_fpga::slcr::read_pl_clock(&slcr, cfg.ps_clk_hz, i) {{\n                    Ok(got) if got.abs_diff(want) * 100 <= want => println!(\"   FCLK{{i}}: {{got}} Hz (want {{want}}) ok\"),\n                    Ok(got) => {{\n                        println!(\"   FCLK{{i}}: {{got}} Hz (want {{want}}) MISMATCH\");\n                        failed += 1;\n                    }}\n                    Err(e) => {{\n                        println!(\"   FCLK{{i}}: {{e}}\");\n                        failed += 1;\n                    }}\n                }}\n            }},\n            Err(e) => {{\n                println!(\"   cannot map the SLCR: {{e}}\");\n                failed += 1;\n            }}\n        }}\n    }}"
+    );
+    let mut any = false;
+    for i in &m.insts {
+        if irq_lines(i, d).is_empty() {
+            continue;
+        }
+        if !any {
+            let _ = writeln!(
+                s,
+                "    println!(\"3. interrupt UIO devices (needs interrupts.dtso applied):\");\n    use {lib}::pac;"
+            );
+            any = true;
+        }
+        let _ = writeln!(
+            s,
+            "    for line in pac::{}::IRQS {{\n        if line.via_intc.is_some() {{\n            continue;\n        }}\n        match line.open() {{\n            Ok(_) => println!(\"   {{}}.{{}}: ok\", line.instance, line.port),\n            Err(e) => {{\n                println!(\"   {{}}.{{}}: {{e}}\", line.instance, line.port);\n                failed += 1;\n            }}\n        }}\n    }}",
+            i.ident
+        );
+    }
+    let _ = writeln!(
+        s,
+        "    if failed > 0 {{\n        println!(\"{{failed}} check(s) failed\");\n        std::process::exit(1);\n    }}\n    println!(\"all checks passed; next run the per-IP examples\");\n}}"
+    );
+    s
+}
+
 /// Pin-free memory check: write a pattern over the whole block RAM and read it back.
 pub fn bram_example(m: &Model, crate_name: &str) -> Option<String> {
     let i = first_with(m, "::AxiBram")?;

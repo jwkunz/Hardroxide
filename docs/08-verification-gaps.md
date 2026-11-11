@@ -26,6 +26,10 @@ has been set up). Record `uname -a` and the PYNQ image version here.
 
 ## Needs the board
 
+Start with the generated `board_check` example: it runs G1 (load), a G2 FCLK
+readback against the design, and the G11 UIO-device check in one go, and
+touches no IP register.
+
 ### G1. fpga_manager accepts the `.bin` and programs the PL (UNVERIFIED)
 - Assumed: write `0` to `/sys/class/fpga_manager/fpga0/flags`, copy bin to
   `/lib/firmware/<name>`, write `<name>` to `.../fpga0/firmware`, then

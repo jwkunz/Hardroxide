@@ -1,6 +1,6 @@
 # Using a generated crate
 
-```rust,ignore
+```rust,ignore,fixture=pynq_z2_gpio
 use my_design::Design;
 use hardroxide_ip::gpio::Channel;
 
@@ -24,7 +24,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `Design::map_only(backend)` maps the IP without programming anything and
   without the singleton. Use it with the mock backend in tests:
 
-```rust,ignore
+```rust,ignore,fixture=pynq_z2_gpio
+# use hardroxide_ip::gpio::Channel;
 use hardroxide_mmio::MockBackend;
 
 let be = MockBackend::new();

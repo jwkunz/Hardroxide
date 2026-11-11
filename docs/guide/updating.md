@@ -31,7 +31,9 @@ existing `Cargo.toml`.
 Enable the crate's `dev-bitstream` feature and load an XSA at runtime. It must
 have the same interface hash as the one the crate was compiled for:
 
-```rust,ignore
+```rust,ignore,fixture=pynq_z2_gpio
+# use my_design::{Design, LoadOptions};
+# use hardroxide_mmio::DevMem;
 let d = Design::load_with_bitstream("new_design.xsa", DevMem::new(), &LoadOptions::default())?;
 ```
 

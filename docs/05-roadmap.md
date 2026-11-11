@@ -58,7 +58,8 @@ generated crate and every runtime crate, and guard tests
 (`crates/hardroxide-cli/tests/book.rs`) that check reference signatures against
 the source, CLI help blocks against the real output, and relative links.
 `.github/workflows/pages.yml` builds the book plus `cargo doc` and deploys to
-GitHub Pages; CI builds the book on every push. Remaining: enable Pages in the
-repository settings (Source: GitHub Actions), compile-test the guide's code
-examples (currently `rust,ignore`), and keep the reference in step with every
-API change (the guard test fails when it drifts).
+GitHub Pages; CI builds the book on every push. Pages is enabled and the guide's code
+examples are compile-tested against freshly generated crates
+(`crates/hardroxide-gen/tests/guide.rs`; blocks tagged
+`rust,ignore,fixture=<name>`, with `# ` lines as hidden setup). Keep the
+reference in step with every API change (the guard test fails when it drifts).

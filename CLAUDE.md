@@ -42,7 +42,7 @@ API documentation, deployed to GitHub Pages by `.github/workflows/pages.yml`.
 When you change a public API or the CLI, update `docs/reference/` in the same
 change; `cargo test -p hardroxide-cli --test book` fails if signatures, help
 text or links drift. Logo: `docs/assets/logo.png`.** Interrupts are wired into generated crates (`IrqLine`, `interrupts.dtso`).
-Remaining offline work: compile-testing the guide examples, `axi_intc`, more fixtures.
+Guide examples are compile-tested (`cargo test -p hardroxide-gen --test guide`; tag blocks `rust,ignore,fixture=<name>`, `# ` lines are hidden setup). Remaining offline work: `axi_intc`, more fixtures.
 
 ## Conventions
 

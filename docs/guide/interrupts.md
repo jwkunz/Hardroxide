@@ -28,7 +28,7 @@ address if it is unique.
 
 ## Waiting for an interrupt
 
-```rust,ignore
+```rust,ignore,fixture=pynq_z2_hls_vadd
 use my_design::{Design, pac};
 use std::time::Duration;
 
@@ -54,7 +54,11 @@ device before waiting again, or the level-sensitive line fires immediately.
 
 ### AXI DMA
 
-```rust,ignore
+```rust,ignore,fixture=pynq_z2_dma_loopback
+# use my_design::{Design, pac};
+# use hardroxide_ip::dma::Direction;
+# use std::time::Duration;
+# let (mut d, buf, len): (Design<hardroxide_mmio::DevMem>, hardroxide_dma::MockBuffer, usize) = todo!();
 d.axi_dma_0.set_interrupts(true);                // IOC + error interrupts
 let irq = pac::axi_dma_0::IRQ_MM2S_INTROUT.open()?;
 let t = d.axi_dma_0.start(Direction::MemToStream, buf, len).map_err(|e| e.error)?;

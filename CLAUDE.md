@@ -33,8 +33,7 @@ hwh, mmio, fpga, ip (GPIO), gen, cli. No board is attached to the dev machine.
 
 **Next step: run the checklist in `docs/08-verification-gaps.md` on the
 PYNQ-Z2**, in order (G1 bitstream load first; do not touch PL addresses before
-it passes). Known likely bug: the PS crystal is assumed 33.333 MHz in
-`hardroxide-fpga::slcr` (G2). Then milestone 2 (`hardroxide update`).
+it passes). Then milestone 2 (`hardroxide update`).
 
 ## Conventions
 

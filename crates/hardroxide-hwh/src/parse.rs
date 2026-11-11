@@ -183,6 +183,12 @@ pub fn parse_hwh(xml: &str) -> Result<Design, Error> {
             });
         }
     }
+    let ps_clk_hz = instances
+        .iter()
+        .find(|i| i.is_ps)
+        .and_then(|i| i.parameters.get("PCW_CRYSTAL_PERIPHERAL_FREQMHZ"))
+        .and_then(|v| v.parse::<f64>().ok())
+        .map_or(0, |mhz| (mhz * 1e6).round() as u64);
     let pl_clocks = instances
         .iter()
         .find(|i| i.is_ps && i.mod_type == "processing_system7")
@@ -200,5 +206,6 @@ pub fn parse_hwh(xml: &str) -> Result<Design, Error> {
         instances,
         memory_ranges,
         pl_clocks,
+        ps_clk_hz,
     })
 }

@@ -30,10 +30,10 @@ fn load_is_a_singleton_and_checks_paths() {
     std::fs::write(o.paths.manager.join("state"), "operating\n").unwrap();
 
     let be = MockBackend::new();
-    be.poke(0xF800_0108, 30 << 12); // IO PLL at 1 GHz
+    be.poke(0xF800_0108, 30 << 12); // IO PLL at 1.5 GHz (50 MHz crystal)
     let d = Design::load_with(be.clone(), &o).unwrap();
     let v = be.peek(0xF800_0170);
-    assert_eq!(((v >> 8) & 0x3f) * ((v >> 20) & 0x3f), 10);
+    assert_eq!(((v >> 8) & 0x3f) * ((v >> 20) & 0x3f), 15);
     assert!(matches!(Design::load_with(be.clone(), &o), Err(Error::AlreadyLoaded)));
     drop(d);
     Design::load_with(be, &o).unwrap();

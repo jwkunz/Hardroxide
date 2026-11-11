@@ -11,6 +11,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub const INTERFACE_HASH: &str = "0ec1a9e337a346ed08114c3c125241809c6a9100b5f6f79127ddc5fcbab56471";
 /// SHA-256 of the embedded bitstream (`bitstream/design.bin`).
 pub const BITSTREAM_SHA256: &str = "d6b91381c26ec42c2d9e6a0d46e6cc8f22b7cdd471774fc08086fbddb49b75a1";
+/// PS reference clock frequency in Hz, from the HWH.
+pub const PS_CLK_HZ: u64 = 50000000;
 /// `(FCLK index, Hz)` for each enabled PL clock.
 pub const PL_CLOCKS: &[(u8, u64)] = &[(0, 100000000)];
 
@@ -66,7 +68,7 @@ impl<B: MmioBackend> Design<B> {
             if opts.apply_clocks {
                 let slcr = backend.map(hardroxide_fpga::slcr::SLCR_BASE, hardroxide_fpga::slcr::SLCR_SIZE)?;
                 for &(i, hz) in PL_CLOCKS {
-                    hardroxide_fpga::slcr::set_pl_clock(&slcr, i, hz)?;
+                    hardroxide_fpga::slcr::set_pl_clock(&slcr, PS_CLK_HZ, i, hz)?;
                 }
             }
             Self::map(&backend, true)

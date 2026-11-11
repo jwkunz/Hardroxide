@@ -16,6 +16,8 @@ pub struct Design {
     pub memory_ranges: Vec<MemRange>,
     /// PL clocks (FCLK_CLK0..3) derived from the Zynq-7000 PS7 instance.
     pub pl_clocks: Vec<PlClock>,
+    /// PS reference clock in Hz (`PCW_CRYSTAL_PERIPHERAL_FREQMHZ`); 0 if absent.
+    pub ps_clk_hz: u64,
 }
 
 impl Design {

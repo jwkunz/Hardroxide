@@ -47,19 +47,17 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   `0x004`<-`0x767B`; `ARM/DDR/IO_PLL_CTRL` at `0x100/0x104/0x108` with
   `PLL_FDIV` in bits 18:12 and `PLL_BYPASS_FORCE` bit 4; `FPGAn_CLK_CTRL` at
   `0x170/0x180/0x190/0x1A0` with `SRCSEL` bits 5:4 and `DIVISOR0/1` in bits
-  13:8 / 25:20; PS_CLK = 33.333 MHz (`hardroxide-fpga::slcr`).
+  13:8 / 25:20; PS_CLK from the HWH (`hardroxide-fpga::slcr`).
 - Check: before running, read `devmem 0xF8000170`, `0xF8000108`; run the
   program; confirm FCLK0 = 100 MHz (e.g. `cat /sys/kernel/debug/clk/...` if
   available, or measure an AXI-clocked counter, or compare with PYNQ's
   `Clocks.fclk0_mhz` if Python is available).
-- Risks: SRCSEL encoding (0/1 = IO PLL, 2 = ARM PLL, 3 = DDR PLL); the board
-  crystal (PYNQ-Z2 = 50 MHz? verify: the PS clock on PYNQ-Z2 is 50 MHz, NOT
-  33.333 MHz; **this constant is probably wrong for this board** and should
-  come from the HWH `PCW_CRYSTAL_PERIPHERAL_FREQMHZ` parameter. The fixture
-  used the Vivado default of 33.333333. Make `PS_CLK_HZ` a parameter taken
-  from the HWH before first board run). Writing SLCR through `/dev/mem` may
-  also conflict with a kernel clock driver that caches the rate; check
-  `dmesg` and that other peripherals are unaffected.
+- Risks: SRCSEL encoding (0/1 = IO PLL, 2 = ARM PLL, 3 = DDR PLL). The PS
+  reference clock is taken from the HWH (`PCW_CRYSTAL_PERIPHERAL_FREQMHZ`,
+  emitted as `PS_CLK_HZ`); PYNQ's own base design uses 50 MHz, and the fixture
+  was rebuilt with 50 so it matches the board. Confirm the real board crystal.
+  Writing SLCR through `/dev/mem` may conflict with a kernel clock driver that
+  caches the rate; check `dmesg` and that other peripherals are unaffected.
 - Also check whether `fpga_manager` load resets/gates the FCLKs, which would
   require applying clocks *after* load (current order) or re-enabling them.
 
@@ -93,7 +91,7 @@ has been set up). Record `uname -a` and the PYNQ image version here.
 
 ### G6. Fixture fidelity (UNVERIFIED)
 - The fixture PS7 is hand-configured (no PYNQ-Z2 board preset): DDR part,
-  MIO, crystal frequency, and peripherals are not board-accurate. Since
+  MIO and peripherals are not board-accurate (the crystal is set to 50 MHz). Since
   loading via Linux only reprograms the PL this should be harmless, but if
   `ps7_init` side effects or the crystal value matter (see G2), rebuild the
   fixture with the real PYNQ-Z2 board files / preset (`tul.com.tw:pynq-z2`)

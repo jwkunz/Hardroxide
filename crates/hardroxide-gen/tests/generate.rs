@@ -18,7 +18,12 @@ fn fixture() -> Xsa {
     fixture_named("pynq_z2_gpio")
 }
 
-const FIXTURES: &[&str] = &["pynq_z2_gpio", "pynq_z2_hls_vadd", "pynq_z2_dma_loopback"];
+const FIXTURES: &[&str] = &[
+    "pynq_z2_gpio",
+    "pynq_z2_hls_vadd",
+    "pynq_z2_dma_loopback",
+    "pynq_z2_peripherals",
+];
 
 #[test]
 fn deterministic() {
@@ -121,6 +126,15 @@ fn generated_dma_crate_builds_and_works_with_mock() {
         "pynq_z2_dma_loopback",
         "pynq_z2_dma_test",
         include_str!("data/generated_dma_test.rs"),
+    );
+}
+
+#[test]
+fn generated_peripherals_crate_builds_and_works_with_mock() {
+    build_and_test(
+        "pynq_z2_peripherals",
+        "pynq_z2_periph_test",
+        include_str!("data/generated_periph_test.rs"),
     );
 }
 

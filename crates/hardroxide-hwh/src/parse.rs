@@ -161,6 +161,7 @@ fn parse_instance(m: Node) -> Result<Instance, Error> {
                 dir: c.attribute("DIR").unwrap_or("").into(),
                 width: l.zip(r).map_or(1, |(l, r)| l.abs_diff(r) as u32 + 1),
                 sinks,
+                clk_hz: c.attribute("CLKFREQUENCY").and_then(|v| v.parse().ok()),
             }
         })
         .collect();

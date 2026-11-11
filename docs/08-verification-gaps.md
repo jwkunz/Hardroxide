@@ -153,6 +153,26 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   triggering a transfer and verify `wait()` returns, `ack` works, and the line
   is re-armed.
 
+### G12. Timer / IIC / SPI on hardware (UNVERIFIED)
+- All three were written from the product guides and checked only against
+  the HWH register map and mock/fake device models. No pin constraints exist
+  in the fixture, so IIC/SPI I/O cannot be exercised with it as built.
+- Timer: `cargo run --example timer_delay` should report ~100 ms. Check
+  down-count + LOAD sequencing and that TINT clears with a write of 1.
+- SPI: `cargo run --example spi_loopback` uses the internal LOOP bit (no
+  wiring). Check the inhibit/SS sequencing, that RX counts match TX counts,
+  and the SPISR TX/RX flag usage. Known simplification: `SpiDevice`
+  transactions deassert CS between operations (each bus call completes with
+  SS released); a multi-op transaction needing CS held across ops is not
+  supported yet. Rebuild the fixture with real PMOD/Arduino pin constraints
+  for external SPI tests; SCK rate is fixed by `C_SCK_RATIO`.
+- IIC: `cargo run --example i2c_scan` on a pulled-up bus with a known device.
+  Unverified guesses: an empty write is encoded as START|STOP on the address
+  byte; repeated-start handling for read-after-write; completion detected by
+  TX_FIFO_Empty then BB=0; NACK reported through ISR `int1`; the core's
+  timing registers (TSUSTA etc.) are left at reset values, so the bus speed
+  is whatever the IP defaults give.
+
 ## Design gaps (implemented partially or not at all)
 
 - **D1 Interrupts**: ports, sinks and PS7 `IRQ_F2P` bits (direct or through

@@ -17,3 +17,4 @@ thiserror = "2"
 
 [dev-dependencies]
 hardroxide-dma = { path = "/hardroxide/crates/hardroxide-dma" }
+embedded-hal = "1"

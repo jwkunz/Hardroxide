@@ -21,6 +21,18 @@ pub struct Design {
 }
 
 impl Instance {
+    /// Frequency of the AXI-Lite clock (`s_axi_aclk`, else the first clock
+    /// port that reports one), in Hz.
+    pub fn axi_clk_hz(&self) -> Option<u64> {
+        let by = |p: &&Port| p.clk_hz.is_some();
+        self.ports
+            .iter()
+            .filter(by)
+            .find(|p| p.name.eq_ignore_ascii_case("s_axi_aclk"))
+            .or_else(|| self.ports.iter().find(by))
+            .and_then(|p| p.clk_hz)
+    }
+
     /// Vitis HLS-generated IP (`vendor:hls:name:version`).
     pub fn is_hls(&self) -> bool {
         self.vlnv.split(':').nth(1) == Some("hls")
@@ -119,6 +131,8 @@ pub struct Port {
     pub dir: String,
     pub width: u32,
     pub sinks: Vec<(String, String)>,
+    /// `CLKFREQUENCY` of clock ports, in Hz.
+    pub clk_hz: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

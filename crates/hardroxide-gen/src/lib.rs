@@ -98,6 +98,15 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     if let Some(ex) = render::gpio_example(&model, &crate_name) {
         files.insert("examples/gpio_smoke.rs".into(), ex.into_bytes());
     }
+    for (name, ex) in [
+        ("timer_delay", render::timer_example(&model, &crate_name)),
+        ("spi_loopback", render::spi_example(&model, &crate_name)),
+        ("i2c_scan", render::iic_example(&model, &crate_name)),
+    ] {
+        if let Some(ex) = ex {
+            files.insert(format!("examples/{name}.rs").into(), ex.into_bytes());
+        }
+    }
     if let Some(ex) = render::dma_example(&model, &crate_name) {
         files.insert("examples/dma_loopback.rs".into(), ex.into_bytes());
     }

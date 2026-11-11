@@ -12,7 +12,7 @@ pub enum Access {
 #[derive(Default)]
 struct State {
     mem: BTreeMap<u64, u32>,
-    w1c: std::collections::BTreeSet<u64>,
+    w1c: BTreeMap<u64, u32>,
     log: Vec<Access>,
 }
 
@@ -35,7 +35,12 @@ impl MockBackend {
     /// Mark `phys` as a write-1-to-clear register: a write clears the bits
     /// that are set in the written value instead of storing it.
     pub fn set_write1_clear(&self, phys: u64) {
-        self.0.lock().unwrap().w1c.insert(phys);
+        self.set_write1_clear_mask(phys, u32::MAX);
+    }
+    /// Like [`set_write1_clear`](Self::set_write1_clear) but only for the
+    /// bits in `mask`; other bits are stored normally.
+    pub fn set_write1_clear_mask(&self, phys: u64, mask: u32) {
+        self.0.lock().unwrap().w1c.insert(phys, mask);
     }
     /// Accesses made through regions, in order.
     pub fn log(&self) -> Vec<Access> {
@@ -76,9 +81,9 @@ impl Mmio for MockRegion {
         check(offset, self.len)?;
         let addr = self.base + offset as u64;
         let mut s = self.state.lock().unwrap();
-        if s.w1c.contains(&addr) {
+        if let Some(&mask) = s.w1c.get(&addr) {
             let old = s.mem.get(&addr).copied().unwrap_or(0);
-            s.mem.insert(addr, old & !value);
+            s.mem.insert(addr, (value & !mask) | (old & mask & !value));
         } else {
             s.mem.insert(addr, value);
         }

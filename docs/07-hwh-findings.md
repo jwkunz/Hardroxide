@@ -73,3 +73,20 @@ S2MM through an `axis_data_fifo`; both interrupts via `xlconcat` to `IRQ_F2P`.
   resolves these by following `xlconcat` (`INk_WIDTH` parameters) to bit 0 / 1.
 - The HP0 data path and the loopback FIFO do not appear in the address map
   (only the control interface at 0x40400000-0x4040FFFF).
+
+## Peripherals fixture (`fixtures/pynq_z2_peripherals.xsa`)
+
+`fixtures/scripts/build_pynq_z2_peripherals.tcl`: `axi_timer:2.0`, `axi_iic:2.1`,
+`axi_quad_spi:3.2` (standard mode, 1 SS), interrupts via `xlconcat` to
+`IRQ_F2P[2:0]` (timer 0, IIC 1, SPI 2). IIC/SPI pins are external but
+unconstrained (DRC downgraded in a `write_bitstream` pre-hook), so the
+bitstream is only good for exercising the interface model, not for I/O.
+
+- Full register maps with fields are present for all three; driver offsets
+  and control bits are asserted against them in unit tests.
+- Quad SPI also lists `XIP_Config_Reg`/`XIP_Status_Reg` aliasing 0x60/0x64
+  (XIP mode); the register named `SPICR`/`SPISR` is the standard-mode one.
+- Useful parameters: `C_FIFO_DEPTH`, `C_NUM_SS_BITS`, `C_SCK_RATIO` (SPI);
+  `C_S_AXI_ACLK_FREQ_HZ` (IIC); port `CLKFREQUENCY` (timer clock).
+- AXI IIC `ISR` bits are anonymous (`int0..int7`); semantics from PG090
+  (`int0` arbitration lost, `int1` TX error / slave TX complete).

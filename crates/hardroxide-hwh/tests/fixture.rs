@@ -1,7 +1,10 @@
 use hardroxide_hwh::*;
 
 fn xsa() -> Xsa {
-    let p = concat!(env!("CARGO_MANIFEST_DIR"), "/../../fixtures/pynq_z2_gpio.xsa");
+    let p = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../fixtures/pynq_z2_gpio.xsa"
+    );
     Xsa::open(p).expect("open fixture")
 }
 
@@ -20,11 +23,22 @@ fn finds_gpio_with_registers_and_address() {
     assert!(!g.is_ps);
     let blk = &g.address_blocks[0];
     assert_eq!(blk.range, 4096);
-    let names: Vec<_> = blk.registers.iter().map(|r| (r.name.as_str(), r.offset)).collect();
+    let names: Vec<_> = blk
+        .registers
+        .iter()
+        .map(|r| (r.name.as_str(), r.offset))
+        .collect();
     assert_eq!(
         names,
-        [("GPIO_DATA", 0), ("GPIO_TRI", 4), ("GPIO2_DATA", 8), ("GPIO2_TRI", 12),
-         ("GIER", 0x11c), ("IP_IER", 0x128), ("IP_ISR", 0x120)]
+        [
+            ("GPIO_DATA", 0),
+            ("GPIO_TRI", 4),
+            ("GPIO2_DATA", 8),
+            ("GPIO2_TRI", 12),
+            ("GIER", 0x11c),
+            ("IP_IER", 0x128),
+            ("IP_ISR", 0x120)
+        ]
     );
     let r = d.ranges_of("axi_gpio_0").next().unwrap();
     assert_eq!((r.base, r.high), (0x4120_0000, 0x4120_FFFF));
@@ -49,7 +63,12 @@ fn bit_header_and_bin() {
     let bin = b.to_bin_swapped().unwrap();
     assert!(bin.len() >= b.payload.len() && bin.len().is_multiple_of(16));
     assert_eq!(&bin[bin.len() - 4..], [0, 0, 0, 0x20]);
-    assert!(b.payload.windows(4).take(64).any(|w| w == [0xAA, 0x99, 0x55, 0x66]));
+    assert!(
+        b.payload
+            .windows(4)
+            .take(64)
+            .any(|w| w == [0xAA, 0x99, 0x55, 0x66])
+    );
 }
 
 #[test]
@@ -65,7 +84,12 @@ fn interface_hash_is_stable_and_ignores_clocks() {
 }
 
 fn open(n: &str) -> Design {
-    Xsa::open(format!("{}/../../fixtures/{n}.xsa", env!("CARGO_MANIFEST_DIR"))).unwrap().design
+    Xsa::open(format!(
+        "{}/../../fixtures/{n}.xsa",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap()
+    .design
 }
 
 #[test]
@@ -77,5 +101,8 @@ fn irq_routes_direct_and_through_concat() {
     assert_eq!(dma.ps7_irq_f2p_bit("axi_dma_0", "s2mm_introut"), Some(1));
     assert_eq!(dma.ps7_irq_f2p_bit("axi_dma_0", "nonexistent"), None);
     // GPIO's interrupt output is unconnected.
-    assert_eq!(open("pynq_z2_gpio").ps7_irq_f2p_bit("axi_gpio_0", "ip2intc_irpt"), None);
+    assert_eq!(
+        open("pynq_z2_gpio").ps7_irq_f2p_bit("axi_gpio_0", "ip2intc_irpt"),
+        None
+    );
 }

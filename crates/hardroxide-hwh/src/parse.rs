@@ -1,4 +1,4 @@
-use crate::{model::*, Error};
+use crate::{Error, model::*};
 use roxmltree::{Document, Node};
 use std::collections::BTreeMap;
 
@@ -36,7 +36,9 @@ fn props<'a>(n: Node<'a, 'a>) -> BTreeMap<&'a str, &'a str> {
 
 fn parse_field(n: Node) -> Result<Field, Error> {
     let p = props(n);
-    let name = n.attribute("NAME").ok_or_else(|| bad("FIELD without NAME"))?;
+    let name = n
+        .attribute("NAME")
+        .ok_or_else(|| bad("FIELD without NAME"))?;
     let get = |k: &str| {
         p.get(k)
             .and_then(|v| num(v))
@@ -53,7 +55,9 @@ fn parse_field(n: Node) -> Result<Field, Error> {
 
 fn parse_register(n: Node) -> Result<Register, Error> {
     let p = props(n);
-    let name = n.attribute("NAME").ok_or_else(|| bad("REGISTER without NAME"))?;
+    let name = n
+        .attribute("NAME")
+        .ok_or_else(|| bad("REGISTER without NAME"))?;
     let offset = p
         .get("ADDRESS_OFFSET")
         .and_then(|v| num(v))
@@ -76,7 +80,9 @@ fn parse_register(n: Node) -> Result<Register, Error> {
 }
 
 fn parse_instance(m: Node) -> Result<Instance, Error> {
-    let name = m.attribute("INSTANCE").ok_or_else(|| bad("MODULE without INSTANCE"))?;
+    let name = m
+        .attribute("INSTANCE")
+        .ok_or_else(|| bad("MODULE without INSTANCE"))?;
     let mut parameters = BTreeMap::new();
     for pn in m
         .children()
@@ -112,13 +118,19 @@ fn parse_instance(m: Node) -> Result<Instance, Error> {
         .filter(|c| {
             c.has_tag_name("PORT")
                 && c.attribute("DIR") == Some("O")
-                && c.attribute("SIGIS").is_some_and(|s| s.eq_ignore_ascii_case("INTERRUPT"))
+                && c.attribute("SIGIS")
+                    .is_some_and(|s| s.eq_ignore_ascii_case("INTERRUPT"))
         })
         .map(|c| {
             let sinks = c
                 .descendants()
                 .filter(|x| x.has_tag_name("CONNECTION"))
-                .filter_map(|x| Some((x.attribute("INSTANCE")?.to_string(), x.attribute("PORT")?.to_string())))
+                .filter_map(|x| {
+                    Some((
+                        x.attribute("INSTANCE")?.to_string(),
+                        x.attribute("PORT")?.to_string(),
+                    ))
+                })
                 .collect();
             let (l, r) = (num_attr(c, "LEFT"), num_attr(c, "RIGHT"));
             InterruptPort {
@@ -136,7 +148,12 @@ fn parse_instance(m: Node) -> Result<Instance, Error> {
             let sinks = c
                 .descendants()
                 .filter(|x| x.has_tag_name("CONNECTION"))
-                .filter_map(|x| Some((x.attribute("INSTANCE")?.to_string(), x.attribute("PORT")?.to_string())))
+                .filter_map(|x| {
+                    Some((
+                        x.attribute("INSTANCE")?.to_string(),
+                        x.attribute("PORT")?.to_string(),
+                    ))
+                })
                 .collect();
             let (l, r) = (num_attr(c, "LEFT"), num_attr(c, "RIGHT"));
             Port {
@@ -204,7 +221,10 @@ pub fn parse_hwh(xml: &str) -> Result<Design, Error> {
             .filter(|c| c.has_tag_name("MEMORYMAP"))
             .flat_map(|c| c.children().filter(|c| c.has_tag_name("MEMRANGE")))
         {
-            let a = |k: &str| r.attribute(k).ok_or_else(|| bad(format!("MEMRANGE missing {k}")));
+            let a = |k: &str| {
+                r.attribute(k)
+                    .ok_or_else(|| bad(format!("MEMRANGE missing {k}")))
+            };
             let n = |k: &str| num(a(k)?).ok_or_else(|| bad(format!("MEMRANGE bad {k}")));
             memory_ranges.push(MemRange {
                 instance: a("INSTANCE")?.into(),

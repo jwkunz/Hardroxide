@@ -23,7 +23,10 @@ impl Xsa {
         zip.by_name(&hwh_name)?.read_to_string(&mut xml)?;
         let mut bit = Vec::new();
         zip.by_name(&bit_name)?.read_to_end(&mut bit)?;
-        Ok(Xsa { design: parse_hwh(&xml)?, bit })
+        Ok(Xsa {
+            design: parse_hwh(&xml)?,
+            bit,
+        })
     }
 }
 
@@ -37,7 +40,10 @@ impl Xsa {
 fn unique<R: Read + Seek>(zip: &zip::ZipArchive<R>, ext: &'static str) -> Result<String, Error> {
     let mut names: Vec<_> = zip
         .file_names()
-        .filter(|n| n.rsplit_once('.').is_some_and(|(_, e)| e.eq_ignore_ascii_case(ext)))
+        .filter(|n| {
+            n.rsplit_once('.')
+                .is_some_and(|(_, e)| e.eq_ignore_ascii_case(ext))
+        })
         .map(String::from)
         .collect();
     names.sort();

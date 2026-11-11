@@ -182,4 +182,4 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   2025.2 file. Collect more samples (older versions, HLS, DMA, UltraScale+).
 - **D6 `cargo hardroxide` shim, optional zstd, rename map, async**: not done.
 - **D7 UIO backend**: `Uio` maps map 0 only; untested against a real device.
-- **D8 No CI** configuration yet; `cargo test --workspace` is hardware-free.
+- **D8 CI**: `.github/workflows/ci.yml` runs fmt, clippy, tests and the armv7 check (hardware-free). Not yet observed running on GitHub.

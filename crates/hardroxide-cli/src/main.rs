@@ -5,7 +5,11 @@ use hardroxide_hwh::Xsa;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "hardroxide", version, about = "Generate Rust HAL crates from Vivado XSA files")]
+#[command(
+    name = "hardroxide",
+    version,
+    about = "Generate Rust HAL crates from Vivado XSA files"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -45,23 +49,44 @@ enum Cmd {
 
 fn main() -> Result<()> {
     match Cli::parse().cmd {
-        Cmd::Generate { xsa, out, name, hardroxide_path } => {
+        Cmd::Generate {
+            xsa,
+            out,
+            name,
+            hardroxide_path,
+        } => {
             let x = Xsa::open(&xsa).with_context(|| format!("reading {}", xsa.display()))?;
             let hardroxide_path = hardroxide_path
                 .map(|p| p.canonicalize().with_context(|| format!("{}", p.display())))
                 .transpose()?;
-            let g = generate(&x, &Options { crate_name: name.clone(), hardroxide_path })?;
-            let out = out.unwrap_or_else(|| PathBuf::from(name.unwrap_or_else(|| x.design.name.clone())));
+            let g = generate(
+                &x,
+                &Options {
+                    crate_name: name.clone(),
+                    hardroxide_path,
+                },
+            )?;
+            let out =
+                out.unwrap_or_else(|| PathBuf::from(name.unwrap_or_else(|| x.design.name.clone())));
             g.write_to(&out)?;
             println!("generated {} files in {}", g.files.len(), out.display());
         }
-        Cmd::Update { xsa, crate_dir, regen } => {
+        Cmd::Update {
+            xsa,
+            crate_dir,
+            regen,
+        } => {
             use hardroxide_gen::update::{Outcome, update};
             let x = Xsa::open(&xsa).with_context(|| format!("reading {}", xsa.display()))?;
             match update(&crate_dir, &x, regen)? {
                 Outcome::Unchanged => println!("up to date"),
-                Outcome::BitstreamReplaced { old_sha256, new_sha256 } => {
-                    println!("interface unchanged; bitstream replaced\n  {old_sha256}\n  {new_sha256}");
+                Outcome::BitstreamReplaced {
+                    old_sha256,
+                    new_sha256,
+                } => {
+                    println!(
+                        "interface unchanged; bitstream replaced\n  {old_sha256}\n  {new_sha256}"
+                    );
                 }
                 Outcome::Regenerated { diff } => {
                     println!("interface changed; crate regenerated:");
@@ -77,7 +102,10 @@ fn main() -> Result<()> {
         Cmd::Inspect { xsa } => {
             let x = Xsa::open(&xsa)?;
             let d = &x.design;
-            println!("{} ({} {}, Vivado {})", d.name, d.arch, d.device, d.vivado_version);
+            println!(
+                "{} ({} {}, Vivado {})",
+                d.name, d.arch, d.device, d.vivado_version
+            );
             println!("interface hash: {}", d.interface_hash());
             for c in d.pl_clocks.iter().filter(|c| c.enabled) {
                 println!("FCLK{}: {} Hz", c.index, c.freq_hz);

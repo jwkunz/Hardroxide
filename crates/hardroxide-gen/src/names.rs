@@ -73,6 +73,9 @@ mod tests {
 
     #[test]
     fn collisions_are_resolved_in_order() {
-        assert_eq!(unique_idents(["a-b", "a_b", "A_B"]), ["a_b", "a_b_2", "a_b_3"]);
+        assert_eq!(
+            unique_idents(["a-b", "a_b", "A_B"]),
+            ["a_b", "a_b_2", "a_b_3"]
+        );
     }
 }

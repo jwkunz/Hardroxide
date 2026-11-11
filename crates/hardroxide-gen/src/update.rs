@@ -12,7 +12,10 @@ use std::path::Path;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Outcome {
     /// Bitstream (and load config) replaced; sources untouched.
-    BitstreamReplaced { old_sha256: String, new_sha256: String },
+    BitstreamReplaced {
+        old_sha256: String,
+        new_sha256: String,
+    },
     /// Nothing changed at all.
     Unchanged,
     /// Interface differs and `regen` was not requested.
@@ -40,8 +43,16 @@ impl std::fmt::Display for DiffLine {
 pub fn diff_interface(old: &str, new: &str) -> Vec<DiffLine> {
     let o: BTreeSet<&str> = old.lines().collect();
     let n: BTreeSet<&str> = new.lines().collect();
-    let mut out: Vec<_> = old.lines().filter(|l| !n.contains(l)).map(|l| DiffLine::Removed(l.into())).collect();
-    out.extend(new.lines().filter(|l| !o.contains(l)).map(|l| DiffLine::Added(l.into())));
+    let mut out: Vec<_> = old
+        .lines()
+        .filter(|l| !n.contains(l))
+        .map(|l| DiffLine::Removed(l.into()))
+        .collect();
+    out.extend(
+        new.lines()
+            .filter(|l| !o.contains(l))
+            .map(|l| DiffLine::Added(l.into())),
+    );
     out
 }
 
@@ -51,9 +62,12 @@ fn read(dir: &Path, rel: &str) -> Result<String, GenError> {
 }
 
 fn package_name(manifest: &str) -> Option<String> {
-    manifest
-        .lines()
-        .find_map(|l| l.trim().strip_prefix("name = \"")?.strip_suffix('"').map(String::from))
+    manifest.lines().find_map(|l| {
+        l.trim()
+            .strip_prefix("name = \"")?
+            .strip_suffix('"')
+            .map(String::from)
+    })
 }
 
 pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenError> {
@@ -63,11 +77,16 @@ pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenEr
         let old_sha256 = read(crate_dir, "bitstream/design.sha256")?;
         let files = bitstream_files(xsa)?;
         let new_sha256 = String::from_utf8(files[0].1.clone()).unwrap();
-        if old_sha256 == new_sha256 && read(crate_dir, "bitstream/load.cfg")?.as_bytes() == files[1].1 {
+        if old_sha256 == new_sha256
+            && read(crate_dir, "bitstream/load.cfg")?.as_bytes() == files[1].1
+        {
             return Ok(Outcome::Unchanged);
         }
         write_all(crate_dir, files)?;
-        return Ok(Outcome::BitstreamReplaced { old_sha256, new_sha256 });
+        return Ok(Outcome::BitstreamReplaced {
+            old_sha256,
+            new_sha256,
+        });
     }
     let diff = diff_interface(&old_text, &new_text);
     if !regen {
@@ -75,7 +94,10 @@ pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenEr
     }
     // Keep the existing Cargo.toml (name, dependency sources, user edits).
     let manifest = read(crate_dir, "Cargo.toml")?;
-    let opts = Options { crate_name: package_name(&manifest), hardroxide_path: None };
+    let opts = Options {
+        crate_name: package_name(&manifest),
+        hardroxide_path: None,
+    };
     let mut g = generate(xsa, &opts)?;
     g.files.remove(Path::new("Cargo.toml"));
     // Drop stale generated examples if the design no longer has a GPIO.
@@ -101,7 +123,13 @@ mod tests {
     #[test]
     fn diff_lines() {
         let d = diff_interface("a\nb\nc\n", "a\nc\nd\n");
-        assert_eq!(d, [DiffLine::Removed("b".into()), DiffLine::Added("d".into())]);
-        assert_eq!(package_name("[package]\nname = \"x_y\"\n"), Some("x_y".into()));
+        assert_eq!(
+            d,
+            [DiffLine::Removed("b".into()), DiffLine::Added("d".into())]
+        );
+        assert_eq!(
+            package_name("[package]\nname = \"x_y\"\n"),
+            Some("x_y".into())
+        );
     }
 }

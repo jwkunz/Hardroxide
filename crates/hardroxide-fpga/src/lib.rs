@@ -21,8 +21,15 @@ pub enum FpgaError {
     NotOperating(String),
     #[error("PL clock FCLK{0} does not exist (valid: 0..=3)")]
     BadClockIndex(u8),
-    #[error("cannot reach {requested} Hz on FCLK{index}: best is {best} Hz from a {source_hz} Hz source")]
-    ClockUnreachable { index: u8, requested: u64, best: u64, source_hz: u64 },
+    #[error(
+        "cannot reach {requested} Hz on FCLK{index}: best is {best} Hz from a {source_hz} Hz source"
+    )]
+    ClockUnreachable {
+        index: u8,
+        requested: u64,
+        best: u64,
+        source_hz: u64,
+    },
     #[error("PLL feeding FCLK{0} is bypassed or has a zero feedback divider")]
     PllNotRunning(u8),
     #[error(transparent)]
@@ -30,12 +37,18 @@ pub enum FpgaError {
 }
 
 fn io<T>(path: &Path, r: std::io::Result<T>) -> Result<T, FpgaError> {
-    r.map_err(|source| FpgaError::Io { path: path.to_path_buf(), source })
+    r.map_err(|source| FpgaError::Io {
+        path: path.to_path_buf(),
+        source,
+    })
 }
 
 /// Lower-case hex SHA-256.
 pub fn sha256_hex(data: &[u8]) -> String {
-    Sha256::digest(data).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(data)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 /// Locations of the kernel interfaces used for programming the PL.
@@ -67,7 +80,10 @@ pub fn load_bitstream(
 ) -> Result<(), FpgaError> {
     let actual = sha256_hex(bin);
     if actual != expected_sha256 {
-        return Err(FpgaError::HashMismatch { expected: expected_sha256.into(), actual });
+        return Err(FpgaError::HashMismatch {
+            expected: expected_sha256.into(),
+            actual,
+        });
     }
     let name = format!("hardroxide-{}.bin", &actual[..16]);
     let fw = paths.firmware_dir.join(&name);
@@ -117,8 +133,13 @@ impl LoadConfig {
             if line.is_empty() || line.starts_with('#') {
                 continue;
             }
-            let (k, v) = line.split_once('=').ok_or(format!("line {}: expected key=value", n + 1))?;
-            let v: u64 = v.trim().parse().map_err(|_| format!("line {}: bad number", n + 1))?;
+            let (k, v) = line
+                .split_once('=')
+                .ok_or(format!("line {}: expected key=value", n + 1))?;
+            let v: u64 = v
+                .trim()
+                .parse()
+                .map_err(|_| format!("line {}: bad number", n + 1))?;
             match k.trim() {
                 "ps_clk_hz" => c.ps_clk_hz = v,
                 k => match k.strip_prefix("fclk").and_then(|i| i.parse::<u8>().ok()) {
@@ -146,7 +167,10 @@ mod tests {
 
     #[test]
     fn load_config_roundtrip() {
-        let c = LoadConfig { ps_clk_hz: 50_000_000, fclks: vec![(1, 142_857_143), (0, 100_000_000)] };
+        let c = LoadConfig {
+            ps_clk_hz: 50_000_000,
+            fclks: vec![(1, 142_857_143), (0, 100_000_000)],
+        };
         let t = c.to_text();
         assert_eq!(t, "ps_clk_hz=50000000\nfclk0=100000000\nfclk1=142857143\n");
         assert_eq!(LoadConfig::parse(&t).unwrap().to_text(), t);
@@ -155,7 +179,11 @@ mod tests {
     }
 
     fn fake() -> (PathBuf, FpgaPaths) {
-        let root = std::env::temp_dir().join(format!("hrx-fpga-{}-{:?}", std::process::id(), std::thread::current().id()));
+        let root = std::env::temp_dir().join(format!(
+            "hrx-fpga-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
         let _ = std::fs::remove_dir_all(&root);
         let p = FpgaPaths {
             manager: root.join("mgr"),
@@ -171,10 +199,20 @@ mod tests {
     fn loads_and_rejects_bad_hash() {
         let (root, p) = fake();
         let bin = b"\x01\x02\x03\x04";
-        assert!(matches!(load_bitstream(&p, bin, "00"), Err(FpgaError::HashMismatch { .. })));
+        assert!(matches!(
+            load_bitstream(&p, bin, "00"),
+            Err(FpgaError::HashMismatch { .. })
+        ));
         load_bitstream(&p, bin, &sha256_hex(bin)).unwrap();
-        assert_eq!(std::fs::read_to_string(p.manager.join("flags")).unwrap(), "0");
-        assert!(std::fs::read_to_string(p.manager.join("firmware")).unwrap().starts_with("hardroxide-"));
+        assert_eq!(
+            std::fs::read_to_string(p.manager.join("flags")).unwrap(),
+            "0"
+        );
+        assert!(
+            std::fs::read_to_string(p.manager.join("firmware"))
+                .unwrap()
+                .starts_with("hardroxide-")
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 }

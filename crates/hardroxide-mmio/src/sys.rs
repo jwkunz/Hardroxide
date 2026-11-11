@@ -1,19 +1,22 @@
 //! Real mappings via `mmap`. This is the only place in the workspace that
 //! uses `unsafe` for hardware access.
 
-use crate::{check, Mmio, MmioBackend, MmioError};
+use crate::{Mmio, MmioBackend, MmioError, check};
 use std::fs::OpenOptions;
 use std::os::fd::AsRawFd;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 
 fn io(what: impl Into<String>, source: std::io::Error) -> MmioError {
-    MmioError::Io { what: what.into(), source }
+    MmioError::Io {
+        what: what.into(),
+        source,
+    }
 }
 
 /// An `mmap`ed device window.
 pub struct SysRegion {
-    base: *mut u8,   // start of the user-requested window
+    base: *mut u8, // start of the user-requested window
     map: *mut libc::c_void,
     map_len: usize,
     len: usize,
@@ -29,7 +32,12 @@ unsafe impl Sync for SysRegion {}
 impl SysRegion {
     /// Map `len` bytes of an open file/device starting at `file_offset`
     /// (need not be page-aligned). Used by the DMA buffer backends too.
-    pub fn map_file(file: &std::fs::File, file_offset: u64, len: usize, what: &str) -> Result<Self, MmioError> {
+    pub fn map_file(
+        file: &std::fs::File,
+        file_offset: u64,
+        len: usize,
+        what: &str,
+    ) -> Result<Self, MmioError> {
         Self::mmap(file, file_offset, len, what)
     }
 
@@ -38,7 +46,12 @@ impl SysRegion {
         self.base
     }
 
-    fn mmap(file: &std::fs::File, file_offset: u64, len: usize, what: &str) -> Result<Self, MmioError> {
+    fn mmap(
+        file: &std::fs::File,
+        file_offset: u64,
+        len: usize,
+        what: &str,
+    ) -> Result<Self, MmioError> {
         // SAFETY: sysconf has no preconditions.
         let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;
         let aligned = file_offset & !(page - 1);
@@ -60,7 +73,12 @@ impl SysRegion {
         }
         // SAFETY: delta < map_len, so the pointer stays inside the mapping.
         let base = unsafe { (map as *mut u8).add(delta) };
-        Ok(SysRegion { base, map, map_len, len })
+        Ok(SysRegion {
+            base,
+            map,
+            map_len,
+            len,
+        })
     }
 }
 
@@ -97,7 +115,9 @@ pub struct DevMem {
 
 impl DevMem {
     pub fn new() -> Self {
-        Self { path: "/dev/mem".into() }
+        Self {
+            path: "/dev/mem".into(),
+        }
     }
     /// Use another file as the "physical memory" (for testing).
     pub fn with_path(path: impl Into<PathBuf>) -> Self {
@@ -167,7 +187,10 @@ mod tests {
         drop(r);
         let bytes = std::fs::read(&p).unwrap();
         let off = 4096 + 0x40 + 8;
-        assert_eq!(u32::from_ne_bytes(bytes[off..off + 4].try_into().unwrap()), 0x1234_5678);
+        assert_eq!(
+            u32::from_ne_bytes(bytes[off..off + 4].try_into().unwrap()),
+            0x1234_5678
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

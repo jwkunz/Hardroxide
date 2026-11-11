@@ -30,14 +30,22 @@ impl Instance {
 impl Design {
     /// `(FCLK index, Hz)` for each enabled PL clock.
     pub fn enabled_fclks(&self) -> Vec<(u8, u64)> {
-        self.pl_clocks.iter().filter(|c| c.enabled).map(|c| (c.index, c.freq_hz)).collect()
+        self.pl_clocks
+            .iter()
+            .filter(|c| c.enabled)
+            .map(|c| (c.index, c.freq_hz))
+            .collect()
     }
 
     /// Bit of the PS7 `IRQ_F2P` vector driven by output port `port` of
     /// `instance`, following `xlconcat` blocks. `None` if the port is wider
     /// than one bit, unconnected, fans out, or goes through other logic.
     pub fn ps7_irq_f2p_bit(&self, instance: &str, port: &str) -> Option<u32> {
-        let p = self.instance(instance)?.ports.iter().find(|p| p.name == port)?;
+        let p = self
+            .instance(instance)?
+            .ports
+            .iter()
+            .find(|p| p.name == port)?;
         if p.width != 1 {
             return None;
         }
@@ -48,15 +56,25 @@ impl Design {
         if depth > 8 {
             return None;
         }
-        let p = self.instance(instance)?.ports.iter().find(|p| p.name == port)?;
-        let [(sink_inst, sink_port)] = p.sinks.as_slice() else { return None };
+        let p = self
+            .instance(instance)?
+            .ports
+            .iter()
+            .find(|p| p.name == port)?;
+        let [(sink_inst, sink_port)] = p.sinks.as_slice() else {
+            return None;
+        };
         let sink = self.instance(sink_inst)?;
         match sink.mod_type.as_str() {
             "processing_system7" if sink_port == "IRQ_F2P" => Some(0),
             "xlconcat" => {
                 let k: u32 = sink_port.strip_prefix("In")?.parse().ok()?;
                 let below: u32 = (0..k)
-                    .map(|j| sink.parameters.get(&format!("IN{j}_WIDTH")).and_then(|v| v.parse::<u32>().ok()))
+                    .map(|j| {
+                        sink.parameters
+                            .get(&format!("IN{j}_WIDTH"))
+                            .and_then(|v| v.parse::<u32>().ok())
+                    })
                     .sum::<Option<u32>>()?;
                 Some(below + self.trace_irq(sink_inst, "dout", depth + 1)?)
             }
@@ -70,7 +88,9 @@ impl Design {
 
     /// Address-map entries belonging to `instance`.
     pub fn ranges_of<'a>(&'a self, instance: &'a str) -> impl Iterator<Item = &'a MemRange> {
-        self.memory_ranges.iter().filter(move |r| r.instance == instance)
+        self.memory_ranges
+            .iter()
+            .filter(move |r| r.instance == instance)
     }
 }
 

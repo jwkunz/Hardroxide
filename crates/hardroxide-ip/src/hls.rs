@@ -69,7 +69,11 @@ impl<R: Mmio> HlsIp<R> {
     pub fn set_auto_restart(&self, on: bool) -> Result<(), MmioError> {
         self.regs.modify32(CTRL, |v| {
             let v = v & AUTO_RESTART; // only the writable bit survives
-            if on { v | AUTO_RESTART } else { v & !AUTO_RESTART }
+            if on {
+                v | AUTO_RESTART
+            } else {
+                v & !AUTO_RESTART
+            }
         })
     }
 
@@ -125,7 +129,10 @@ mod tests {
         assert!(ip.is_done().unwrap() && ip.is_idle().unwrap());
         ip.wait_done(Duration::from_millis(10)).unwrap();
         be.poke(0x4000_0000, 0);
-        assert!(matches!(ip.wait_done(Duration::from_millis(5)), Err(HlsError::Timeout(_))));
+        assert!(matches!(
+            ip.wait_done(Duration::from_millis(5)),
+            Err(HlsError::Timeout(_))
+        ));
         ip.enable_done_interrupt().unwrap();
         assert_eq!((be.peek(0x4000_0004), be.peek(0x4000_0008)), (1, 1));
         be.poke(0x4000_000C, 1);

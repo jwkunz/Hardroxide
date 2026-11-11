@@ -33,22 +33,33 @@ impl UioIrq {
             .read(true)
             .write(true)
             .open(&path)
-            .map_err(|source| IrqError::Io { path: path.clone(), source })?;
+            .map_err(|source| IrqError::Io {
+                path: path.clone(),
+                source,
+            })?;
         Ok(Self { file, path })
     }
 
     /// Wrap an already-open descriptor (tests use a pipe).
     pub fn from_file(file: File, path: impl Into<PathBuf>) -> Self {
-        Self { file, path: path.into() }
+        Self {
+            file,
+            path: path.into(),
+        }
     }
 
     fn io(&self, source: std::io::Error) -> IrqError {
-        IrqError::Io { path: self.path.clone(), source }
+        IrqError::Io {
+            path: self.path.clone(),
+            source,
+        }
     }
 
     /// Unmask the interrupt in the UIO core.
     pub fn enable(&self) -> Result<(), IrqError> {
-        (&self.file).write_all(&1u32.to_ne_bytes()).map_err(|e| self.io(e))
+        (&self.file)
+            .write_all(&1u32.to_ne_bytes())
+            .map_err(|e| self.io(e))
     }
 
     /// Unmask, then wait for the next interrupt. Returns the cumulative
@@ -61,7 +72,11 @@ impl UioIrq {
 
     /// Wait without re-enabling first.
     pub fn wait_event(&self, timeout: Option<Duration>) -> Result<Option<u32>, IrqError> {
-        let mut pfd = libc::pollfd { fd: self.file.as_raw_fd(), events: libc::POLLIN, revents: 0 };
+        let mut pfd = libc::pollfd {
+            fd: self.file.as_raw_fd(),
+            events: libc::POLLIN,
+            revents: 0,
+        };
         let ms = timeout.map_or(-1, |t| t.as_millis().min(i32::MAX as u128) as i32);
         loop {
             // SAFETY: `pfd` is a valid pollfd and we pass exactly one.
@@ -103,7 +118,10 @@ mod async_impl {
         /// Async [`UioIrq::wait`]: a helper thread blocks in `poll` and wakes
         /// the task. Works under any executor.
         pub fn wait_async(self: &Arc<Self>, timeout: Option<Duration>) -> WaitFuture {
-            let shared = Arc::new(Mutex::new(Shared { result: None, waker: None }));
+            let shared = Arc::new(Mutex::new(Shared {
+                result: None,
+                waker: None,
+            }));
             let (me, sh) = (self.clone(), shared.clone());
             std::thread::spawn(move || {
                 let r = me.wait(timeout);
@@ -146,7 +164,10 @@ mod tests {
     fn pair() -> (File, File) {
         let mut fds = [0; 2];
         // SAFETY: valid out-array of 2 ints.
-        assert_eq!(unsafe { libc::socketpair(libc::AF_UNIX, libc::SOCK_STREAM, 0, fds.as_mut_ptr()) }, 0);
+        assert_eq!(
+            unsafe { libc::socketpair(libc::AF_UNIX, libc::SOCK_STREAM, 0, fds.as_mut_ptr()) },
+            0
+        );
         // SAFETY: fresh descriptors we own.
         unsafe { (File::from_raw_fd(fds[0]), File::from_raw_fd(fds[1])) }
     }

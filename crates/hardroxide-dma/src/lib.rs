@@ -48,7 +48,10 @@ pub struct MockBuffer {
 
 impl MockBuffer {
     pub fn new(len: usize, phys: u64) -> Self {
-        Self { data: vec![0; len], phys }
+        Self {
+            data: vec![0; len],
+            phys,
+        }
     }
 }
 
@@ -92,7 +95,10 @@ pub struct Udmabuf {
 }
 
 fn read_num(p: &PathBuf) -> Result<u64, DmaError> {
-    let t = std::fs::read_to_string(p).map_err(|source| DmaError::Io { path: p.clone(), source })?;
+    let t = std::fs::read_to_string(p).map_err(|source| DmaError::Io {
+        path: p.clone(),
+        source,
+    })?;
     let t = t.trim();
     let r = match t.strip_prefix("0x") {
         Some(h) => u64::from_str_radix(h, 16),
@@ -115,7 +121,10 @@ impl Udmabuf {
             .write(true)
             .custom_flags(libc_o_sync())
             .open(&paths.dev)
-            .map_err(|source| DmaError::Io { path: paths.dev.clone(), source })?;
+            .map_err(|source| DmaError::Io {
+                path: paths.dev.clone(),
+                source,
+            })?;
         let region = SysRegion::map_file(&f, 0, size, &paths.dev.display().to_string())?;
         Ok(Self { region, phys })
     }
@@ -154,7 +163,11 @@ mod tests {
     fn udmabuf_maps_fake_device_file() {
         let dir = std::env::temp_dir().join(format!("hrx-udma-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let p = UdmabufPaths { dev: dir.join("dev"), phys_addr: dir.join("phys"), size: dir.join("size") };
+        let p = UdmabufPaths {
+            dev: dir.join("dev"),
+            phys_addr: dir.join("phys"),
+            size: dir.join("size"),
+        };
         std::fs::write(&p.dev, vec![0u8; 8192]).unwrap();
         std::fs::write(&p.phys_addr, "0x1f000000\n").unwrap();
         std::fs::write(&p.size, "8192\n").unwrap();

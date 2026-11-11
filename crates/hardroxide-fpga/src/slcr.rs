@@ -47,8 +47,15 @@ pub fn best_divisors(src_hz: u64, target_hz: u64) -> (u32, u32, u64) {
 /// `ps_clk_hz` is the PS reference clock (50 MHz on PYNQ-Z2).
 /// Set FCLK `index` to (approximately) `hz`, accepting up to 1% error.
 /// Returns the achieved frequency.
-pub fn set_pl_clock(slcr: &impl Mmio, ps_clk_hz: u64, index: u8, hz: u64) -> Result<u64, FpgaError> {
-    let reg = *FPGA_CLK_CTRL.get(index as usize).ok_or(FpgaError::BadClockIndex(index))?;
+pub fn set_pl_clock(
+    slcr: &impl Mmio,
+    ps_clk_hz: u64,
+    index: u8,
+    hz: u64,
+) -> Result<u64, FpgaError> {
+    let reg = *FPGA_CLK_CTRL
+        .get(index as usize)
+        .ok_or(FpgaError::BadClockIndex(index))?;
     let ctrl = slcr.read32(reg)?;
     let srcsel = (ctrl >> 4) & 0x3;
     let pll = slcr.read32(pll_ctrl(srcsel))?;
@@ -60,7 +67,12 @@ pub fn set_pl_clock(slcr: &impl Mmio, ps_clk_hz: u64, index: u8, hz: u64) -> Res
     let src_hz = ps_clk_hz * fdiv as u64;
     let (d0, d1, got) = best_divisors(src_hz, hz);
     if got.abs_diff(hz) * 100 > hz {
-        return Err(FpgaError::ClockUnreachable { index, requested: hz, best: got, source_hz: src_hz });
+        return Err(FpgaError::ClockUnreachable {
+            index,
+            requested: hz,
+            best: got,
+            source_hz: src_hz,
+        });
     }
     let new = (ctrl & !((0x3f << 8) | (0x3f << 20))) | (d0 << 8) | (d1 << 20);
     slcr.write32(SLCR_UNLOCK, UNLOCK_KEY)?;
@@ -93,16 +105,29 @@ mod tests {
         let v = be.peek(SLCR_BASE + 0x170);
         assert_eq!(((v >> 8) & 0x3f) * ((v >> 20) & 0x3f), 10);
         assert_eq!(v & 0xf, 1, "unrelated bits preserved");
-        assert_eq!(be.peek(SLCR_BASE + SLCR_LOCK as u64), LOCK_KEY, "left locked");
+        assert_eq!(
+            be.peek(SLCR_BASE + SLCR_LOCK as u64),
+            LOCK_KEY,
+            "left locked"
+        );
     }
 
     #[test]
     fn errors() {
         let be = MockBackend::new();
         let r = be.map(SLCR_BASE, SLCR_SIZE).unwrap();
-        assert!(matches!(set_pl_clock(&r, 33_333_333, 4, 1), Err(FpgaError::BadClockIndex(4))));
-        assert!(matches!(set_pl_clock(&r, 33_333_333, 0, 1), Err(FpgaError::PllNotRunning(0))));
+        assert!(matches!(
+            set_pl_clock(&r, 33_333_333, 4, 1),
+            Err(FpgaError::BadClockIndex(4))
+        ));
+        assert!(matches!(
+            set_pl_clock(&r, 33_333_333, 0, 1),
+            Err(FpgaError::PllNotRunning(0))
+        ));
         be.poke(SLCR_BASE + IO_PLL_CTRL as u64, 30 << 12);
-        assert!(matches!(set_pl_clock(&r, 33_333_333, 0, 2_000_000_000), Err(FpgaError::ClockUnreachable { .. })));
+        assert!(matches!(
+            set_pl_clock(&r, 33_333_333, 0, 2_000_000_000),
+            Err(FpgaError::ClockUnreachable { .. })
+        ));
     }
 }

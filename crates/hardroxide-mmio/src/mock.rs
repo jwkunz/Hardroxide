@@ -1,4 +1,4 @@
-use crate::{check, Mmio, MmioBackend, MmioError};
+use crate::{Mmio, MmioBackend, MmioError, check};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
@@ -52,7 +52,11 @@ pub struct MockRegion {
 impl MmioBackend for MockBackend {
     type Region = MockRegion;
     fn map(&self, phys: u64, len: usize) -> Result<MockRegion, MmioError> {
-        Ok(MockRegion { base: phys, len, state: self.0.clone() })
+        Ok(MockRegion {
+            base: phys,
+            len,
+            state: self.0.clone(),
+        })
     }
 }
 

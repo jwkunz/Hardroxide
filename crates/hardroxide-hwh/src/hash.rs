@@ -16,9 +16,17 @@ impl Design {
             for b in &i.address_blocks {
                 let _ = writeln!(s, " block {} {} {}", b.name, b.interface, b.range);
                 for r in &b.registers {
-                    let _ = writeln!(s, "  reg {} {:#x} {:?} {:#x}", r.name, r.offset, r.access, r.reset_value);
+                    let _ = writeln!(
+                        s,
+                        "  reg {} {:#x} {:?} {:#x}",
+                        r.name, r.offset, r.access, r.reset_value
+                    );
                     for f in &r.fields {
-                        let _ = writeln!(s, "   field {} {} {} {:?}", f.name, f.bit_offset, f.bit_width, f.access);
+                        let _ = writeln!(
+                            s,
+                            "   field {} {} {} {:?}",
+                            f.name, f.bit_offset, f.bit_width, f.access
+                        );
                     }
                 }
             }
@@ -29,13 +37,20 @@ impl Design {
         let mut rs: Vec<_> = self.memory_ranges.iter().collect();
         rs.sort_by(|a, b| (&a.instance, &a.address_block).cmp(&(&b.instance, &b.address_block)));
         for r in rs {
-            let _ = writeln!(s, "range {} {} {:#x} {:#x}", r.instance, r.address_block, r.base, r.high);
+            let _ = writeln!(
+                s,
+                "range {} {} {:#x} {:#x}",
+                r.instance, r.address_block, r.base, r.high
+            );
         }
         s
     }
 
     /// Hex SHA-256 of [`interface_text`](Self::interface_text).
     pub fn interface_hash(&self) -> String {
-        Sha256::digest(self.interface_text()).iter().map(|b| format!("{b:02x}")).collect()
+        Sha256::digest(self.interface_text())
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect()
     }
 }

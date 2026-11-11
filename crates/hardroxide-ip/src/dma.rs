@@ -25,8 +25,20 @@ struct Regs {
     len: usize,
 }
 
-const MM2S: Regs = Regs { cr: 0x00, sr: 0x04, addr: 0x18, addr_msb: 0x1C, len: 0x28 };
-const S2MM: Regs = Regs { cr: 0x30, sr: 0x34, addr: 0x48, addr_msb: 0x4C, len: 0x58 };
+const MM2S: Regs = Regs {
+    cr: 0x00,
+    sr: 0x04,
+    addr: 0x18,
+    addr_msb: 0x1C,
+    len: 0x28,
+};
+const S2MM: Regs = Regs {
+    cr: 0x30,
+    sr: 0x34,
+    addr: 0x48,
+    addr_msb: 0x4C,
+    len: 0x58,
+};
 
 // DMACR
 const CR_RS: u32 = 1 << 0;
@@ -79,7 +91,11 @@ impl<R: Mmio> AxiDma<R> {
     /// (HWH `C_SG_LENGTH_WIDTH`; the Vivado default is 14).
     pub fn with_length_width(regs: R, length_width: u32) -> Self {
         let max_len = (1usize << length_width.clamp(8, 26)) - 1;
-        Self { regs, max_len, irq: false }
+        Self {
+            regs,
+            max_len,
+            irq: false,
+        }
     }
 
     pub fn new(regs: R) -> Self {
@@ -144,21 +160,38 @@ impl<R: Mmio> AxiDma<R> {
         len: usize,
     ) -> Result<Transfer<'_, R, B>, StartError<B>> {
         match self.start_inner(dir, &buf, len) {
-            Ok(()) => Ok(Transfer { dma: self, dir, buf: Some(buf) }),
+            Ok(()) => Ok(Transfer {
+                dma: self,
+                dir,
+                buf: Some(buf),
+            }),
             Err(error) => Err(StartError { error, buffer: buf }),
         }
     }
 
-    fn start_inner<B: DmaBuffer>(&self, dir: Direction, buf: &B, len: usize) -> Result<(), DmaIpError> {
+    fn start_inner<B: DmaBuffer>(
+        &self,
+        dir: Direction,
+        buf: &B,
+        len: usize,
+    ) -> Result<(), DmaIpError> {
         if len == 0 || len > self.max_len || len > buf.len() {
-            return Err(DmaIpError::BadLength { len, max: self.max_len, buf: buf.len() });
+            return Err(DmaIpError::BadLength {
+                len,
+                max: self.max_len,
+                buf: buf.len(),
+            });
         }
         let r = Self::r(dir);
         let sr = self.regs.read32(r.sr)?;
         if sr & (SR_HALTED | SR_IDLE) == 0 {
             return Err(DmaIpError::Busy(sr));
         }
-        let irq = if self.irq { CR_IOC_IRQ_EN | CR_ERR_IRQ_EN } else { 0 };
+        let irq = if self.irq {
+            CR_IOC_IRQ_EN | CR_ERR_IRQ_EN
+        } else {
+            0
+        };
         self.regs.write32(r.cr, CR_RS | irq)?;
         self.regs.write32(r.sr, SR_W1C)?; // clear stale flags (write-1-to-clear)
         let phys = buf.phys_addr();
@@ -267,10 +300,16 @@ mod tests {
         let buf = MockBuffer::new(4096, 0x1F00_0000);
         let t = dma.start(Direction::MemToStream, buf, 1024).unwrap();
         assert_eq!(be.peek(BASE) & CR_RS, CR_RS);
-        assert_eq!((be.peek(BASE + 0x18), be.peek(BASE + 0x28)), (0x1F00_0000, 1024));
+        assert_eq!(
+            (be.peek(BASE + 0x18), be.peek(BASE + 0x28)),
+            (0x1F00_0000, 1024)
+        );
         let log = be.log();
         let last = log.last().unwrap();
-        assert!(matches!(last, hardroxide_mmio::MockAccess::Write { addr, value: 1024 } if *addr == BASE + 0x28), "LENGTH written last");
+        assert!(
+            matches!(last, hardroxide_mmio::MockAccess::Write { addr, value: 1024 } if *addr == BASE + 0x28),
+            "LENGTH written last"
+        );
         assert!(!t.poll().unwrap());
         let b2 = be.clone();
         let h = std::thread::spawn(move || {
@@ -285,8 +324,13 @@ mod tests {
     #[test]
     fn s2mm_uses_s2mm_registers() {
         let (be, dma) = setup();
-        let t = dma.start(Direction::StreamToMem, MockBuffer::new(64, 0x2000_0000), 64).unwrap();
-        assert_eq!((be.peek(BASE + 0x48), be.peek(BASE + 0x58)), (0x2000_0000, 64));
+        let t = dma
+            .start(Direction::StreamToMem, MockBuffer::new(64, 0x2000_0000), 64)
+            .unwrap();
+        assert_eq!(
+            (be.peek(BASE + 0x48), be.peek(BASE + 0x58)),
+            (0x2000_0000, 64)
+        );
         drop(t); // abandoned: halts (mock reports halted) without panic
         assert_eq!(be.peek(BASE + 0x30) & CR_RS, 0);
     }
@@ -294,31 +338,62 @@ mod tests {
     #[test]
     fn rejects_bad_length_and_busy_and_returns_buffer() {
         let (be, dma) = setup();
-        let e = dma.start(Direction::MemToStream, MockBuffer::new(16, 0), 32).unwrap_err();
+        let e = dma
+            .start(Direction::MemToStream, MockBuffer::new(16, 0), 32)
+            .unwrap_err();
         assert!(matches!(e.error, DmaIpError::BadLength { .. }));
         assert_eq!(e.buffer.len(), 16);
-        assert!(dma.start(Direction::MemToStream, MockBuffer::new(16, 0), 0).is_err());
+        assert!(
+            dma.start(Direction::MemToStream, MockBuffer::new(16, 0), 0)
+                .is_err()
+        );
         be.poke(BASE + 0x04, 0); // neither halted nor idle
-        assert!(matches!(dma.start(Direction::MemToStream, MockBuffer::new(16, 0), 8).unwrap_err().error, DmaIpError::Busy(0)));
+        assert!(matches!(
+            dma.start(Direction::MemToStream, MockBuffer::new(16, 0), 8)
+                .unwrap_err()
+                .error,
+            DmaIpError::Busy(0)
+        ));
     }
 
     #[test]
     fn hardware_error_and_timeout_halt_the_channel() {
         let (be, dma) = setup();
-        let t = dma.start(Direction::MemToStream, MockBuffer::new(16, 0), 8).unwrap();
+        let t = dma
+            .start(Direction::MemToStream, MockBuffer::new(16, 0), 8)
+            .unwrap();
         be.poke(BASE + 0x04, SR_HALTED | (1 << 6)); // DMADecErr
-        assert!(matches!(t.wait(Duration::from_millis(10)), Err(DmaIpError::Hardware(_))));
+        assert!(matches!(
+            t.wait(Duration::from_millis(10)),
+            Err(DmaIpError::Hardware(_))
+        ));
         assert_eq!(be.peek(BASE) & CR_RS, 0);
         be.poke(BASE + 0x04, SR_HALTED);
-        let t = dma.start(Direction::MemToStream, MockBuffer::new(16, 0), 8).unwrap();
-        assert!(matches!(t.wait(Duration::from_millis(5)), Err(DmaIpError::Timeout(_))));
+        let t = dma
+            .start(Direction::MemToStream, MockBuffer::new(16, 0), 8)
+            .unwrap();
+        assert!(matches!(
+            t.wait(Duration::from_millis(5)),
+            Err(DmaIpError::Timeout(_))
+        ));
     }
 
     #[test]
     fn register_offsets_match_the_hwh() {
-        let x = hardroxide_hwh::Xsa::open(concat!(env!("CARGO_MANIFEST_DIR"), "/../../fixtures/pynq_z2_dma_loopback.xsa")).unwrap();
+        let x = hardroxide_hwh::Xsa::open(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/pynq_z2_dma_loopback.xsa"
+        ))
+        .unwrap();
         let dma = x.design.instance("axi_dma_0").unwrap();
-        let off = |n: &str| dma.address_blocks[0].registers.iter().find(|r| r.name == n).unwrap().offset as usize;
+        let off = |n: &str| {
+            dma.address_blocks[0]
+                .registers
+                .iter()
+                .find(|r| r.name == n)
+                .unwrap()
+                .offset as usize
+        };
         for (r, p) in [("MM2S", &MM2S), ("S2MM", &S2MM)] {
             assert_eq!(off(&format!("{r}_DMACR")), p.cr);
             assert_eq!(off(&format!("{r}_DMASR")), p.sr);
@@ -329,8 +404,21 @@ mod tests {
         assert_eq!(off("S2MM_DA"), S2MM.addr);
         assert_eq!(off("S2MM_DA_MSB"), S2MM.addr_msb);
         let f = |reg: &str, field: &str| {
-            let r = dma.address_blocks[0].registers.iter().find(|r| r.name == reg).unwrap();
-            let f = r.fields.iter().find(|f| f.name.eq_ignore_ascii_case(field)).unwrap_or_else(|| panic!("{reg}.{field}: {:?}", r.fields.iter().map(|f| &f.name).collect::<Vec<_>>()));
+            let r = dma.address_blocks[0]
+                .registers
+                .iter()
+                .find(|r| r.name == reg)
+                .unwrap();
+            let f = r
+                .fields
+                .iter()
+                .find(|f| f.name.eq_ignore_ascii_case(field))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "{reg}.{field}: {:?}",
+                        r.fields.iter().map(|f| &f.name).collect::<Vec<_>>()
+                    )
+                });
             f.bit_offset
         };
         assert_eq!(1u32 << f("MM2S_DMACR", "RS"), CR_RS);

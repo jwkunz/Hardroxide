@@ -1,10 +1,13 @@
-use hardroxide_gen::{generate, Options};
+use hardroxide_gen::{Options, generate};
 use hardroxide_hwh::Xsa;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().unwrap()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .unwrap()
 }
 
 fn fixture_named(n: &str) -> Xsa {
@@ -20,17 +23,25 @@ const FIXTURES: &[&str] = &["pynq_z2_gpio", "pynq_z2_hls_vadd", "pynq_z2_dma_loo
 #[test]
 fn deterministic() {
     let o = Options::default();
-    assert_eq!(generate(&fixture(), &o).unwrap(), generate(&fixture(), &o).unwrap());
+    assert_eq!(
+        generate(&fixture(), &o).unwrap(),
+        generate(&fixture(), &o).unwrap()
+    );
 }
 
 /// Golden snapshot of the generated sources. Regenerate with
 /// `UPDATE_GOLDEN=1 cargo test -p hardroxide-gen`.
 #[test]
 fn golden_snapshot() {
-    let opts = Options { hardroxide_path: Some("/hardroxide".into()), ..Default::default() };
+    let opts = Options {
+        hardroxide_path: Some("/hardroxide".into()),
+        ..Default::default()
+    };
     for name in FIXTURES {
         let g = generate(&fixture_named(name), &opts).unwrap();
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden").join(name);
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/golden")
+            .join(name);
         for (rel, data) in &g.files {
             if rel.extension().is_some_and(|e| e == "bin") {
                 continue; // big; covered by bitstream/design.sha256
@@ -40,8 +51,14 @@ fn golden_snapshot() {
                 std::fs::create_dir_all(p.parent().unwrap()).unwrap();
                 std::fs::write(&p, data).unwrap();
             } else {
-                let want = std::fs::read(&p).unwrap_or_else(|_| panic!("missing golden {}", p.display()));
-                assert_eq!(String::from_utf8_lossy(data), String::from_utf8_lossy(&want), "{name}/{}", rel.display());
+                let want =
+                    std::fs::read(&p).unwrap_or_else(|_| panic!("missing golden {}", p.display()));
+                assert_eq!(
+                    String::from_utf8_lossy(data),
+                    String::from_utf8_lossy(&want),
+                    "{name}/{}",
+                    rel.display()
+                );
             }
         }
     }
@@ -51,11 +68,21 @@ fn golden_snapshot() {
 fn build_and_test(fixture: &str, crate_name: &str, test_src: &str) {
     let tmp = std::env::temp_dir().join(format!("hrx-gen-{crate_name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
-    let opts = Options { hardroxide_path: Some(root()), crate_name: Some(crate_name.into()) };
-    generate(&fixture_named(fixture), &opts).unwrap().write_to(&tmp).unwrap();
+    let opts = Options {
+        hardroxide_path: Some(root()),
+        crate_name: Some(crate_name.into()),
+    };
+    generate(&fixture_named(fixture), &opts)
+        .unwrap()
+        .write_to(&tmp)
+        .unwrap();
     std::fs::create_dir_all(tmp.join("tests")).unwrap();
     let fixture_path = root().join(format!("fixtures/{fixture}.xsa"));
-    std::fs::write(tmp.join("tests/mock.rs"), test_src.replace("__FIXTURE__", fixture_path.to_str().unwrap())).unwrap();
+    std::fs::write(
+        tmp.join("tests/mock.rs"),
+        test_src.replace("__FIXTURE__", fixture_path.to_str().unwrap()),
+    )
+    .unwrap();
     // Standalone package, not part of this workspace.
     let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
     manifest.push_str("\n[workspace]\n");
@@ -66,31 +93,53 @@ fn build_and_test(fixture: &str, crate_name: &str, test_src: &str) {
         .env("CARGO_TARGET_DIR", root().join("target/gen-test"))
         .output()
         .unwrap();
-    let text = format!("{}\n{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    let text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(out.status.success(), "{text}");
-    assert!(!text.contains("warning"), "generated crate has warnings:\n{text}");
+    assert!(
+        !text.contains("warning"),
+        "generated crate has warnings:\n{text}"
+    );
     std::fs::remove_dir_all(tmp).unwrap();
 }
 
 #[test]
 fn generated_gpio_crate_builds_and_works_with_mock() {
-    build_and_test("pynq_z2_gpio", "pynq_z2_gpio_test", include_str!("data/generated_mock_test.rs"));
+    build_and_test(
+        "pynq_z2_gpio",
+        "pynq_z2_gpio_test",
+        include_str!("data/generated_mock_test.rs"),
+    );
 }
 
 #[test]
 fn generated_dma_crate_builds_and_works_with_mock() {
-    build_and_test("pynq_z2_dma_loopback", "pynq_z2_dma_test", include_str!("data/generated_dma_test.rs"));
+    build_and_test(
+        "pynq_z2_dma_loopback",
+        "pynq_z2_dma_test",
+        include_str!("data/generated_dma_test.rs"),
+    );
 }
 
 #[test]
 fn generated_hls_crate_builds_and_works_with_mock() {
-    build_and_test("pynq_z2_hls_vadd", "pynq_z2_hls_test", include_str!("data/generated_hls_test.rs"));
+    build_and_test(
+        "pynq_z2_hls_vadd",
+        "pynq_z2_hls_test",
+        include_str!("data/generated_hls_test.rs"),
+    );
 }
 
 fn fresh_crate(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("hrx-upd-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    generate(&fixture(), &Options::default()).unwrap().write_to(&dir).unwrap();
+    generate(&fixture(), &Options::default())
+        .unwrap()
+        .write_to(&dir)
+        .unwrap();
     dir
 }
 
@@ -99,7 +148,14 @@ fn snapshot(dir: &Path) -> std::collections::BTreeMap<PathBuf, Vec<u8>> {
     fn walk(base: &Path, d: &Path, m: &mut std::collections::BTreeMap<PathBuf, Vec<u8>>) {
         for e in std::fs::read_dir(d).unwrap() {
             let p = e.unwrap().path();
-            if p.is_dir() { walk(base, &p, m) } else { m.insert(p.strip_prefix(base).unwrap().into(), std::fs::read(&p).unwrap()); }
+            if p.is_dir() {
+                walk(base, &p, m)
+            } else {
+                m.insert(
+                    p.strip_prefix(base).unwrap().into(),
+                    std::fs::read(&p).unwrap(),
+                );
+            }
         }
     }
     walk(dir, dir, &mut m);
@@ -122,9 +178,16 @@ fn update_bitstream_only_touches_only_bitstream_files() {
     let mut x = fixture();
     let n = x.bit.len();
     x.bit[n - 100] ^= 0xff; // same interface, different payload
-    assert!(matches!(update(&dir, &x, false).unwrap(), Outcome::BitstreamReplaced { .. }));
+    assert!(matches!(
+        update(&dir, &x, false).unwrap(),
+        Outcome::BitstreamReplaced { .. }
+    ));
     let after = snapshot(&dir);
-    let changed: Vec<_> = after.iter().filter(|(k, v)| before.get(*k) != Some(v)).map(|(k, _)| k.to_str().unwrap()).collect();
+    let changed: Vec<_> = after
+        .iter()
+        .filter(|(k, v)| before.get(*k) != Some(v))
+        .map(|(k, _)| k.to_str().unwrap())
+        .collect();
     assert_eq!(changed, ["bitstream/design.bin", "bitstream/design.sha256"]);
     assert_eq!(after.len(), before.len());
     std::fs::remove_dir_all(dir).unwrap();
@@ -138,13 +201,24 @@ fn update_interface_change_needs_regen() {
     x.design.memory_ranges[0].base = 0x4300_0000;
     x.design.memory_ranges[0].high = 0x4300_FFFF;
     let before = snapshot(&dir);
-    let Outcome::InterfaceChanged { diff } = update(&dir, &x, false).unwrap() else { panic!() };
-    assert!(diff.iter().any(|d| matches!(d, DiffLine::Added(l) if l.contains("0x43000000"))));
+    let Outcome::InterfaceChanged { diff } = update(&dir, &x, false).unwrap() else {
+        panic!()
+    };
+    assert!(
+        diff.iter()
+            .any(|d| matches!(d, DiffLine::Added(l) if l.contains("0x43000000")))
+    );
     assert_eq!(snapshot(&dir), before, "no files touched without --regen");
-    assert!(matches!(update(&dir, &x, true).unwrap(), Outcome::Regenerated { .. }));
+    assert!(matches!(
+        update(&dir, &x, true).unwrap(),
+        Outcome::Regenerated { .. }
+    ));
     let pac = std::fs::read_to_string(dir.join("src/pac.rs")).unwrap();
     assert!(pac.contains("0x43000000"));
-    assert_eq!(std::fs::read_to_string(dir.join("Cargo.toml")).unwrap(), String::from_utf8(before[Path::new("Cargo.toml")].clone()).unwrap());
+    assert_eq!(
+        std::fs::read_to_string(dir.join("Cargo.toml")).unwrap(),
+        String::from_utf8(before[Path::new("Cargo.toml")].clone()).unwrap()
+    );
     assert_eq!(update(&dir, &x, false).unwrap(), Outcome::Unchanged);
     std::fs::remove_dir_all(dir).unwrap();
 }

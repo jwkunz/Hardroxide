@@ -29,6 +29,7 @@
   - [AXI Interrupt Controller](reference/ip-intc.md)
   - [AXI BRAM Controller](reference/ip-bram.md)
   - [AXI UART Lite](reference/ip-uart.md)
+  - [AXI4-Stream FIFO](reference/ip-fifo.md)
   - [AXI IIC](reference/ip-iic.md)
   - [AXI Quad SPI](reference/ip-spi.md)
 - [Fixtures](reference/fixtures.md)

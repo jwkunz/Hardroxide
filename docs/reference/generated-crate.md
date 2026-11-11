@@ -112,6 +112,7 @@ unverified ([G11](../08-verification-gaps.md)).
 | `board_check` | always | loads the bitstream, reads each FCLK back from the SLCR, opens every interrupt's UIO device; touches no IP register |
 | `gpio_smoke` | AXI GPIO | walks a one-hot pattern on channel 1, prints channel 2 |
 | `bram_test` | AXI BRAM Controller | writes a pattern over the whole block RAM and reads it back |
+| `fifo_loopback` | AXI4-Stream FIFO | sends a 37-byte packet and reads it back (stream TX looped to RX) |
 | `uart_hello` | AXI UART Lite | sends a greeting and prints what is received in one second |
 | `hls_smoke` | HLS IP | prints idle/ready/done and readable registers; does not start the core |
 | `dma_loopback` | AXI DMA | MM2S to S2MM loopback through two `u-dma-buf` devices |

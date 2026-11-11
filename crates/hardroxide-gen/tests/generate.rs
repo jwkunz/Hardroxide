@@ -26,6 +26,7 @@ const FIXTURES: &[&str] = &[
     "pynq_z2_intc",
     "pynq_z2_hls_scale",
     "pynq_z2_mem_uart",
+    "pynq_z2_fifo",
 ];
 
 #[test]
@@ -165,6 +166,15 @@ fn generated_mem_uart_crate_builds_and_works_with_mock() {
         "pynq_z2_mem_uart",
         "pynq_z2_memuart_test",
         include_str!("data/generated_memuart_test.rs"),
+    );
+}
+
+#[test]
+fn generated_fifo_crate_builds_and_works_with_mock() {
+    build_and_test(
+        "pynq_z2_fifo",
+        "pynq_z2_fifo_test",
+        include_str!("data/generated_fifo_test.rs"),
     );
 }
 

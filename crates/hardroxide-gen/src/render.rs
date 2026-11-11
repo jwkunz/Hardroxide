@@ -33,6 +33,7 @@ fn driver_for(vlnv: &str) -> Option<&'static str> {
         "xilinx.com:ip:axi_iic" => Some("hardroxide_ip::iic::AxiIic"),
         "xilinx.com:ip:axi_quad_spi" => Some("hardroxide_ip::spi::AxiSpi"),
         "xilinx.com:ip:axi_bram_ctrl" => Some("hardroxide_ip::bram::AxiBram"),
+        "xilinx.com:ip:axi_fifo_mm_s" => Some("hardroxide_ip::fifo::AxiFifo"),
         "xilinx.com:ip:axi_uartlite" => Some("hardroxide_ip::uart::AxiUart"),
         "xilinx.com:ip:axi_intc" => Some("hardroxide_ip::intc::AxiIntc"),
         _ => None,
@@ -881,6 +882,17 @@ pub fn bram_example(m: &Model, crate_name: &str) -> Option<String> {
     let lib = crate_name.replace('-', "_");
     Some(format!(
         "{HEADER}//! Hardware test for `{n}`: writes an address-derived pattern over the whole\n//! block RAM and reads it back. Run as root on the board.\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n    let ram = &d.{id};\n    let words = ram.len() / 4;\n    for i in 0..words {{\n        ram.write_word(4 * i, (i as u32).wrapping_mul(0x9E37_79B9))?;\n    }}\n    let mut bad = 0;\n    for i in 0..words {{\n        if ram.read_word(4 * i)? != (i as u32).wrapping_mul(0x9E37_79B9) {{\n            bad += 1;\n        }}\n    }}\n    println!(\"{{}} bytes: {{bad}} mismatching words\", ram.len());\n    if bad > 0 {{\n        std::process::exit(1);\n    }}\n    Ok(())\n}}\n",
+        n = i.inst.name,
+        id = i.ident
+    ))
+}
+
+/// Stream FIFO check: push a packet in and read it back (needs TX looped to RX).
+pub fn fifo_example(m: &Model, crate_name: &str) -> Option<String> {
+    let i = first_with(m, "::AxiFifo")?;
+    let lib = crate_name.replace('-', "_");
+    Some(format!(
+        "{HEADER}//! Hardware test for `{n}`: sends a packet and reads it back (the stream\n//! transmit port must be looped to the receive port, as in the test fixture).\n//! Run as root on the board.\n\nuse std::time::Duration;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n    let fifo = &d.{id};\n    fifo.reset()?;\n    let packet: Vec<u8> = (0..37u8).collect();\n    fifo.send(&packet)?;\n    match fifo.recv(Duration::from_secs(1))? {{\n        Some(p) if p == packet => println!(\"loopback ok ({{}} bytes)\", p.len()),\n        Some(p) => {{\n            println!(\"MISMATCH: sent {{}} bytes, got {{}}: {{p:?}}\", packet.len(), p.len());\n            std::process::exit(1);\n        }}\n        None => {{\n            println!(\"no packet came back within 1 s\");\n            std::process::exit(1);\n        }}\n    }}\n    Ok(())\n}}\n",
         n = i.inst.name,
         id = i.ident
     ))

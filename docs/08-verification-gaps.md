@@ -212,6 +212,17 @@ touches no IP register.
 - The fixture's UART pins are unconstrained, so it cannot be used on a board
   as is; it only fixes the interface model.
 
+### G15. AXI4-Stream FIFO (UNVERIFIED)
+- `hardroxide_ip::fifo::AxiFifo` is tested against a loopback model; register
+  offsets are asserted against the HWH of `pynq_z2_fifo.xsa`. The reset keys
+  (`0xA5`), the `TLR`-starts-the-packet order and the `RLR` length mask are from
+  PG080 and not checked against hardware.
+- Board checks: `cargo run --example fifo_loopback` (37-byte packet, exact
+  length back). Also: a packet larger than `TDFV` is refused without writing;
+  `ISR` flags clear when written with 1s (confirm the write-to-clear sense, the
+  driver assumes it); odd lengths (1, 2, 3 bytes) round-trip.
+- Only AXI4-Lite register mode is covered, not the AXI4 full data interface.
+
 ## Design gaps (implemented partially or not at all)
 
 - **D1 Interrupts**: traced and wired into the generated crate (`IrqLine`

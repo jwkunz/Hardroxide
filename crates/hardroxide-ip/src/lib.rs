@@ -2,6 +2,7 @@
 
 pub mod bram;
 pub mod dma;
+pub mod fifo;
 pub mod gpio;
 pub mod hls;
 pub mod iic;

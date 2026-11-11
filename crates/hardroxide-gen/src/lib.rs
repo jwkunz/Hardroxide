@@ -103,6 +103,7 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
         ("spi_loopback", render::spi_example(&model, &crate_name)),
         ("i2c_scan", render::iic_example(&model, &crate_name)),
         ("bram_test", render::bram_example(&model, &crate_name)),
+        ("fifo_loopback", render::fifo_example(&model, &crate_name)),
         ("uart_hello", render::uart_example(&model, &crate_name)),
     ] {
         if let Some(ex) = ex {

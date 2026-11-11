@@ -17,7 +17,7 @@ it locally with `mdbook build` (output in `target/book`).
 
 Status: hardware-free development is complete through Milestone 5 (GPIO, HLS,
 DMA, Timer, IIC, SPI); nothing has been validated on a board yet. See
-[`docs/`](docs/README.md), especially
+[`docs/`](docs/design-index.md), especially
 [`docs/08-verification-gaps.md`](docs/08-verification-gaps.md).
 
 ## License

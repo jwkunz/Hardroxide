@@ -6,7 +6,7 @@ framework. Tool: `hardroxide generate <design.xsa>`.
 
 ## Start here
 
-Design decisions from the spec interview live in `docs/` (read `docs/README.md`
+Design decisions from the spec interview live in `docs/` (read `docs/design-index.md`
 first, then `docs/06-session-handoff.md` for background, risks, and the first
 steps; ADRs with the tradeoff reasoning are in `docs/decisions/`). Treat them as the source of truth; update the relevant doc when a
 decision changes.

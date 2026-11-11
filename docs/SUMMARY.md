@@ -31,7 +31,7 @@
 
 # Design
 
-- [Design index](README.md)
+- [Design index](design-index.md)
 - [Vision](00-vision.md)
 - [Requirements](01-requirements.md)
 - [Architecture](02-architecture.md)

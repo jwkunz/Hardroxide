@@ -5,7 +5,9 @@ use std::fmt::Write;
 impl Design {
     /// Canonical, version-stable text of the *interface*: addressable PL
     /// instances, their VLNVs, address windows, register maps and interrupt
-    /// ports. Excludes IP parameters, descriptions, clocks and timestamps, so
+    /// ports, plus the few parameters generated code depends on
+    /// ([`Instance::driver_config`](crate::Instance::driver_config)). Excludes
+    /// other IP parameters, descriptions, PL clock targets and timestamps, so
     /// a Vivado upgrade or a bitstream-only change keeps the same text.
     pub fn interface_text(&self) -> String {
         let mut s = String::new();
@@ -29,6 +31,9 @@ impl Design {
                         );
                     }
                 }
+            }
+            for (k, v) in i.driver_config() {
+                let _ = writeln!(s, " config {k}={v}");
             }
             for p in &i.interrupts {
                 let _ = writeln!(s, " irq {} w{} -> {:?}", p.name, p.width, p.sinks);

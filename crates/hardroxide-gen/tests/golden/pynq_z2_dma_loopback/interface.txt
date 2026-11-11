@@ -81,6 +81,7 @@ instance axi_dma_0 xilinx.com:ip:axi_dma:7.1
    field Destination_Address 0 32 ReadWrite
   reg S2MM_LENGTH 0x58 ReadWrite 0x0
    field Length 0 26 ReadWrite
+ config C_SG_LENGTH_WIDTH=23
  irq mm2s_introut w1 -> [("xlconcat_0", "In0")]
  irq s2mm_introut w1 -> [("xlconcat_0", "In1")]
 instance axi_mem_intercon xilinx.com:ip:axi_interconnect:2.1

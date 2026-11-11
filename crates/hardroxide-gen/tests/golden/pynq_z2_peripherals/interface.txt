@@ -152,6 +152,8 @@ instance axi_quad_spi_0 xilinx.com:ip:axi_quad_spi:3.2
    field MSB_Error 11 1 ReadWrite
    field Loopback_Error 12 1 ReadWrite
    field Command_Error 13 1 ReadWrite
+ config C_FIFO_DEPTH=16
+ config C_NUM_SS_BITS=1
  irq ip2intc_irpt w1 -> [("xlconcat_0", "In2")]
 instance axi_timer_0 xilinx.com:ip:axi_timer:2.0
  block Reg S_AXI 512
@@ -188,6 +190,7 @@ instance axi_timer_0 xilinx.com:ip:axi_timer:2.0
    field TCLR1 0 32 ReadWrite
   reg TCR1 0x18 ReadOnly 0x0
    field TCR1 0 32 ReadOnly
+ config axi_clk_hz=100000000
  irq interrupt w1 -> [("xlconcat_0", "In0")]
 instance ps7_0_axi_periph xilinx.com:ip:axi_interconnect:2.1
 instance rst_ps7_0_100M xilinx.com:ip:proc_sys_reset:5.0

@@ -74,6 +74,7 @@ pub interrupts: Vec<InterruptPort>,
 pub ports: Vec<Port>,
 pub fn axi_clk_hz(&self) -> Option<u64>
 pub fn is_hls(&self) -> bool
+pub fn driver_config(&self) -> BTreeMap<&'static str, String>
 pub struct Port
 pub dir: String,
 pub sinks: Vec<(String, String)>,
@@ -145,8 +146,17 @@ pub fn interface_hash(&self) -> String
 `interface_text` is a canonical description of the PL's *interface*:
 non-PS instances sorted by name with VLNV, address blocks, registers
 (name, offset, access, reset value), fields, interrupt ports with their sinks,
-and the address ranges. It excludes IP parameters, descriptions, clocks, PS
-configuration and timestamps. `interface_hash` is its lower-case hex SHA-256.
+the address ranges, and each instance's `driver_config()` as `config k=v`
+lines. It excludes all other IP parameters, descriptions, PL clock targets, PS
+configuration and timestamps.
+
+`driver_config()` returns the values generated driver constructors are built
+from: `C_SG_LENGTH_WIDTH` for `axi_dma`; `C_FIFO_EXIST`, `C_FIFO_DEPTH` and
+`C_NUM_SS_BITS` for `axi_quad_spi`; `axi_clk_hz` (the AXI clock) for
+`axi_timer`. Because they are hashed, a rebuild that changes one of them
+(for example a new FCLK feeding an AXI Timer) is an interface change and needs
+`--regen`, instead of silently leaving a stale value compiled into `lib.rs`.
+The generator reads these values only through this method. `interface_hash` is its lower-case hex SHA-256.
 This is what `hardroxide update` compares.
 
 ## `.bit` handling

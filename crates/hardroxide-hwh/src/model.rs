@@ -45,6 +45,36 @@ impl Instance {
             .and_then(|p| p.clk_hz)
     }
 
+    /// Values the generated driver constructors are built from (beyond the
+    /// register map): DMA length-register width, SPI FIFO depth and
+    /// slave-select count, the Timer's AXI clock. They are part of the
+    /// interface hash, so a bitstream-only `hardroxide update` cannot leave a
+    /// stale value compiled into `lib.rs`. The generator reads them only
+    /// through this method.
+    pub fn driver_config(&self) -> BTreeMap<&'static str, String> {
+        let mut m = BTreeMap::new();
+        let mut take = |k: &'static str| {
+            if let Some(v) = self.parameters.get(k) {
+                m.insert(k, v.clone());
+            }
+        };
+        match self.mod_type.as_str() {
+            "axi_dma" => take("C_SG_LENGTH_WIDTH"),
+            "axi_quad_spi" => {
+                take("C_FIFO_EXIST");
+                take("C_FIFO_DEPTH");
+                take("C_NUM_SS_BITS");
+            }
+            "axi_timer" => {
+                if let Some(hz) = self.axi_clk_hz() {
+                    m.insert("axi_clk_hz", hz.to_string());
+                }
+            }
+            _ => {}
+        }
+        m
+    }
+
     /// Vitis HLS-generated IP (`vendor:hls:name:version`).
     pub fn is_hls(&self) -> bool {
         self.vlnv.split(':').nth(1) == Some("hls")

@@ -1,7 +1,9 @@
 # Updating a bitstream
 
 A rebuilt bitstream with the **same hardware interface** (same IP, addresses,
-registers, interrupts) can be swapped in without regenerating or editing any
+registers, interrupts, and the few IP settings compiled into driver
+constructors, such as a DMA's length width or an AXI Timer's clock; see
+[`driver_config`](../reference/hwh.md)) can be swapped in without regenerating or editing any
 Rust code:
 
 ```console

@@ -32,8 +32,13 @@ instead of a full regenerate on every update.
   XSA/HWH interface hash matches the compiled one.
 - Store `.bin`, not `.bit`: the `.bit` header contains timestamps, so identical
   builds would differ. Optional zstd compression to cut size and diff noise.
-- FCLK frequencies are tentatively load config stored beside the bitstream, not
-  part of the interface hash.
+- FCLK frequencies are load config stored beside the bitstream (`load.cfg`),
+  not part of the interface hash. **Amendment:** values that generated driver
+  constructors are built from (`Instance::driver_config`: DMA length width,
+  SPI FIFO depth / slave selects, the AXI clock of an AXI Timer) *are* hashed,
+  because a bitstream-only update must not leave a stale value compiled into
+  `lib.rs`. So changing the FCLK that feeds an AXI Timer is an interface
+  change; changing an FCLK that feeds only other IP is not.
 
 ## Rejected
 

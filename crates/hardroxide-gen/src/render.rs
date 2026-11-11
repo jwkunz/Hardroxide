@@ -408,19 +408,16 @@ pub fn lib_rs(m: &Model, d: &Design) -> String {
 
 /// Constructor expression for a driver, with HWH-derived arguments.
 fn ctor(i: &Inst, driver: &str, map: &str) -> String {
-    let p = |k: &str, d: &str| {
-        i.inst
-            .parameters
-            .get(k)
-            .cloned()
-            .unwrap_or_else(|| d.into())
-    };
+    // Only `driver_config` values may be used here: they are covered by the
+    // interface hash (see hardroxide_hwh::Instance::driver_config).
+    let cfg = i.inst.driver_config();
+    let p = |k: &str, d: &str| cfg.get(k).cloned().unwrap_or_else(|| d.into());
     match driver.rsplit("::").next().unwrap_or("") {
         "AxiDma" => format!(
             "{driver}::with_length_width({map}, {})",
             p("C_SG_LENGTH_WIDTH", "14")
         ),
-        "AxiTimer" => format!("{driver}::new({map}, {})", i.inst.axi_clk_hz().unwrap_or(0)),
+        "AxiTimer" => format!("{driver}::new({map}, {})", p("axi_clk_hz", "0")),
         "AxiSpi" => {
             // C_FIFO_EXIST=0 means a single-entry data register.
             let depth = if p("C_FIFO_EXIST", "1") == "0" {

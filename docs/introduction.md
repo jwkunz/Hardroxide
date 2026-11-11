@@ -51,4 +51,4 @@ manages the PL only.
 | [`hardroxide-ip`](reference/ip.md) | Drivers: GPIO, HLS, DMA, Timer, IIC, SPI |
 | `hardroxide-cli` | The `hardroxide` binary ([CLI](reference/cli.md)) |
 
-License: MIT OR Apache-2.0.
+License: MIT OR Apache-2.0 (see `LICENSE-MIT`, `LICENSE-APACHE`). Copyright (c) 2026 Numerius Engineering LLC.

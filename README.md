@@ -20,4 +20,12 @@ DMA, Timer, IIC, SPI); nothing has been validated on a board yet. See
 [`docs/`](docs/README.md), especially
 [`docs/08-verification-gaps.md`](docs/08-verification-gaps.md).
 
-License: MIT OR Apache-2.0.
+## License
+
+Copyright (c) 2026 Numerius Engineering LLC. Licensed under either of
+[Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at
+your option. Contact: numerius.engineering@gmail.com.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in this project, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.

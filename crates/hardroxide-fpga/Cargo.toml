@@ -4,6 +4,7 @@ description = "Bitstream loading and PL clock control via Linux fpga_manager"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+authors.workspace = true
 repository.workspace = true
 
 [dependencies]

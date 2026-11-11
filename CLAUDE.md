@@ -33,7 +33,8 @@ hwh, mmio, fpga, ip (GPIO), gen, cli. No board is attached to the dev machine.
 
 **Next step: run the checklist in `docs/08-verification-gaps.md` on the
 PYNQ-Z2**, in order (G1 bitstream load first; do not touch PL addresses before
-it passes). Then milestone 2 (`hardroxide update`).
+it passes). Milestone 2 (`hardroxide update`, `dev-bitstream`) is done
+offline. Next offline-capable work: IRQ-bearing/HLS/DMA fixtures (milestones 3-4).
 
 ## Conventions
 

@@ -14,12 +14,19 @@ fn leds_and_buttons_via_mock() {
     assert_eq!(pac::axi_gpio_0::gpio_tri::OFFSET, 4);
     assert_eq!(pac::axi_gpio_0::gpio_data::ch1_data::MASK, 0xf);
     assert_eq!(pac::axi_gpio_0::SIZE, 0x10000);
-    assert_eq!(pynq_z2_gpio_test::PL_CLOCKS, &[(0, 100_000_000)]);
+    let c = pynq_z2_gpio_test::embedded_load_config();
+    assert_eq!((c.ps_clk_hz, c.fclks.clone()), (50_000_000, vec![(0, 100_000_000)]));
+    assert_eq!(pynq_z2_gpio_test::INTERFACE_HASH.len(), 64);
+    assert_eq!(pynq_z2_gpio_test::BITSTREAM_SHA256.len(), 64);
 }
+
+// `load*` is a process-wide singleton, so tests that load must not overlap.
+static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
 fn load_is_a_singleton_and_checks_paths() {
     use pynq_z2_gpio_test::{Error, LoadOptions};
+    let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let root = std::env::temp_dir().join(format!("hrx-load-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     let mut o = LoadOptions::default();
@@ -42,5 +49,25 @@ fn load_is_a_singleton_and_checks_paths() {
     bad.apply_clocks = true;
     assert!(Design::load_with(MockBackend::new(), &bad).is_err());
     Design::load_with(MockBackend::new(), &LoadOptions { apply_clocks: false, ..o.clone() }).unwrap();
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(feature = "dev-bitstream")]
+#[test]
+fn dev_bitstream_loads_matching_xsa() {
+    use pynq_z2_gpio_test::{Design, LoadOptions};
+    let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let root = std::env::temp_dir().join(format!("hrx-dev-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let mut o = LoadOptions::default();
+    o.paths.manager = root.join("mgr");
+    o.paths.firmware_dir = root.join("fw");
+    std::fs::create_dir_all(&o.paths.manager).unwrap();
+    std::fs::create_dir_all(&o.paths.firmware_dir).unwrap();
+    std::fs::write(o.paths.manager.join("state"), "operating\n").unwrap();
+    let be = MockBackend::new();
+    be.poke(0xF800_0108, 30 << 12);
+    let d = Design::load_with_bitstream("__FIXTURE__", be, &o).unwrap();
+    drop(d);
     std::fs::remove_dir_all(root).unwrap();
 }

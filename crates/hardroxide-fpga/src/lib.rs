@@ -87,9 +87,72 @@ pub fn load_bitstream(
 
 pub mod slcr;
 
+/// Load-time configuration stored beside the bitstream (not part of the
+/// interface hash): PS reference clock and FCLK targets.
+///
+/// Text format, one `key=value` per line: `ps_clk_hz=50000000`,
+/// `fclk0=100000000`, ...
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LoadConfig {
+    pub ps_clk_hz: u64,
+    /// `(FCLK index, Hz)`, ascending by index.
+    pub fclks: Vec<(u8, u64)>,
+}
+
+impl LoadConfig {
+    pub fn to_text(&self) -> String {
+        let mut s = format!("ps_clk_hz={}\n", self.ps_clk_hz);
+        let mut f = self.fclks.clone();
+        f.sort();
+        for (i, hz) in f {
+            s.push_str(&format!("fclk{i}={hz}\n"));
+        }
+        s
+    }
+
+    pub fn parse(text: &str) -> Result<Self, String> {
+        let mut c = LoadConfig::default();
+        for (n, line) in text.lines().enumerate() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let (k, v) = line.split_once('=').ok_or(format!("line {}: expected key=value", n + 1))?;
+            let v: u64 = v.trim().parse().map_err(|_| format!("line {}: bad number", n + 1))?;
+            match k.trim() {
+                "ps_clk_hz" => c.ps_clk_hz = v,
+                k => match k.strip_prefix("fclk").and_then(|i| i.parse::<u8>().ok()) {
+                    Some(i) if i < 4 => c.fclks.push((i, v)),
+                    _ => return Err(format!("line {}: unknown key `{k}`", n + 1)),
+                },
+            }
+        }
+        c.fclks.sort();
+        Ok(c)
+    }
+
+    /// Program every configured FCLK through the SLCR window.
+    pub fn apply(&self, slcr: &impl hardroxide_mmio::Mmio) -> Result<(), FpgaError> {
+        for &(i, hz) in &self.fclks {
+            slcr::set_pl_clock(slcr, self.ps_clk_hz, i, hz)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn load_config_roundtrip() {
+        let c = LoadConfig { ps_clk_hz: 50_000_000, fclks: vec![(1, 142_857_143), (0, 100_000_000)] };
+        let t = c.to_text();
+        assert_eq!(t, "ps_clk_hz=50000000\nfclk0=100000000\nfclk1=142857143\n");
+        assert_eq!(LoadConfig::parse(&t).unwrap().to_text(), t);
+        assert!(LoadConfig::parse("fclk9=1").is_err());
+        assert!(LoadConfig::parse("nonsense").is_err());
+    }
 
     fn fake() -> (PathBuf, FpgaPaths) {
         let root = std::env::temp_dir().join(format!("hrx-fpga-{}-{:?}", std::process::id(), std::thread::current().id()));

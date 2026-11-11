@@ -3,21 +3,25 @@
 
 pub mod pac;
 
-use hardroxide_fpga::{FpgaError, FpgaPaths};
+use hardroxide_fpga::{FpgaError, FpgaPaths, LoadConfig};
 use hardroxide_mmio::{DevMem, MmioBackend, MmioError};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// Hash of the hardware interface this crate was generated for.
-pub const INTERFACE_HASH: &str = "0ec1a9e337a346ed08114c3c125241809c6a9100b5f6f79127ddc5fcbab56471";
-/// SHA-256 of the embedded bitstream (`bitstream/design.bin`).
-pub const BITSTREAM_SHA256: &str = "d6b91381c26ec42c2d9e6a0d46e6cc8f22b7cdd471774fc08086fbddb49b75a1";
-/// PS reference clock frequency in Hz, from the HWH.
-pub const PS_CLK_HZ: u64 = 50000000;
-/// `(FCLK index, Hz)` for each enabled PL clock.
-pub const PL_CLOCKS: &[(u8, u64)] = &[(0, 100000000)];
+/// Hash of the hardware interface this crate was generated for. Changes only
+/// on regeneration (`interface.sha256`).
+pub const INTERFACE_HASH: &str = include_str!("../interface.sha256");
+/// SHA-256 of the embedded bitstream (`bitstream/design.sha256`). Replaced by
+/// `hardroxide update` without touching Rust sources.
+pub const BITSTREAM_SHA256: &str = include_str!("../bitstream/design.sha256");
 
 static BITSTREAM: &[u8] = include_bytes!("../bitstream/design.bin");
+static LOAD_CFG: &str = include_str!("../bitstream/load.cfg");
 static LOADED: AtomicBool = AtomicBool::new(false);
+
+/// The embedded load configuration (PS clock and FCLK targets).
+pub fn embedded_load_config() -> LoadConfig {
+    LoadConfig::parse(LOAD_CFG).expect("embedded bitstream/load.cfg is malformed")
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -27,13 +31,19 @@ pub enum Error {
     Fpga(#[from] FpgaError),
     #[error(transparent)]
     Mmio(#[from] MmioError),
+    #[cfg(feature = "dev-bitstream")]
+    #[error(transparent)]
+    Xsa(#[from] hardroxide_hwh::Error),
+    #[cfg(feature = "dev-bitstream")]
+    #[error("XSA interface differs from the compiled one ({found} != {INTERFACE_HASH}); regenerate the crate")]
+    InterfaceMismatch { found: String },
 }
 
 #[derive(Debug, Clone)]
 pub struct LoadOptions {
     pub paths: FpgaPaths,
-    /// Apply [`PL_CLOCKS`] through the Zynq SLCR before mapping. Disable if
-    /// the clocks are already configured.
+    /// Apply the FCLK targets through the Zynq SLCR before mapping. Disable
+    /// if the clocks are already configured.
     pub apply_clocks: bool,
 }
 
@@ -60,16 +70,44 @@ impl Design<DevMem> {
 impl<B: MmioBackend> Design<B> {
     /// Like [`Design::load`] with a custom MMIO backend and options.
     pub fn load_with(backend: B, opts: &LoadOptions) -> Result<Self, Error> {
+        Self::load_image(backend, opts, BITSTREAM, BITSTREAM_SHA256, &embedded_load_config())
+    }
+
+    /// Development aid: program a bitstream from `xsa` at runtime instead of
+    /// the embedded one, provided its interface hash equals the compiled one.
+    /// Release builds should not enable `dev-bitstream`.
+    #[cfg(feature = "dev-bitstream")]
+    pub fn load_with_bitstream(
+        xsa: impl AsRef<std::path::Path>,
+        backend: B,
+        opts: &LoadOptions,
+    ) -> Result<Self, Error> {
+        let xsa = hardroxide_hwh::Xsa::open(xsa)?;
+        let found = xsa.design.interface_hash();
+        if found != INTERFACE_HASH {
+            return Err(Error::InterfaceMismatch { found });
+        }
+        let bin = xsa.bin()?;
+        let sha = hardroxide_fpga::sha256_hex(&bin);
+        let cfg = LoadConfig { ps_clk_hz: xsa.design.ps_clk_hz, fclks: xsa.design.enabled_fclks() };
+        Self::load_image(backend, opts, &bin, &sha, &cfg)
+    }
+
+    fn load_image(
+        backend: B,
+        opts: &LoadOptions,
+        bin: &[u8],
+        sha: &str,
+        cfg: &LoadConfig,
+    ) -> Result<Self, Error> {
         if LOADED.swap(true, Ordering::SeqCst) {
             return Err(Error::AlreadyLoaded);
         }
         let r = (|| {
-            hardroxide_fpga::load_bitstream(&opts.paths, BITSTREAM, BITSTREAM_SHA256)?;
+            hardroxide_fpga::load_bitstream(&opts.paths, bin, sha)?;
             if opts.apply_clocks {
                 let slcr = backend.map(hardroxide_fpga::slcr::SLCR_BASE, hardroxide_fpga::slcr::SLCR_SIZE)?;
-                for &(i, hz) in PL_CLOCKS {
-                    hardroxide_fpga::slcr::set_pl_clock(&slcr, PS_CLK_HZ, i, hz)?;
-                }
+                cfg.apply(&slcr)?;
             }
             Self::map(&backend, true)
         })();

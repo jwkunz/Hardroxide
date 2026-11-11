@@ -34,3 +34,12 @@ Status: draft, updated through interview round 5.
 - Rename-map file format and location.
 - How the singleton is enforced across threads and after `Drop` (can a design be reloaded?).
 - Reload semantics: what happens to driver handles when a new bitstream is loaded.
+
+## Implemented layout (milestone 2)
+
+```
+interface.txt / interface.sha256   canonical interface; changes only on regen
+bitstream/design.bin / design.sha256   replaced by `hardroxide update`
+bitstream/load.cfg                 ps_clk_hz + fclkN targets (load config)
+src/{lib,pac}.rs, examples/        sources; include_str!/include_bytes! the data files
+```

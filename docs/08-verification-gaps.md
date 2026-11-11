@@ -120,10 +120,15 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   as a raw MMIO window.
 - **D3 Multiple address blocks / segments**: the PAC emits only the first
   address range of an instance and the registers of its matching block.
-- **D4 `hardroxide update` and `dev-bitstream`** (milestone 2): the interface
-  and bitstream hashes are generated into the crate (`INTERFACE_HASH`,
-  `BITSTREAM_SHA256`) but the update command is not written. The bitstream hash
-  is checked at load; the interface hash is not yet compared against anything.
+- **D4 `hardroxide update` / `dev-bitstream`** (milestone 2): implemented and
+  tested offline (bitstream-only update touches exactly `bitstream/design.bin`
+  and `design.sha256`; interface change prints a line diff and needs
+  `--regen`; `Design::load_with_bitstream` checks the XSA interface hash).
+  Gaps: the diff is a line-set diff of the canonical interface text, not
+  grouped by IP; `--regen` keeps the existing `Cargo.toml` and does not
+  accept a new dependency path; the interface hash is compared only at update
+  and `load_with_bitstream`, never against the running hardware. Not exercised
+  on the board (G1 prerequisite).
 - **D5 Other Vivado versions / designs**: HWH parsing is validated against one
   2025.2 file. Collect more samples (older versions, HLS, DMA, UltraScale+).
 - **D6 `cargo hardroxide` shim, optional zstd, rename map, async**: not done.

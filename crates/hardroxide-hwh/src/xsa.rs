@@ -27,6 +27,13 @@ impl Xsa {
     }
 }
 
+impl Xsa {
+    /// The raw `.bin` for `fpga_manager` (see [`BitFile::to_bin_swapped`]).
+    pub fn bin(&self) -> Result<Vec<u8>, Error> {
+        Ok(crate::BitFile::parse(&self.bit)?.to_bin_swapped()?)
+    }
+}
+
 fn unique<R: Read + Seek>(zip: &zip::ZipArchive<R>, ext: &'static str) -> Result<String, Error> {
     let mut names: Vec<_> = zip
         .file_names()

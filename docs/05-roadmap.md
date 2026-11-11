@@ -24,7 +24,7 @@ Success criteria:
 
 ## Suggested later milestones
 
-2. `hardroxide update` and interface/bitstream hashing, `dev-bitstream` loader.
+2. `hardroxide update` and interface/bitstream hashing, `dev-bitstream` loader. **Done offline** (see 08, D4); hardware unverified.
 3. HLS / custom IP generation from HWH register maps.
 4. AXI DMA with uncached `DmaBuffer`, UIO interrupts (sync, then async feature).
 5. AXI Timer, IIC, SPI with `embedded-hal` trait impls.

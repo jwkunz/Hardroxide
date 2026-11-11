@@ -4,7 +4,10 @@
 mod names;
 mod render;
 
-use hardroxide_hwh::{BitError, BitFile, Xsa};
+use hardroxide_fpga::{LoadConfig, sha256_hex};
+use hardroxide_hwh::{BitError, Xsa};
+
+pub mod update;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -12,6 +15,8 @@ use std::path::{Path, PathBuf};
 pub enum GenError {
     #[error(transparent)]
     Bit(#[from] BitError),
+    #[error(transparent)]
+    Xsa(#[from] hardroxide_hwh::Error),
     #[error("I/O error on {path}: {source}")]
     Io {
         path: PathBuf,
@@ -50,9 +55,18 @@ impl GeneratedCrate {
     }
 }
 
+/// The files that change when only the bitstream changes.
+pub(crate) fn bitstream_files(xsa: &Xsa) -> Result<Vec<(PathBuf, Vec<u8>)>, GenError> {
+    let bin = xsa.bin()?;
+    let cfg = LoadConfig { ps_clk_hz: xsa.design.ps_clk_hz, fclks: xsa.design.enabled_fclks() };
+    Ok(vec![
+        ("bitstream/design.sha256".into(), sha256_hex(&bin).into_bytes()),
+        ("bitstream/load.cfg".into(), cfg.to_text().into_bytes()),
+        ("bitstream/design.bin".into(), bin),
+    ])
+}
+
 pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
-    let bit = BitFile::parse(&xsa.bit)?;
-    let bin = bit.to_bin_swapped()?;
     let model = render::Model::build(&xsa.design);
     let crate_name = opts
         .crate_name
@@ -62,13 +76,14 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     let mut files = BTreeMap::new();
     files.insert("Cargo.toml".into(), render::cargo_toml(&crate_name, opts).into_bytes());
     files.insert("src/pac.rs".into(), render::pac_rs(&model).into_bytes());
-    files.insert(
-        "src/lib.rs".into(),
-        render::lib_rs(&model, &xsa.design, &bin).into_bytes(),
-    );
+    files.insert("src/lib.rs".into(), render::lib_rs(&model, &xsa.design).into_bytes());
     if let Some(ex) = render::gpio_example(&model, &crate_name) {
         files.insert("examples/gpio_smoke.rs".into(), ex.into_bytes());
     }
-    files.insert("bitstream/design.bin".into(), bin);
+    files.insert("interface.txt".into(), xsa.design.interface_text().into_bytes());
+    files.insert("interface.sha256".into(), xsa.design.interface_hash().into_bytes());
+    for (k, v) in bitstream_files(xsa)? {
+        files.insert(k, v);
+    }
     Ok(GeneratedCrate { files })
 }

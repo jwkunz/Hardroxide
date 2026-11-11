@@ -21,6 +21,11 @@ pub struct Design {
 }
 
 impl Design {
+    /// `(FCLK index, Hz)` for each enabled PL clock.
+    pub fn enabled_fclks(&self) -> Vec<(u8, u64)> {
+        self.pl_clocks.iter().filter(|c| c.enabled).map(|c| (c.index, c.freq_hz)).collect()
+    }
+
     pub fn instance(&self, name: &str) -> Option<&Instance> {
         self.instances.iter().find(|i| i.name == name)
     }

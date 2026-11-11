@@ -46,6 +46,12 @@ Guide examples are compile-tested (`cargo test -p hardroxide-gen --test guide`; 
 
 ## Conventions
 
+- Generated driver constructors may only use values from
+  `hardroxide_hwh::Instance::driver_config()` (it is hashed into the interface
+  hash; anything else would go stale on a bitstream-only `hardroxide update`).
+- `scripts/test-armv7.sh` runs the runtime crates' tests as armv7 binaries
+  under `qemu-arm` (uses the Vitis-bundled gcc/qemu if no system ones; CI too).
+
 - Cargo workspace monorepo, crates prefixed `hardroxide-*`.
 - Generation must be deterministic. Minimize and document `unsafe`.
 - Tests: golden XSA fixtures with snapshot tests, plus mock-MMIO unit tests.

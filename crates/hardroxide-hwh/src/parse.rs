@@ -129,6 +129,24 @@ fn parse_instance(m: Node) -> Result<Instance, Error> {
             }
         })
         .collect();
+    let ports = m
+        .descendants()
+        .filter(|c| c.has_tag_name("PORT") && c.parent().is_some_and(|p| p.has_tag_name("PORTS")))
+        .map(|c| {
+            let sinks = c
+                .descendants()
+                .filter(|x| x.has_tag_name("CONNECTION"))
+                .filter_map(|x| Some((x.attribute("INSTANCE")?.to_string(), x.attribute("PORT")?.to_string())))
+                .collect();
+            let (l, r) = (num_attr(c, "LEFT"), num_attr(c, "RIGHT"));
+            Port {
+                name: c.attribute("NAME").unwrap_or("").into(),
+                dir: c.attribute("DIR").unwrap_or("").into(),
+                width: l.zip(r).map_or(1, |(l, r)| l.abs_diff(r) as u32 + 1),
+                sinks,
+            }
+        })
+        .collect();
     Ok(Instance {
         name: name.into(),
         vlnv: m.attribute("VLNV").unwrap_or("").into(),
@@ -137,6 +155,7 @@ fn parse_instance(m: Node) -> Result<Instance, Error> {
         parameters,
         address_blocks,
         interrupts,
+        ports,
     })
 }
 

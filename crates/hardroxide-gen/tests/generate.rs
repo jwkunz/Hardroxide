@@ -15,7 +15,7 @@ fn fixture() -> Xsa {
     fixture_named("pynq_z2_gpio")
 }
 
-const FIXTURES: &[&str] = &["pynq_z2_gpio", "pynq_z2_hls_vadd"];
+const FIXTURES: &[&str] = &["pynq_z2_gpio", "pynq_z2_hls_vadd", "pynq_z2_dma_loopback"];
 
 #[test]
 fn deterministic() {
@@ -75,6 +75,11 @@ fn build_and_test(fixture: &str, crate_name: &str, test_src: &str) {
 #[test]
 fn generated_gpio_crate_builds_and_works_with_mock() {
     build_and_test("pynq_z2_gpio", "pynq_z2_gpio_test", include_str!("data/generated_mock_test.rs"));
+}
+
+#[test]
+fn generated_dma_crate_builds_and_works_with_mock() {
+    build_and_test("pynq_z2_dma_loopback", "pynq_z2_dma_test", include_str!("data/generated_dma_test.rs"));
 }
 
 #[test]

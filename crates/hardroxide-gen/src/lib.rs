@@ -75,10 +75,13 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
 
     let mut files = BTreeMap::new();
     files.insert("Cargo.toml".into(), render::cargo_toml(&crate_name, opts).into_bytes());
-    files.insert("src/pac.rs".into(), render::pac_rs(&model).into_bytes());
+    files.insert("src/pac.rs".into(), render::pac_rs(&model, &xsa.design).into_bytes());
     files.insert("src/lib.rs".into(), render::lib_rs(&model, &xsa.design).into_bytes());
     if let Some(ex) = render::gpio_example(&model, &crate_name) {
         files.insert("examples/gpio_smoke.rs".into(), ex.into_bytes());
+    }
+    if let Some(ex) = render::dma_example(&model, &crate_name) {
+        files.insert("examples/dma_loopback.rs".into(), ex.into_bytes());
     }
     if let Some(ips) = render::ips_rs(&model) {
         files.insert("src/ips.rs".into(), ips.into_bytes());

@@ -123,18 +123,49 @@ has been set up). Record `uname -a` and the PYNQ image version here.
 - Interrupt wiring (`PS7 IRQ_F2P[0]`) is only recorded in the PAC
   (`INTERRUPTS`); no interrupt delivery exists yet (D1).
 
+### G10. AXI DMA direct mode + udmabuf on hardware (UNVERIFIED)
+- Driver follows PG021 simple mode; register offsets/bits are asserted
+  against the HWH (offline), behaviour is not. Mock models write-1-to-clear
+  DMASR flags, which is an assumption about the real register semantics.
+- Check: load `pynq_z2_dma_loopback`, `insmod u-dma-buf` twice
+  (`udmabuf0`, `udmabuf1`, >= 4 KiB each; confirm the module exists on the
+  PYNQ image, otherwise build it or use CMA/dma-heap), then `cargo run
+  --example dma_loopback`. Expect "DMA loopback OK".
+- Things that could differ: udmabuf sysfs paths (`/sys/class/u-dma-buf/...`),
+  `O_SYNC` meaning uncached for that module version, buffer physical address
+  reachable by HP0 (< 512 MB DDR), S2MM needing TLAST/length semantics (the
+  FIFO loopback relies on MM2S asserting TLAST), the S2MM-before-MM2S
+  ordering, and `reset()` timing. Also whether the AXI level shifters /
+  HP port need enabling (G3).
+- `Transfer` halts a channel on timeout/error/drop and leaks the buffer if the
+  channel will not halt; confirm the halted state is reached on real hardware.
+
+### G11. UIO interrupts (UNVERIFIED)
+- `hardroxide-irq::UioIrq` implements the standard UIO protocol and is
+  tested only against a socketpair. On the stock PYNQ image PL interrupts need
+  a `generic-uio` device-tree node (overlay) per IP; none is generated yet.
+- The generated PAC reports the PS7 `IRQ_F2P` bit per interrupt. Mapping the
+  bit to a GIC SPI (Zynq-7000: bits 0-7 -> SPI 61-68, bits 8-15 -> SPI 84-91;
+  UG585 table 7-4, unverified here) and to the Linux IRQ number is not
+  implemented.
+- Check: add a DT overlay exposing `axi_dma_0` (or `vadd_0`) as `uio` with the
+  matching `interrupts = <0 29 4>` (SPI 61 -> GIC `29`), then wait on it while
+  triggering a transfer and verify `wait()` returns, `ack` works, and the line
+  is re-armed.
+
 ## Design gaps (implemented partially or not at all)
 
-- **D1 Interrupts**: HWH interrupt ports and their sinks are parsed, and a
-  direct 1-bit route to PS7 `IRQ_F2P[0]` is exposed in the PAC. Not done:
-  routes through `xlconcat` (multi-bit `IRQ_F2P` index), mapping to Linux IRQ
-  numbers / UIO device-tree nodes, and `hardroxide-irq` (blocking and async
-  waiting).
+- **D1 Interrupts**: ports, sinks and PS7 `IRQ_F2P` bits (direct or through
+  `xlconcat`) are parsed and exposed in the PAC; `hardroxide-irq` provides UIO
+  blocking and feature-gated async waiting. Not done: GIC/Linux IRQ number
+  mapping, DT overlay generation, wiring `UioIrq` into generated `Design`,
+  routes through logic other than `xlconcat`/direct.
 - **D2 Other IP**: AXI GPIO is curated and HLS IP gets generated typed
   accessors (scalar 32-bit registers only: no memory-mapped arrays, no 64-bit
   pointer register pairs helper, no `ap_ctrl_chain` specifics, no m_axi
-  buffers). Custom RTL without register data gets a raw window. DMA/timer/IIC/
-  SPI need their own fixtures (docs/05 milestones 4-5). Unknown IP is exposed
+  buffers). Custom RTL without register data gets a raw window. AXI DMA has a direct-mode driver (no SG, no 64-bit addressing check, no
+  mixed MM2S/S2MM-only configuration handling). Timer/IIC/SPI need their own
+  fixtures (docs/05 milestone 5). Unknown IP is exposed
   as a raw MMIO window.
 - **D3 Multiple address blocks / segments**: the PAC emits only the first
   address range of an instance and the registers of its matching block.

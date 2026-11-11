@@ -7,7 +7,7 @@
 mod mock;
 mod sys;
 
-pub use mock::{MockBackend, MockRegion};
+pub use mock::{Access as MockAccess, MockBackend, MockRegion};
 pub use sys::{DevMem, SysRegion, Uio};
 
 #[derive(Debug, thiserror::Error)]

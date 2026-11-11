@@ -29,13 +29,15 @@ decision changes.
 Milestone 1 hardware-free portion is done: `hardroxide generate` produces a
 crate from `fixtures/pynq_z2_gpio.xsa` (Vivado 2025.2 at `~/AMD/2025.2`), with
 golden snapshots and mock-MMIO tests passing (`cargo test --workspace`). Crates:
-hwh, mmio, fpga, ip (GPIO, HLS), gen, cli. No board is attached to the dev machine.
+hwh, mmio, fpga, dma, irq, ip (GPIO, HLS, DMA), gen, cli. No board is attached to the dev machine.
 
 **Next step: run the checklist in `docs/08-verification-gaps.md` on the
 PYNQ-Z2**, in order (G1 bitstream load first; do not touch PL addresses before
 it passes). Milestone 2 (`hardroxide update`, `dev-bitstream`) is done
 offline. Milestone 3 (scalar HLS IP, `fixtures/pynq_z2_hls_vadd.xsa`) is done offline.
-Next offline-capable work: DMA fixture and `hardroxide-dma`/`irq` (milestone 4).
+Milestone 4 (AXI DMA direct mode, `hardroxide-dma`, `hardroxide-irq`, DMA loopback
+fixture) is done offline. Next offline-capable work: milestone 5 (Timer/IIC/SPI,
+embedded-hal impls), generated UIO/IRQ integration.
 
 ## Conventions
 

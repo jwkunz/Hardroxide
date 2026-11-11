@@ -9,3 +9,7 @@ repository.workspace = true
 [dependencies]
 hardroxide-mmio.workspace = true
 thiserror.workspace = true
+hardroxide-dma.workspace = true
+
+[dev-dependencies]
+hardroxide-hwh.workspace = true

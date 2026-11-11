@@ -56,3 +56,20 @@ with `vitis-run --mode hls --package --config fixtures/hls/hls.cfg`, then
   The PS7 `IRQ_F2P` port lists the reverse connection. With a single source
   the vector is 1 bit wide; sources behind `xlconcat` are not resolved yet.
 - AXI GPIO's `ip2intc_irpt` also appears as an (unconnected) interrupt port.
+
+## DMA loopback fixture (`fixtures/pynq_z2_dma_loopback.xsa`)
+
+`fixtures/scripts/build_pynq_z2_dma.tcl`: PS7 (HP0 enabled) + `axi_dma:7.1`
+(direct register mode, `c_include_sg=0`, length width 23) with MM2S looped to
+S2MM through an `axis_data_fifo`; both interrupts via `xlconcat` to `IRQ_F2P`.
+
+- Full register maps are present (MM2S_/S2MM_ DMACR, DMASR, SA/DA, LENGTH,
+  SG registers even in simple mode, with fields). `hardroxide-ip`'s offsets and
+  bit positions are asserted against this HWH in a unit test.
+- `C_SG_LENGTH_WIDTH` (parameter) bounds the transfer length (`2^w - 1`); the
+  generator passes it to `AxiDma::with_length_width`.
+- Interrupt nets: DMA `mm2s_introut` -> `xlconcat_0/In0`, `s2mm_introut` ->
+  `In1`, `xlconcat_0/dout` -> PS7 `IRQ_F2P[1:0]`. `Design::ps7_irq_f2p_bit`
+  resolves these by following `xlconcat` (`INk_WIDTH` parameters) to bit 0 / 1.
+- The HP0 data path and the loopback FIFO do not appear in the address map
+  (only the control interface at 0x40400000-0x4040FFFF).

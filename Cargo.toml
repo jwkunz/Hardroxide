@@ -21,3 +21,5 @@ hardroxide-mmio = { path = "crates/hardroxide-mmio" }
 hardroxide-fpga = { path = "crates/hardroxide-fpga" }
 hardroxide-ip = { path = "crates/hardroxide-ip" }
 hardroxide-gen = { path = "crates/hardroxide-gen" }
+hardroxide-dma = { path = "crates/hardroxide-dma" }
+hardroxide-irq = { path = "crates/hardroxide-irq" }

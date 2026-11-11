@@ -232,6 +232,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-dma"
+version = "0.1.0"
+dependencies = [
+ "hardroxide-mmio",
+ "thiserror",
+]
+
+[[package]]
 name = "hardroxide-fpga"
 version = "0.1.0"
 dependencies = [
@@ -263,7 +271,17 @@ dependencies = [
 name = "hardroxide-ip"
 version = "0.1.0"
 dependencies = [
+ "hardroxide-dma",
+ "hardroxide-hwh",
  "hardroxide-mmio",
+ "thiserror",
+]
+
+[[package]]
+name = "hardroxide-irq"
+version = "0.1.0"
+dependencies = [
+ "libc",
  "thiserror",
 ]
 

@@ -1,0 +1,11 @@
+[package]
+name = "hardroxide-dma"
+description = "DMA buffer abstraction with ownership tracking and a udmabuf backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+hardroxide-mmio.workspace = true
+thiserror.workspace = true

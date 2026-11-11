@@ -14,3 +14,6 @@ hardroxide-fpga = { path = "/hardroxide/crates/hardroxide-fpga" }
 hardroxide-ip = { path = "/hardroxide/crates/hardroxide-ip" }
 hardroxide-hwh = { path = "/hardroxide/crates/hardroxide-hwh", optional = true }
 thiserror = "2"
+
+[dev-dependencies]
+hardroxide-dma = { path = "/hardroxide/crates/hardroxide-dma" }

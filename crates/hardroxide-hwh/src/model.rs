@@ -33,6 +33,37 @@ impl Design {
         self.pl_clocks.iter().filter(|c| c.enabled).map(|c| (c.index, c.freq_hz)).collect()
     }
 
+    /// Bit of the PS7 `IRQ_F2P` vector driven by output port `port` of
+    /// `instance`, following `xlconcat` blocks. `None` if the port is wider
+    /// than one bit, unconnected, fans out, or goes through other logic.
+    pub fn ps7_irq_f2p_bit(&self, instance: &str, port: &str) -> Option<u32> {
+        let p = self.instance(instance)?.ports.iter().find(|p| p.name == port)?;
+        if p.width != 1 {
+            return None;
+        }
+        self.trace_irq(instance, port, 0)
+    }
+
+    fn trace_irq(&self, instance: &str, port: &str, depth: u32) -> Option<u32> {
+        if depth > 8 {
+            return None;
+        }
+        let p = self.instance(instance)?.ports.iter().find(|p| p.name == port)?;
+        let [(sink_inst, sink_port)] = p.sinks.as_slice() else { return None };
+        let sink = self.instance(sink_inst)?;
+        match sink.mod_type.as_str() {
+            "processing_system7" if sink_port == "IRQ_F2P" => Some(0),
+            "xlconcat" => {
+                let k: u32 = sink_port.strip_prefix("In")?.parse().ok()?;
+                let below: u32 = (0..k)
+                    .map(|j| sink.parameters.get(&format!("IN{j}_WIDTH")).and_then(|v| v.parse::<u32>().ok()))
+                    .sum::<Option<u32>>()?;
+                Some(below + self.trace_irq(sink_inst, "dout", depth + 1)?)
+            }
+            _ => None,
+        }
+    }
+
     pub fn instance(&self, name: &str) -> Option<&Instance> {
         self.instances.iter().find(|i| i.name == name)
     }
@@ -57,6 +88,17 @@ pub struct Instance {
     pub address_blocks: Vec<AddressBlock>,
     /// Interrupt output ports (`SIGIS="INTERRUPT"`, direction out).
     pub interrupts: Vec<InterruptPort>,
+    /// All ports with their connections (used for net tracing).
+    pub ports: Vec<Port>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Port {
+    pub name: String,
+    /// `I`, `O` or `IO`.
+    pub dir: String,
+    pub width: u32,
+    pub sinks: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,16 +111,6 @@ pub struct InterruptPort {
     pub sinks: Vec<(String, String)>,
     /// Port width in bits.
     pub width: u32,
-}
-
-impl InterruptPort {
-    /// Index into the PS7 `IRQ_F2P` vector when this single-bit port feeds
-    /// PS7 `IRQ_F2P` directly. Ports routed through concat/other logic are
-    /// not resolved (None).
-    pub fn ps7_irq_f2p_bit(&self) -> Option<u32> {
-        let direct = self.sinks.len() == 1 && self.sinks[0].1 == "IRQ_F2P" && self.width == 1;
-        direct.then_some(0)
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

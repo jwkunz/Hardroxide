@@ -27,6 +27,17 @@ unsafe impl Send for SysRegion {}
 unsafe impl Sync for SysRegion {}
 
 impl SysRegion {
+    /// Map `len` bytes of an open file/device starting at `file_offset`
+    /// (need not be page-aligned). Used by the DMA buffer backends too.
+    pub fn map_file(file: &std::fs::File, file_offset: u64, len: usize, what: &str) -> Result<Self, MmioError> {
+        Self::mmap(file, file_offset, len, what)
+    }
+
+    /// Start of the mapped window. Valid for `len()` bytes while `self` lives.
+    pub fn as_ptr(&self) -> *mut u8 {
+        self.base
+    }
+
     fn mmap(file: &std::fs::File, file_offset: u64, len: usize, what: &str) -> Result<Self, MmioError> {
         // SAFETY: sysconf has no preconditions.
         let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;

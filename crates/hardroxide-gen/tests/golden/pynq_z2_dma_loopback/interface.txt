@@ -1,0 +1,93 @@
+instance axi_dma_0 xilinx.com:ip:axi_dma:7.1
+ block Reg S_AXI_LITE 4096
+  reg MM2S_DMACR 0x0 ReadWrite 0x10002
+   field RS 0 1 ReadWrite
+   field Reset 2 1 ReadWrite
+   field Keyhole 3 1 ReadWrite
+   field Cyclic_BD_Enable 4 1 ReadWrite
+   field IOC_IrqEn 12 1 ReadWrite
+   field Dly_IrqEn 13 1 ReadWrite
+   field Err_IrqEn 14 1 ReadWrite
+   field IRQThreshold 16 8 ReadWrite
+   field IRQDelay 24 8 ReadWrite
+  reg MM2S_DMASR 0x4 ReadWrite 0x10000
+   field Halted 0 1 ReadOnly
+   field Idle 1 1 ReadOnly
+   field SGIncld 3 1 ReadOnly
+   field DMAIntErr 4 1 ReadOnly
+   field DMASlvErr 5 1 ReadOnly
+   field DMADecErr 6 1 ReadOnly
+   field SGIntErr 8 1 ReadOnly
+   field SGSlvErr 9 1 ReadOnly
+   field SGDecErr 10 1 ReadOnly
+   field IOC_Irq 12 1 ReadWrite
+   field Dly_Irq 13 1 ReadWrite
+   field Err_Irq 14 1 ReadWrite
+   field IRQThresholdSts 16 8 ReadOnly
+   field IRQDelaySts 24 8 ReadOnly
+  reg MM2S_CURDESC 0x8 ReadWrite 0x0
+   field Current_Descriptor_Pointer 6 26 ReadWrite
+  reg MM2S_CURDESC_MSB 0xc ReadWrite 0x0
+   field Current_Descriptor_Pointer 0 32 ReadWrite
+  reg MM2S_TAILDESC 0x10 ReadWrite 0x0
+   field Tail_Descriptor_Pointer 6 26 ReadWrite
+  reg MM2S_TAILDESC_MSB 0x14 ReadWrite 0x0
+   field Tail_Descriptor_Pointer 0 32 ReadWrite
+  reg MM2S_SA 0x18 ReadWrite 0x0
+   field Source_Address 0 32 ReadWrite
+  reg MM2S_SA_MSB 0x1c ReadWrite 0x0
+   field Source_Address 0 32 ReadWrite
+  reg MM2S_LENGTH 0x28 ReadWrite 0x0
+   field Length 0 26 ReadWrite
+  reg SG_CTL 0x2c ReadWrite 0x3
+   field SG_CACHE 0 4 ReadWrite
+   field SG_USER 8 4 ReadWrite
+  reg S2MM_DMACR 0x30 ReadWrite 0x10002
+   field RS 0 1 ReadWrite
+   field Reset 2 1 ReadWrite
+   field Keyhole 3 1 ReadWrite
+   field Cyclic_BD_Enable 4 1 ReadWrite
+   field IOC_IrqEn 12 1 ReadWrite
+   field Dly_IrqEn 13 1 ReadWrite
+   field Err_IrqEn 14 1 ReadWrite
+   field IRQThreshold 16 8 ReadWrite
+   field IRQDelay 24 8 ReadWrite
+  reg S2MM_DMASR 0x34 ReadWrite 0x10000
+   field Halted 0 1 ReadOnly
+   field Idle 1 1 ReadOnly
+   field SGIncld 3 1 ReadOnly
+   field DMAIntErr 4 1 ReadOnly
+   field DMASlvErr 5 1 ReadOnly
+   field DMADecErr 6 1 ReadOnly
+   field SGIntErr 8 1 ReadOnly
+   field SGSlvErr 9 1 ReadOnly
+   field SGDecErr 10 1 ReadOnly
+   field IOC_Irq 12 1 ReadWrite
+   field Dly_Irq 13 1 ReadWrite
+   field Err_Irq 14 1 ReadWrite
+   field IRQThresholdSts 16 8 ReadOnly
+   field IRQDelaySts 24 8 ReadOnly
+  reg S2MM_CURDESC 0x38 ReadWrite 0x0
+   field Current_Descriptor_Pointer 6 26 ReadWrite
+  reg S2MM_CURDESC_MSB 0x3c ReadWrite 0x0
+   field Current_Descriptor_Pointer 0 32 ReadWrite
+  reg S2MM_TAILDESC 0x40 ReadWrite 0x0
+   field Tail_Descriptor_Pointer 6 26 ReadWrite
+  reg S2MM_TAILDESC_MSB 0x44 ReadWrite 0x0
+   field Tail_Descriptor_Pointer 0 32 ReadWrite
+  reg S2MM_DA 0x48 ReadWrite 0x0
+   field Destination_Address 0 32 ReadWrite
+  reg S2MM_DA_MSB 0x4c ReadWrite 0x0
+   field Destination_Address 0 32 ReadWrite
+  reg S2MM_LENGTH 0x58 ReadWrite 0x0
+   field Length 0 26 ReadWrite
+ irq mm2s_introut w1 -> [("xlconcat_0", "In0")]
+ irq s2mm_introut w1 -> [("xlconcat_0", "In1")]
+instance axi_mem_intercon xilinx.com:ip:axi_interconnect:2.1
+instance axis_data_fifo_0 xilinx.com:ip:axis_data_fifo:2.0
+instance ps7_0_axi_periph xilinx.com:ip:axi_interconnect:2.1
+instance rst_ps7_0_100M xilinx.com:ip:proc_sys_reset:5.0
+instance xlconcat_0 xilinx.com:ip:xlconcat:2.1
+range axi_dma_0 Reg 0x40400000 0x4040ffff
+range processing_system7_0 HP0_DDR_LOWOCM 0x0 0x1fffffff
+range processing_system7_0 HP0_DDR_LOWOCM 0x0 0x1fffffff

@@ -63,3 +63,19 @@ fn interface_hash_is_stable_and_ignores_clocks() {
     d.memory_ranges[0].base += 0x10000;
     assert_ne!(d.interface_hash(), h);
 }
+
+fn open(n: &str) -> Design {
+    Xsa::open(format!("{}/../../fixtures/{n}.xsa", env!("CARGO_MANIFEST_DIR"))).unwrap().design
+}
+
+#[test]
+fn irq_routes_direct_and_through_concat() {
+    let hls = open("pynq_z2_hls_vadd");
+    assert_eq!(hls.ps7_irq_f2p_bit("vadd_0", "interrupt"), Some(0));
+    let dma = open("pynq_z2_dma_loopback");
+    assert_eq!(dma.ps7_irq_f2p_bit("axi_dma_0", "mm2s_introut"), Some(0));
+    assert_eq!(dma.ps7_irq_f2p_bit("axi_dma_0", "s2mm_introut"), Some(1));
+    assert_eq!(dma.ps7_irq_f2p_bit("axi_dma_0", "nonexistent"), None);
+    // GPIO's interrupt output is unconnected.
+    assert_eq!(open("pynq_z2_gpio").ps7_irq_f2p_bit("axi_gpio_0", "ip2intc_irpt"), None);
+}

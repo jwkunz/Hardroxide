@@ -1,0 +1,12 @@
+[package]
+name = "hardroxide-hwh"
+description = "Parse Vivado XSA / HWH hardware handoff into a typed design model"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+roxmltree.workspace = true
+zip.workspace = true

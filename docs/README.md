@@ -19,6 +19,7 @@ tracked in each document.
 | [04-runtime.md](04-runtime.md) | Target runtime: Linux on PS, MMIO, DMA, IRQ |
 | [05-roadmap.md](05-roadmap.md) | Policies and milestones (Milestone 1: GPIO end-to-end) |
 | [06-session-handoff.md](06-session-handoff.md) | Context from the original design session, risks, first steps |
+| [07-hwh-findings.md](07-hwh-findings.md) | What a real Vivado 2025.2 HWH contains |
 | [decisions/](decisions/) | ADRs: 0001 MMIO/DMA model, 0002 bitstream embedding and updates |
 
 ## Baseline context

@@ -26,11 +26,11 @@ decision changes.
 
 ## Current state and next step
 
-Specs only; no code yet. Milestone 1 is GPIO end-to-end on the PYNQ-Z2
-(see `docs/05-roadmap.md`). The immediate next step, on the Vivado machine, is
-to build a GPIO-only design for the PYNQ-Z2 in Vivado 2025.2, export the XSA to
-`fixtures/`, and inspect its HWH (which register data it actually exposes)
-before finalizing the data model in `hardroxide-hwh`.
+Milestone 1 in progress, hardware-free portion. `fixtures/pynq_z2_gpio.xsa`
+exists (built with Vivado 2025.2 at `~/AMD/2025.2`; see
+`docs/07-hwh-findings.md`) and `hardroxide-hwh` parses it. No board is attached
+to the dev machine; hardware validation (fpga_manager `.bin` format, /dev/mem
+mapping, LED blink) remains manual.
 
 ## Conventions
 

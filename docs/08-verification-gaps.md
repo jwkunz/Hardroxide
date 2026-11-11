@@ -197,6 +197,17 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   (the HWH marks the port `SIGIS="undef"`); confirm the overlay's trigger cell
   (`4` = level high) matches the hardware behaviour.
 
+### G14. AXI BRAM Controller and UART Lite (UNVERIFIED)
+- Drivers are tested against the mock and a FIFO model; UART register offsets
+  and bit positions are asserted against the HWH of `pynq_z2_mem_uart.xsa`.
+- Board checks: `cargo run --example bram_test` (whole-RAM pattern, expect 0
+  mismatches; also confirm byte writes via `write_bytes` land at the right
+  lanes). For the UART, constrain the pins in a real design, loop TX to RX and
+  run `uart_hello`; confirm the status bits (`TX_FIFO_Full` at 16 queued bytes,
+  `RX_FIFO_Valid_Data`) and that `errors()` clears on read.
+- The fixture's UART pins are unconstrained, so it cannot be used on a board
+  as is; it only fixes the interface model.
+
 ## Design gaps (implemented partially or not at all)
 
 - **D1 Interrupts**: traced and wired into the generated crate (`IrqLine`

@@ -1,0 +1,57 @@
+instance axi_bram_ctrl_0 xilinx.com:ip:axi_bram_ctrl:4.1
+ block Mem0 S_AXI 4096
+  reg ECC_STATUS 0x0 ReadWrite 0x0
+   field UE_STATUS 0 1 ReadWrite
+   field CE_STATUS 1 1 ReadWrite
+  reg ECC_EN_IRQ 0x4 ReadWrite 0x0
+   field UE_EN_IRQ 0 1 ReadWrite
+   field CE_EN_IRQ 1 1 ReadWrite
+  reg ECC_ON_OFF 0x8 ReadWrite 0x0
+   field ECC_ON_OFF 0 1 ReadWrite
+  reg CE_CNT 0xc ReadWrite 0x0
+   field CE_CNT 0 8 ReadWrite
+  reg CE_FFA0 0x1c0 ReadOnly 0x0
+   field CE_FFA0 0 32 ReadOnly
+  reg CE_FFA1 0x1c4 ReadOnly 0x0
+   field CE_FFA1 0 32 ReadOnly
+  reg UE_FFD1 0x204 ReadOnly 0x0
+   field UE_FFD 0 32 ReadOnly
+  reg UE_FFD2 0x208 ReadOnly 0x0
+   field UE_FFD 0 32 ReadOnly
+  reg UE_FFD3 0x20c ReadOnly 0x0
+   field UE_FFD 0 32 ReadOnly
+  reg FI_D0 0x300 WriteOnly 0x0
+   field FI_D0 0 32 ReadOnly
+  reg FI_D1 0x304 WriteOnly 0x0
+   field FI_D1 0 32 ReadOnly
+  reg FI_D2 0x308 WriteOnly 0x0
+   field FI_D2 0 32 ReadOnly
+  reg FI_D3 0x30c WriteOnly 0x0
+   field FI_D3 0 32 ReadOnly
+  reg FI_ECC 0x380 WriteOnly 0x0
+   field FI_ECC 0 32 ReadOnly
+instance axi_bram_ctrl_0_bram xilinx.com:ip:blk_mem_gen:8.4
+instance axi_mem_intercon xilinx.com:ip:axi_interconnect:2.1
+instance axi_uartlite_0 xilinx.com:ip:axi_uartlite:2.0
+ block Reg S_AXI 4096
+  reg RX_FIFO 0x0 ReadOnly 0x0
+   field RX_DATA 0 8 ReadOnly
+  reg TX_FIFO 0x4 WriteOnly 0x0
+   field TX_DATA 0 8 WriteOnly
+  reg CTRL_REG 0xc WriteOnly 0x0
+   field RST_TXFIFO 0 1 WriteOnly
+   field RST_RXFIFO 1 1 WriteOnly
+   field Enable_Intr 4 1 WriteOnly
+  reg STAT_REG 0x8 ReadOnly 0x0
+   field RX_FIFO_Valid_Data 0 1 ReadOnly
+   field RX_FIFO_Full 1 1 ReadOnly
+   field TX_FIFO_Empty 2 1 ReadOnly
+   field TX_FIFO_Full 3 1 ReadOnly
+   field Intr_Enabled 4 1 ReadOnly
+   field Overrun_Error 5 1 ReadOnly
+   field Frame_Error 6 1 ReadOnly
+   field Parity_Error 7 1 ReadOnly
+ irq interrupt w1 -> [("processing_system7_0", "IRQ_F2P")]
+instance rst_ps7_0_100M xilinx.com:ip:proc_sys_reset:5.0
+range axi_bram_ctrl_0 Mem0 0x40000000 0x40001fff
+range axi_uartlite_0 Reg 0x42c00000 0x42c0ffff

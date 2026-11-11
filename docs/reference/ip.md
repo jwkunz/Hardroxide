@@ -10,6 +10,8 @@ Drivers do not touch the FPGA or clocks; they only drive registers.
 | [`hls`](ip-hls.md) | Vitis HLS IP (`ap_ctrl_hs` / `ap_ctrl_chain` control block) | no |
 | [`dma`](ip-dma.md) | AXI DMA, direct register mode | no |
 | [`timer`](ip-timer.md) | AXI Timer | `delay::DelayNs` |
+| [`bram`](ip-bram.md) | AXI BRAM Controller | no |
+| [`uart`](ip-uart.md) | AXI UART Lite | `std::io::Write` |
 | [`intc`](ip-intc.md) | AXI Interrupt Controller (fan-in) | no |
 | [`iic`](ip-iic.md) | AXI IIC | `i2c::I2c` |
 | [`spi`](ip-spi.md) | AXI Quad SPI, standard mode | `spi::SpiBus`, `spi::SpiDevice` |

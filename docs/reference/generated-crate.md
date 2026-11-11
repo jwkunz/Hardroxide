@@ -110,6 +110,8 @@ unverified ([G11](../08-verification-gaps.md)).
 | File | Present when | Checks |
 |---|---|---|
 | `gpio_smoke` | AXI GPIO | walks a one-hot pattern on channel 1, prints channel 2 |
+| `bram_test` | AXI BRAM Controller | writes a pattern over the whole block RAM and reads it back |
+| `uart_hello` | AXI UART Lite | sends a greeting and prints what is received in one second |
 | `hls_smoke` | HLS IP | prints idle/ready/done and readable registers; does not start the core |
 | `dma_loopback` | AXI DMA | MM2S to S2MM loopback through two `u-dma-buf` devices |
 | `timer_delay` | AXI Timer | a 100 ms hardware delay vs. the system clock |

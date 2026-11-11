@@ -1,5 +1,6 @@
 //! Curated drivers for Xilinx IP, written against [`hardroxide_mmio::Mmio`].
 
+pub mod bram;
 pub mod dma;
 pub mod gpio;
 pub mod hls;
@@ -7,6 +8,7 @@ pub mod iic;
 pub mod intc;
 pub mod spi;
 pub mod timer;
+pub mod uart;
 pub use hardroxide_mmio::{Mmio, MmioError};
 
 /// Test helper: look up `(register offset, field bit offset)` in a fixture HWH.

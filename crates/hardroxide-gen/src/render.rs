@@ -32,6 +32,8 @@ fn driver_for(vlnv: &str) -> Option<&'static str> {
         "xilinx.com:ip:axi_timer" => Some("hardroxide_ip::timer::AxiTimer"),
         "xilinx.com:ip:axi_iic" => Some("hardroxide_ip::iic::AxiIic"),
         "xilinx.com:ip:axi_quad_spi" => Some("hardroxide_ip::spi::AxiSpi"),
+        "xilinx.com:ip:axi_bram_ctrl" => Some("hardroxide_ip::bram::AxiBram"),
+        "xilinx.com:ip:axi_uartlite" => Some("hardroxide_ip::uart::AxiUart"),
         "xilinx.com:ip:axi_intc" => Some("hardroxide_ip::intc::AxiIntc"),
         _ => None,
     }
@@ -836,6 +838,28 @@ fn first_with<'a>(m: &'a Model, suffix: &str) -> Option<&'a Inst<'a>> {
     m.insts
         .iter()
         .find(|i| i.driver.as_deref().is_some_and(|d| d.ends_with(suffix)))
+}
+
+/// Pin-free memory check: write a pattern over the whole block RAM and read it back.
+pub fn bram_example(m: &Model, crate_name: &str) -> Option<String> {
+    let i = first_with(m, "::AxiBram")?;
+    let lib = crate_name.replace('-', "_");
+    Some(format!(
+        "{HEADER}//! Hardware test for `{n}`: writes an address-derived pattern over the whole\n//! block RAM and reads it back. Run as root on the board.\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n    let ram = &d.{id};\n    let words = ram.len() / 4;\n    for i in 0..words {{\n        ram.write_word(4 * i, (i as u32).wrapping_mul(0x9E37_79B9))?;\n    }}\n    let mut bad = 0;\n    for i in 0..words {{\n        if ram.read_word(4 * i)? != (i as u32).wrapping_mul(0x9E37_79B9) {{\n            bad += 1;\n        }}\n    }}\n    println!(\"{{}} bytes: {{bad}} mismatching words\", ram.len());\n    if bad > 0 {{\n        std::process::exit(1);\n    }}\n    Ok(())\n}}\n",
+        n = i.inst.name,
+        id = i.ident
+    ))
+}
+
+/// UART check: send a greeting and print whatever arrives for one second.
+pub fn uart_example(m: &Model, crate_name: &str) -> Option<String> {
+    let i = first_with(m, "::AxiUart")?;
+    let lib = crate_name.replace('-', "_");
+    Some(format!(
+        "{HEADER}//! Hardware test for `{n}`: sends a greeting and prints what is received in\n//! the next second (connect TX to RX for a loopback). Run as root on the board.\n\nuse std::time::Duration;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n    let uart = &d.{id};\n    uart.init()?;\n    uart.send(b\"hello from hardroxide\\n\", Duration::from_secs(1))?;\n    let mut buf = [0u8; 64];\n    let n = uart.receive(&mut buf, Duration::from_secs(1))?;\n    println!(\"received {{n}} bytes: {{:?}}\", String::from_utf8_lossy(&buf[..n]));\n    println!(\"errors: {{:?}}\", uart.errors()?);\n    Ok(())\n}}\n",
+        n = i.inst.name,
+        id = i.ident
+    ))
 }
 
 /// Pin-free timer check: a 100 ms delay measured against the system clock.

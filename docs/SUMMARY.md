@@ -27,6 +27,8 @@
   - [AXI DMA](reference/ip-dma.md)
   - [AXI Timer](reference/ip-timer.md)
   - [AXI Interrupt Controller](reference/ip-intc.md)
+  - [AXI BRAM Controller](reference/ip-bram.md)
+  - [AXI UART Lite](reference/ip-uart.md)
   - [AXI IIC](reference/ip-iic.md)
   - [AXI Quad SPI](reference/ip-spi.md)
 - [Fixtures](reference/fixtures.md)

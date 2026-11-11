@@ -102,6 +102,8 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
         ("timer_delay", render::timer_example(&model, &crate_name)),
         ("spi_loopback", render::spi_example(&model, &crate_name)),
         ("i2c_scan", render::iic_example(&model, &crate_name)),
+        ("bram_test", render::bram_example(&model, &crate_name)),
+        ("uart_hello", render::uart_example(&model, &crate_name)),
     ] {
         if let Some(ex) = ex {
             files.insert(format!("examples/{name}.rs").into(), ex.into_bytes());

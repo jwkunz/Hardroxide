@@ -18,7 +18,8 @@ tracked in each document.
 | [03-generated-crate.md](03-generated-crate.md) | Shape of the generated HAL crate |
 | [04-runtime.md](04-runtime.md) | Target runtime: Linux on PS, MMIO, DMA, IRQ |
 | [05-roadmap.md](05-roadmap.md) | Policies and milestones (Milestone 1: GPIO end-to-end) |
-| [decisions/](decisions/) | Architecture decision records |
+| [06-session-handoff.md](06-session-handoff.md) | Context from the original design session, risks, first steps |
+| [decisions/](decisions/) | ADRs: 0001 MMIO/DMA model, 0002 bitstream embedding and updates |
 
 ## Baseline context
 

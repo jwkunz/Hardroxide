@@ -34,6 +34,30 @@ let d = my_design::Design::map_only(be.clone())?;
 assert_eq!(d.axi_gpio_0.read(Channel::Two)?, 0b10_0101);
 ```
 
+## HLS kernels that read and write memory
+
+Pointer arguments of an HLS kernel become 64-bit address registers. Give each
+one a DMA buffer (for example a `Udmabuf`) and start the core:
+
+```rust,ignore,fixture=pynq_z2_hls_scale
+# use my_design::Design;
+# use hardroxide_dma::{DmaBuffer, Udmabuf};
+# use std::time::Duration;
+# let d: Design<hardroxide_mmio::DevMem> = todo!();
+let mut input = Udmabuf::open(0)?;
+let output = Udmabuf::open(1)?;
+for (i, w) in input.as_mut_slice().chunks_exact_mut(4).take(16).enumerate() {
+    w.copy_from_slice(&(i as i32).to_le_bytes());
+}
+d.scale_0.set_in_r_buffer(&input)?;
+d.scale_0.set_out_r_buffer(&output)?;
+d.scale_0.set_n(16)?;
+d.scale_0.set_k(3)?;
+d.scale_0.start()?;
+d.scale_0.wait_done(Duration::from_secs(1))?;
+let out = &output.as_slice()[..4];                 // out[0] = in[0] * 3
+```
+
 ## Testing without hardware
 
 Every driver is written against the [`Mmio`](../reference/mmio.md) trait, so a

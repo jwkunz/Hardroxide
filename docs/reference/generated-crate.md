@@ -26,8 +26,8 @@ Cargo features and dependencies:
 | Item | Meaning |
 |---|---|
 | `dev-bitstream` (feature) | enables `Design::load_with_bitstream` (pulls in `hardroxide-hwh`) |
-| `hardroxide-mmio`, `-fpga`, `-ip`, `-irq` | runtime |
-| `hardroxide-dma`, `embedded-hal` | dev-dependencies, used by examples |
+| `hardroxide-mmio`, `-fpga`, `-ip`, `-irq`, `-dma` | runtime |
+| `embedded-hal` | dev-dependency, used by examples |
 
 ## `lib.rs`
 

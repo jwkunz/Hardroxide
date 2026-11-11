@@ -1,0 +1,42 @@
+instance axi_mem_intercon xilinx.com:ip:axi_interconnect:2.1
+instance ps7_0_axi_periph xilinx.com:ip:axi_interconnect:2.1
+instance rst_ps7_0_100M xilinx.com:ip:proc_sys_reset:5.0
+instance scale_0 xilinx.com:hls:scale:1.0
+ block Reg s_axi_control 65536
+  reg CTRL 0x0 ReadWrite 0x0
+   field AP_START 0 1 ReadWrite
+   field AP_DONE 1 1 ReadOnly
+   field AP_IDLE 2 1 ReadOnly
+   field AP_READY 3 1 ReadOnly
+   field RESERVED_1 4 3 ReadOnly
+   field AUTO_RESTART 7 1 ReadWrite
+   field RESERVED_2 8 1 ReadOnly
+   field INTERRUPT 9 1 ReadOnly
+   field RESERVED_3 10 22 ReadOnly
+  reg GIER 0x4 ReadWrite 0x0
+   field Enable 0 1 ReadWrite
+   field RESERVED 1 31 ReadOnly
+  reg IP_IER 0x8 ReadWrite 0x0
+   field CHAN0_INT_EN 0 1 ReadWrite
+   field CHAN1_INT_EN 1 1 ReadWrite
+   field RESERVED_0 2 30 ReadOnly
+  reg IP_ISR 0xc ReadWrite 0x0
+   field CHAN0_INT_ST 0 1 ReadOnly
+   field CHAN1_INT_ST 1 1 ReadOnly
+   field RESERVED_0 2 30 ReadOnly
+  reg in_r_1 0x10 WriteOnly 0x0
+   field in_r 0 32 WriteOnly
+  reg in_r_2 0x14 WriteOnly 0x0
+   field in_r 0 32 WriteOnly
+  reg out_r_1 0x1c WriteOnly 0x0
+   field out_r 0 32 WriteOnly
+  reg out_r_2 0x20 WriteOnly 0x0
+   field out_r 0 32 WriteOnly
+  reg n 0x28 WriteOnly 0x0
+   field n 0 32 WriteOnly
+  reg k 0x30 WriteOnly 0x0
+   field k 0 32 WriteOnly
+ irq interrupt w1 -> [("processing_system7_0", "IRQ_F2P")]
+range processing_system7_0 HP0_DDR_LOWOCM 0x0 0x1fffffff
+range processing_system7_0 HP0_DDR_LOWOCM 0x0 0x1fffffff
+range scale_0 Reg 0x40000000 0x4000ffff

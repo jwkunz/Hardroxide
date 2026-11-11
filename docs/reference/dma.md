@@ -35,6 +35,9 @@ size from `.../size`. Uncached means the CPU is slow on the buffer but no
 cache maintenance is ever needed (ADR 0001). **Unverified on hardware**
 ([G10](../08-verification-gaps.md)).
 
+Any `DmaBuffer` also works as the memory behind an HLS pointer argument
+([`set_<arg>_buffer`](ip-hls.md#pointer-arguments-m_axi-offsetslave)).
+
 ## `MockBuffer`
 
 ```rust,ignore

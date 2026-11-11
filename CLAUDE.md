@@ -42,7 +42,7 @@ API documentation, deployed to GitHub Pages by `.github/workflows/pages.yml`.
 When you change a public API or the CLI, update `docs/reference/` in the same
 change; `cargo test -p hardroxide-cli --test book` fails if signatures, help
 text or links drift. Logo: `docs/assets/logo.png`.** Interrupts are wired into generated crates (`IrqLine`, `interrupts.dtso`).
-Guide examples are compile-tested (`cargo test -p hardroxide-gen --test guide`; tag blocks `rust,ignore,fixture=<name>`, `# ` lines are hidden setup). AXI interrupt controller fan-in is supported (`AxiIntc`, `via_intc`, `fixtures/pynq_z2_intc.xsa`). Remaining offline work: more IP drivers, more fixtures.
+Guide examples are compile-tested (`cargo test -p hardroxide-gen --test guide`; tag blocks `rust,ignore,fixture=<name>`, `# ` lines are hidden setup). AXI interrupt controller fan-in is supported (`AxiIntc`, `via_intc`, `fixtures/pynq_z2_intc.xsa`). HLS pointer (`m_axi`) arguments get `set_*_addr`/`set_*_buffer` helpers (`fixtures/pynq_z2_hls_scale.xsa`). Remaining offline work: more IP drivers (BRAM, UART, stream FIFO), AXI-Stream HLS ports, more fixtures.
 
 ## Conventions
 

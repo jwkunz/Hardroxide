@@ -47,4 +47,24 @@ the register (lower-cased and sanitised, same rules as the
 
 Example for the `vadd` fixture (`a`, `b` write-only, `out_r`, `out_r_ctrl`
 read-only): `set_a`, `set_b`, `out_r`, `out_r_ctrl`. Registers are exposed as
-raw 32-bit words: 64-bit values and arrays are not assembled for you.
+raw 32-bit words; arrays are not assembled for you.
+
+### Pointer arguments (`m_axi`, `offset=slave`)
+
+A pointer argument that the kernel reads or writes through an `m_axi` master
+appears as **two** consecutive registers, `<arg>_1` (bits 31..0) and `<arg>_2`
+(bits 63..32). The generator recognises the pair from the field descriptions
+(`Bit 31 to 0 of <arg>` / `Bit 63 to 32 of <arg>`) and, instead of two raw
+setters, emits:
+
+```rust,ignore,example
+pub fn set_<arg>_addr(&self, addr: u64) -> Result<(), MmioError>
+pub fn <arg>_addr(&self) -> Result<u64, MmioError>
+pub fn set_<arg>_buffer(&self, buf: &impl DmaBuffer) -> Result<(), MmioError>
+```
+
+`set_<arg>_buffer` writes the buffer's `phys_addr()`; keep the buffer alive
+(and do not touch it) while the core runs. `<arg>_addr` reads the registers
+back. The fixture is
+`fixtures/pynq_z2_hls_scale.xsa` (`scale(in, out, n, k)`: `out[i] = in[i] * k`,
+two `m_axi` masters into `S_AXI_HP0`).

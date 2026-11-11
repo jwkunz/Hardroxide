@@ -24,6 +24,7 @@ const FIXTURES: &[&str] = &[
     "pynq_z2_dma_loopback",
     "pynq_z2_peripherals",
     "pynq_z2_intc",
+    "pynq_z2_hls_scale",
 ];
 
 #[test]
@@ -145,6 +146,15 @@ fn generated_hls_crate_builds_and_works_with_mock() {
         "pynq_z2_hls_vadd",
         "pynq_z2_hls_test",
         include_str!("data/generated_hls_test.rs"),
+    );
+}
+
+#[test]
+fn generated_hls_scale_crate_builds_and_works_with_mock() {
+    build_and_test(
+        "pynq_z2_hls_scale",
+        "pynq_z2_scale_test",
+        include_str!("data/generated_scale_test.rs"),
     );
 }
 

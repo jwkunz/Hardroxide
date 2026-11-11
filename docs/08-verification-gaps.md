@@ -123,6 +123,14 @@ has been set up). Record `uname -a` and the PYNQ image version here.
 - Interrupt wiring (`PS7 IRQ_F2P[0]`) is only recorded in the PAC
   (`INTERRUPTS`); no interrupt delivery exists yet (D1).
 
+- **Pointer arguments** (`fixtures/pynq_z2_hls_scale.xsa`): `set_in_r_buffer`
+  / `set_out_r_buffer` write the buffer's physical address into the two halves
+  of the 64-bit register pair (checked offline only against the HWH layout).
+  On the board, with two `Udmabuf`s: fill `in`, set `n`, `k`, `start()`,
+  `wait_done`, then read `out` (expect `in[i] * k`). Also confirm that the HP0
+  port reaches the udmabuf's physical range (no AXI decode error) and that
+  uncached buffers give the right data without cache maintenance.
+
 ### G10. AXI DMA direct mode + udmabuf on hardware (UNVERIFIED)
 - Driver follows PG021 simple mode; register offsets/bits are asserted
   against the HWH (offline), behaviour is not. Mock models write-1-to-clear
@@ -199,8 +207,9 @@ has been set up). Record `uname -a` and the PYNQ image version here.
   node, and PS-side GPIO/other interrupt sources.
 - **D2 Other IP**: AXI GPIO is curated and HLS IP gets generated typed
   accessors (scalar 32-bit registers only: no memory-mapped arrays, no 64-bit
-  pointer register pairs helper, no `ap_ctrl_chain` specifics, no m_axi
-  buffers). Custom RTL without register data gets a raw window. AXI DMA has a direct-mode driver (no SG, no 64-bit addressing check, no
+  `ap_ctrl_chain` specifics; 64-bit pointer register pairs have
+  `set_*_addr` / `set_*_buffer` helpers but no size or bounds checking against
+  the buffer, and no AXI-Stream or array-port arguments). Custom RTL without register data gets a raw window. AXI DMA has a direct-mode driver (no SG, no 64-bit addressing check, no
   mixed MM2S/S2MM-only configuration handling). Timer/IIC/SPI need their own
   fixtures (docs/05 milestone 5). Unknown IP is exposed
   as a raw MMIO window.

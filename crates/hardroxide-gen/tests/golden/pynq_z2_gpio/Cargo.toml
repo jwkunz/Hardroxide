@@ -13,9 +13,9 @@ hardroxide-mmio = { path = "/hardroxide/crates/hardroxide-mmio" }
 hardroxide-fpga = { path = "/hardroxide/crates/hardroxide-fpga" }
 hardroxide-ip = { path = "/hardroxide/crates/hardroxide-ip" }
 hardroxide-irq = { path = "/hardroxide/crates/hardroxide-irq" }
+hardroxide-dma = { path = "/hardroxide/crates/hardroxide-dma" }
 hardroxide-hwh = { path = "/hardroxide/crates/hardroxide-hwh", optional = true }
 thiserror = "2"
 
 [dev-dependencies]
-hardroxide-dma = { path = "/hardroxide/crates/hardroxide-dma" }
 embedded-hal = "1"

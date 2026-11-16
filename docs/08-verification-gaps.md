@@ -24,6 +24,28 @@ toolchain on the board or a cross-compile
 | V4 | `/dev/mem`-style mmap path (page alignment, offsets, volatile access) | Unit test maps a regular file at an unaligned offset. Does not exercise real `/dev/mem`. |
 | V5 | Runtime crates work as 32-bit ARM binaries | `scripts/test-armv7.sh` builds the runtime crates' tests for `armv7-unknown-linux-gnueabihf` and runs them under `qemu-arm` user-mode emulation (in CI too). Includes mapping a window above 2 GiB (the SLCR at `0xF800_0000`) through a 32-bit `off_t`. Emulates the CPU and libc only, not the Zynq or its kernel. |
 
+## Board results
+
+First hardware session: **2026-11-16**, PYNQ-Z2, image "PYNQ 3.1 (Carlisle)
+2025_07_10", kernel `6.6.10-xilinx-v2024.1-gb36799f4e960` (armv7l), glibc 2.35
+(Ubuntu), cross-built binaries copied over SSH. The image is a custom "panther"
+build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
+
+| Gap | Result |
+|---|---|
+| G1 bitstream load | **Passes** once the base design's drivers are stopped (G16); freezes the board otherwise |
+| G2 FCLK readback | **Passes**: FCLK0 reads 100 000 000 Hz |
+| G4 `/dev/mem` mapping | **Passes**: PL registers read and write; no freeze |
+| G5 GPIO | Registers respond and inputs read plausible values (`0x30`); LED/button behaviour not observed by eye |
+| G9 HLS scalar | **Passes**: `vadd` computes 1+2, 100+23, 0xFFFFFFFF+1 (wraps), 7+35; done interrupt fires and re-arms |
+| G11 interrupts | **Passes**: the generated `interrupts.dtso` applies unchanged through configfs; `irq_probe`/`board_check` open all UIO devices; Timer and HLS interrupts fire and re-arm |
+| G12 Timer, SPI, IIC | Timer **passes** (100 ms asked, 100.017 ms measured; interrupt 50 ms +0.08 ms). SPI internal loopback **passes** (40 bytes). IIC: scan completes with no devices and no hang; nothing is wired to the pins, so no device ACK was seen |
+| G13 AXI intc | **Passes**: Timer interrupt through `axi_intc`, `pending`/`ack`/timeout |
+| G14 BRAM / UART | BRAM **passes** (8 KiB pattern, 0 mismatches). UART: loopback not wired, nothing received; TX/RX unverified |
+| G15 FIFO | Data path **passes**; the length comes back rounded up to whole words (37 sent, 40 back), which the docs now say |
+| G10 DMA, HLS pointers | **Not run**: needs the `u-dma-buf` module, which this image lacks |
+| G3, G6, G7, G8 | Not exercised beyond the above |
+
 ## Needs the board
 
 Start with the generated `board_check` example: it runs G1 (load), a G2 FCLK
@@ -219,11 +241,27 @@ touches no IP register.
   offsets are asserted against the HWH of `pynq_z2_fifo.xsa`. The reset keys
   (`0xA5`), the `TLR`-starts-the-packet order and the `RLR` length mask are from
   PG080 and not checked against hardware.
-- Board checks: `cargo run --example fifo_loopback` (37-byte packet, exact
-  length back). Also: a packet larger than `TDFV` is refused without writing;
+- Board checks: `cargo run --example fifo_loopback` (37-byte packet; the core returns it rounded up to 40 bytes, so the
+  example accepts zero padding). Also: a packet larger than `TDFV` is refused without writing;
   `ISR` flags clear when written with 1s (confirm the write-to-clear sense, the
   driver assumes it); odd lengths (1, 2, 3 bytes) round-trip.
 - Only AXI4-Lite register mode is covered, not the AXI4 full data interface.
+
+### G16. The base design owns the PL (FOUND ON HARDWARE)
+- The stock-style image loads its own bitstream at boot (`base.bin`) and binds
+  drivers to PL addresses: `panther_drm` (HDMI), `panther_audio`, `zocl`,
+  `gpio-xilinx` at `0x41200000..0x41250000`, `uio_pdrv_genirq` at `0x43c00000`,
+  plus the `panther-desktop` and `jupyter` services.
+- Observed: the first `board_check` run froze the whole board (SSH and both
+  serial ports silent) in step 1. Reprogramming the PL while those drivers are
+  active is the likely cause (a PS to PL access during configuration never
+  completes). After stopping them the same load succeeded repeatedly.
+- Workaround, run before the first load (as root):
+  `systemctl stop panther-desktop jupyter; rmmod panther_drm panther_audio zocl`,
+  then unbind the PL platform devices (`echo <dev> > /sys/bus/platform/devices/<dev>/driver/unbind`
+  for each `4*` device). Documented in [Running on hardware](guide/hardware.md).
+- Open: `load()` could refuse (or warn) when a platform device already sits on a
+  PL address; not implemented.
 
 ## Design gaps (implemented partially or not at all)
 

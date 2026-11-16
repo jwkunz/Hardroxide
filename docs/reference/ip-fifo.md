@@ -2,8 +2,10 @@
 
 `hardroxide_ip::fifo` — `xilinx.com:ip:axi_fifo_mm_s` (PG080) in AXI4-Lite
 register mode: packets are moved by programmed I/O, 32 bits at a time.
-Packet bytes are packed little-endian; the length in bytes is exact (the last
-word is zero-padded on send and truncated on receive).
+Packet bytes are packed little-endian; a packet is zero-padded to a whole word on send,
+and the core reports the received length in whole words too (it has no byte
+strobe; measured on hardware: 37 bytes sent, 40 received). Carry an exact length
+in the payload if you need one.
 
 ```rust,ignore
 pub const ISR: usize = 0x00;

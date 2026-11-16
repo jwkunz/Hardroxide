@@ -1,7 +1,9 @@
 //! AXI4-Stream FIFO (`xilinx.com:ip:axi_fifo_mm_s`, PG080) in its AXI4-Lite
 //! register mode, with packets moved by programmed I/O. Both directions use
-//! 32-bit words, little-endian; the packet length in bytes is exact (the last
-//! word is zero-padded on send and truncated on receive).
+//! 32-bit words, little-endian; the packet is zero-padded to a whole word on send,
+//! and the core reports the received length in whole words too (it has no byte
+//! strobe), so a 37-byte packet comes back as 40 bytes. Callers that need an exact
+//! length must carry it in the payload.
 //! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
 
 use hardroxide_mmio::{Mmio, MmioError};

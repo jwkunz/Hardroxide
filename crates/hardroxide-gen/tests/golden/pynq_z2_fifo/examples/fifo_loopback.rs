@@ -12,7 +12,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let packet: Vec<u8> = (0..37u8).collect();
     fifo.send(&packet)?;
     match fifo.recv(Duration::from_secs(1))? {
-        Some(p) if p == packet => println!("loopback ok ({} bytes)", p.len()),
+        Some(p) if p.starts_with(&packet) && p[packet.len()..].iter().all(|&b| b == 0) => {
+            println!("loopback ok: sent {} bytes, core reported {} (rounded up to whole words)", packet.len(), p.len())
+        }
         Some(p) => {
             println!("MISMATCH: sent {} bytes, got {}: {p:?}", packet.len(), p.len());
             std::process::exit(1);

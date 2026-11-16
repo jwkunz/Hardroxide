@@ -1,6 +1,8 @@
 # Running on hardware
 
-No driver has been validated on a board yet. Before relying on anything, work
+Several drivers have been run on a board (see the results table in
+[Verification gaps](../08-verification-gaps.md#board-results)); the rest have
+not. Before relying on anything, work
 through [Verification gaps](../08-verification-gaps.md) **in order**: later
 checks assume the earlier ones passed.
 
@@ -10,6 +12,15 @@ On the stock PYNQ-Z2 image, as root:
 
 - the FPGA manager must exist: `ls /sys/class/fpga_manager/fpga0`;
 - `/dev/mem` must be usable by root (it is on the PYNQ image);
+- if the image loads its own overlay at boot (the PYNQ-Z2 "base" design, or a
+  vendor image that drives HDMI/LEDs from the PL), **stop everything using it
+  first**. Reprogramming the PL under a live driver froze a test board
+  completely (see [G16](../08-verification-gaps.md)). As root:
+  ```console
+  # systemctl stop panther-desktop jupyter        # whatever uses the PL on your image
+  # rmmod panther_drm panther_audio zocl          # check `lsmod`
+  # for d in /sys/bus/platform/devices/4*; do echo $(basename $d) > $d/driver/unbind; done
+  ```
 - for DMA or HLS pointer arguments: load `u-dma-buf` with one buffer per
   `/dev/udmabufN` you plan to use;
 - for interrupts: apply the generated `interrupts.dtso` (see
@@ -67,5 +78,6 @@ image version.
 | `AlreadyLoaded` | a second `Design::load()` in the same process | keep one `Design` and pass references around |
 | `IrqError::NotFound { .. }` | the interrupt overlay is not applied, or the node did not bind | apply `interrupts.dtso`; `cat /sys/class/uio/uio*/name` |
 | `IrqError::ViaController { .. }` | the interrupt goes through an AXI interrupt controller | open the controller's `IRQ_IRQ` and use `AxiIntc::wait` |
+| The board freezes during `board_check` step 1 | the PL is in use by another driver (base overlay, HDMI, `zocl`) while it is reprogrammed | stop and unbind them first (One-time board setup); power-cycle to recover |
 | `Udmabuf::open` fails | `u-dma-buf` not loaded, or fewer buffers than expected | `ls /dev/udmabuf*` |
 | A driver call returns `Timeout` | the IP never signalled completion: wrong clock, unconnected stream, or the core is held in reset | the IP's status registers through `regs()`, and G3 (PL resets) |

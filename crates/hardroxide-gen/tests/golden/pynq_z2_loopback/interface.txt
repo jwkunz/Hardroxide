@@ -1,0 +1,199 @@
+instance axi_iic_0 xilinx.com:ip:axi_iic:2.1
+ block Reg S_AXI 4096
+  reg GIE 0x1c ReadWrite 0x0
+   field GIE 31 1 ReadWrite
+  reg ISR 0x20 ReadWrite 0xd0
+   field int0 0 1 ReadWrite
+   field int1 1 1 ReadWrite
+   field int2 2 1 ReadWrite
+   field int3 3 1 ReadWrite
+   field int4 4 1 ReadWrite
+   field int5 5 1 ReadWrite
+   field int6 6 1 ReadWrite
+   field int7 7 1 ReadWrite
+  reg IER 0x28 ReadWrite 0x0
+   field int0 0 1 ReadWrite
+   field int1 1 1 ReadWrite
+   field int2 2 1 ReadWrite
+   field int3 3 1 ReadWrite
+   field int4 4 1 ReadWrite
+   field int5 5 1 ReadWrite
+   field int6 6 1 ReadWrite
+   field int7 7 1 ReadWrite
+  reg SOFTR 0x40 ReadWrite 0x0
+   field RKEY 0 4 WriteOnly
+  reg CR 0x100 ReadWrite 0x0
+   field EN 0 1 ReadWrite
+   field TX_FIFO_Reset 1 1 ReadWrite
+   field MSMS 2 1 ReadWrite
+   field TX 3 1 ReadWrite
+   field TXAK 4 1 ReadWrite
+   field RSTA 5 1 ReadWrite
+   field GC_EN 6 1 ReadWrite
+  reg SR 0x104 ReadOnly 0x0
+   field ABGC 0 1 ReadOnly
+   field AAS 1 1 ReadOnly
+   field BB 2 1 ReadOnly
+   field SRW 3 1 ReadOnly
+   field TX_FIFO_Full 4 1 ReadOnly
+   field RX_FIFO_Full 5 1 ReadOnly
+   field RX_FIFO_Empty 6 1 ReadOnly
+   field TX_FIFO_Empty 7 1 ReadOnly
+  reg TX_FIFO 0x108 WriteOnly 0x0
+   field D7_D0 0 8 WriteOnly
+   field Start 8 1 WriteOnly
+   field Stop 9 1 WriteOnly
+  reg RX_FIFO 0x10c ReadOnly 0x0
+   field D7_D0 0 8 ReadOnly
+  reg ADR 0x110 ReadWrite 0x0
+   field Slave_Address 1 7 ReadWrite
+  reg TX_FIFO_OCY 0x114 ReadOnly 0x0
+   field Occupancy_Value 0 4 ReadOnly
+  reg RX_FIFO_OCY 0x118 ReadOnly 0x0
+   field Occupancy_Value 0 4 ReadOnly
+  reg TEN_ADR 0x11c ReadWrite 0x0
+   field MSB_of_Slave_Address 0 3 ReadWrite
+  reg RX_FIFO_PIRQ 0x120 ReadWrite 0x0
+   field Compare_Value 0 4 ReadWrite
+  reg GPO 0x124 ReadWrite 0x0
+   field General_Purpose_Outputs 0 1 ReadWrite
+  reg TSUSTA 0x128 ReadWrite 0x0
+   field TSUSTA 0 32 ReadWrite
+  reg TSUSTO 0x12c ReadWrite 0x0
+   field TSUSTO 0 32 ReadWrite
+  reg THDSTA 0x130 ReadWrite 0x0
+   field THDSTA 0 32 ReadWrite
+  reg TSUDAT 0x134 ReadWrite 0x0
+   field TSUDAT 0 32 ReadWrite
+  reg TBUF 0x138 ReadWrite 0x0
+   field TBUF 0 32 ReadWrite
+  reg THIGH 0x13c ReadWrite 0x0
+   field THIGH 0 32 ReadWrite
+  reg TLOW 0x140 ReadWrite 0x0
+   field TLOW 0 32 ReadWrite
+  reg THDDAT 0x144 ReadWrite 0x0
+   field THDDAT 0 32 ReadWrite
+ irq iic2intc_irpt w1 -> [("xlconcat_0", "In2")]
+instance axi_iic_1 xilinx.com:ip:axi_iic:2.1
+ block Reg S_AXI 4096
+  reg GIE 0x1c ReadWrite 0x0
+   field GIE 31 1 ReadWrite
+  reg ISR 0x20 ReadWrite 0xd0
+   field int0 0 1 ReadWrite
+   field int1 1 1 ReadWrite
+   field int2 2 1 ReadWrite
+   field int3 3 1 ReadWrite
+   field int4 4 1 ReadWrite
+   field int5 5 1 ReadWrite
+   field int6 6 1 ReadWrite
+   field int7 7 1 ReadWrite
+  reg IER 0x28 ReadWrite 0x0
+   field int0 0 1 ReadWrite
+   field int1 1 1 ReadWrite
+   field int2 2 1 ReadWrite
+   field int3 3 1 ReadWrite
+   field int4 4 1 ReadWrite
+   field int5 5 1 ReadWrite
+   field int6 6 1 ReadWrite
+   field int7 7 1 ReadWrite
+  reg SOFTR 0x40 ReadWrite 0x0
+   field RKEY 0 4 WriteOnly
+  reg CR 0x100 ReadWrite 0x0
+   field EN 0 1 ReadWrite
+   field TX_FIFO_Reset 1 1 ReadWrite
+   field MSMS 2 1 ReadWrite
+   field TX 3 1 ReadWrite
+   field TXAK 4 1 ReadWrite
+   field RSTA 5 1 ReadWrite
+   field GC_EN 6 1 ReadWrite
+  reg SR 0x104 ReadOnly 0x0
+   field ABGC 0 1 ReadOnly
+   field AAS 1 1 ReadOnly
+   field BB 2 1 ReadOnly
+   field SRW 3 1 ReadOnly
+   field TX_FIFO_Full 4 1 ReadOnly
+   field RX_FIFO_Full 5 1 ReadOnly
+   field RX_FIFO_Empty 6 1 ReadOnly
+   field TX_FIFO_Empty 7 1 ReadOnly
+  reg TX_FIFO 0x108 WriteOnly 0x0
+   field D7_D0 0 8 WriteOnly
+   field Start 8 1 WriteOnly
+   field Stop 9 1 WriteOnly
+  reg RX_FIFO 0x10c ReadOnly 0x0
+   field D7_D0 0 8 ReadOnly
+  reg ADR 0x110 ReadWrite 0x0
+   field Slave_Address 1 7 ReadWrite
+  reg TX_FIFO_OCY 0x114 ReadOnly 0x0
+   field Occupancy_Value 0 4 ReadOnly
+  reg RX_FIFO_OCY 0x118 ReadOnly 0x0
+   field Occupancy_Value 0 4 ReadOnly
+  reg TEN_ADR 0x11c ReadWrite 0x0
+   field MSB_of_Slave_Address 0 3 ReadWrite
+  reg RX_FIFO_PIRQ 0x120 ReadWrite 0x0
+   field Compare_Value 0 4 ReadWrite
+  reg GPO 0x124 ReadWrite 0x0
+   field General_Purpose_Outputs 0 1 ReadWrite
+  reg TSUSTA 0x128 ReadWrite 0x0
+   field TSUSTA 0 32 ReadWrite
+  reg TSUSTO 0x12c ReadWrite 0x0
+   field TSUSTO 0 32 ReadWrite
+  reg THDSTA 0x130 ReadWrite 0x0
+   field THDSTA 0 32 ReadWrite
+  reg TSUDAT 0x134 ReadWrite 0x0
+   field TSUDAT 0 32 ReadWrite
+  reg TBUF 0x138 ReadWrite 0x0
+   field TBUF 0 32 ReadWrite
+  reg THIGH 0x13c ReadWrite 0x0
+   field THIGH 0 32 ReadWrite
+  reg TLOW 0x140 ReadWrite 0x0
+   field TLOW 0 32 ReadWrite
+  reg THDDAT 0x144 ReadWrite 0x0
+   field THDDAT 0 32 ReadWrite
+ irq iic2intc_irpt w1 -> [("xlconcat_0", "In3")]
+instance axi_uartlite_0 xilinx.com:ip:axi_uartlite:2.0
+ block Reg S_AXI 4096
+  reg RX_FIFO 0x0 ReadOnly 0x0
+   field RX_DATA 0 8 ReadOnly
+  reg TX_FIFO 0x4 WriteOnly 0x0
+   field TX_DATA 0 8 WriteOnly
+  reg CTRL_REG 0xc WriteOnly 0x0
+   field RST_TXFIFO 0 1 WriteOnly
+   field RST_RXFIFO 1 1 WriteOnly
+   field Enable_Intr 4 1 WriteOnly
+  reg STAT_REG 0x8 ReadOnly 0x0
+   field RX_FIFO_Valid_Data 0 1 ReadOnly
+   field RX_FIFO_Full 1 1 ReadOnly
+   field TX_FIFO_Empty 2 1 ReadOnly
+   field TX_FIFO_Full 3 1 ReadOnly
+   field Intr_Enabled 4 1 ReadOnly
+   field Overrun_Error 5 1 ReadOnly
+   field Frame_Error 6 1 ReadOnly
+   field Parity_Error 7 1 ReadOnly
+ irq interrupt w1 -> [("xlconcat_0", "In0")]
+instance axi_uartlite_1 xilinx.com:ip:axi_uartlite:2.0
+ block Reg S_AXI 4096
+  reg RX_FIFO 0x0 ReadOnly 0x0
+   field RX_DATA 0 8 ReadOnly
+  reg TX_FIFO 0x4 WriteOnly 0x0
+   field TX_DATA 0 8 WriteOnly
+  reg CTRL_REG 0xc WriteOnly 0x0
+   field RST_TXFIFO 0 1 WriteOnly
+   field RST_RXFIFO 1 1 WriteOnly
+   field Enable_Intr 4 1 WriteOnly
+  reg STAT_REG 0x8 ReadOnly 0x0
+   field RX_FIFO_Valid_Data 0 1 ReadOnly
+   field RX_FIFO_Full 1 1 ReadOnly
+   field TX_FIFO_Empty 2 1 ReadOnly
+   field TX_FIFO_Full 3 1 ReadOnly
+   field Intr_Enabled 4 1 ReadOnly
+   field Overrun_Error 5 1 ReadOnly
+   field Frame_Error 6 1 ReadOnly
+   field Parity_Error 7 1 ReadOnly
+ irq interrupt w1 -> [("xlconcat_0", "In1")]
+instance ps7_0_axi_periph xilinx.com:ip:axi_interconnect:2.1
+instance rst_ps7_0_100M xilinx.com:ip:proc_sys_reset:5.0
+instance xlconcat_0 xilinx.com:ip:xlconcat:2.1
+range axi_iic_0 Reg 0x41600000 0x4160ffff
+range axi_iic_1 Reg 0x41610000 0x4161ffff
+range axi_uartlite_0 Reg 0x42c00000 0x42c0ffff
+range axi_uartlite_1 Reg 0x42c10000 0x42c1ffff

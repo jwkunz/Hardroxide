@@ -39,9 +39,9 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | G5 GPIO | **Passes**: LED0 to LED3 light in order (seen by eye); buttons 0 to 3 read as bits 0 to 3 and both switches as bits 4 and 5 (`0b[sw1 sw0 btn3 btn2 btn1 btn0]`), all switch combinations seen |
 | G9 HLS scalar | **Passes**: `vadd` computes 1+2, 100+23, 0xFFFFFFFF+1 (wraps), 7+35; done interrupt fires and re-arms |
 | G11 interrupts | **Passes**: the generated `interrupts.dtso` applies unchanged through configfs; `irq_probe`/`board_check` open all UIO devices; Timer and HLS interrupts fire and re-arm |
-| G12 Timer, SPI, IIC | Timer **passes** (100 ms asked, 100.017 ms measured; interrupt 50 ms +0.08 ms). SPI internal loopback **passes** (40 bytes). IIC: scan completes with no devices and no hang; nothing is wired to the pins, so no device ACK was seen |
+| G12 Timer, SPI, IIC | Timer **passes** (100 ms asked, 100.017 ms measured; interrupt 50 ms +0.08 ms). SPI internal loopback **passes** (40 bytes). IIC **passes** on the loopback fixture (two cores on one in-fabric bus): a 5-byte write reaches the target at `0x2A` intact, an unanswered address NACKs, a bus scan finds only `0x2A`. This found a driver bug, fixed: the IIC `ISR` is toggle-on-write, and `init` wrote `0xFF`, which *set* every status bit, so every transfer reported a NACK |
 | G13 AXI intc | **Passes**: Timer interrupt through `axi_intc`, `pending`/`ack`/timeout |
-| G14 BRAM / UART | BRAM **passes** (8 KiB pattern, 0 mismatches). UART: loopback not wired, nothing received; TX/RX unverified |
+| G14 BRAM / UART | BRAM **passes** (8 KiB pattern, 0 mismatches). UART **passes** on the loopback fixture (two cores cross-wired in the fabric): 256 bytes each way, no overrun/frame/parity errors, 22 ms per 256 bytes (115200 baud). Interrupt-driven UART not tested |
 | G15 FIFO | Data path **passes**; the length comes back rounded up to whole words (37 sent, 40 back), which the docs now say |
 | G10 DMA | **Passes**: 4096-byte MM2S to S2MM loopback matches through two `u-dma-buf` buffers (uncached, no cache maintenance); interrupt-driven completion works on both channels for three rounds |
 | G9 HLS pointer arguments | **Passes**: `scale` reads one `u-dma-buf` buffer and writes another through `set_*_buffer` (256 elements, 0 mismatches) |
@@ -228,7 +228,7 @@ touches no IP register.
   (the HWH marks the port `SIGIS="undef"`); confirm the overlay's trigger cell
   (`4` = level high) matches the hardware behaviour.
 
-### G14. AXI BRAM Controller and UART Lite (UNVERIFIED)
+### G14. AXI BRAM Controller and UART Lite (VERIFIED 2026-11-16, see Board results)
 - Drivers are tested against the mock and a FIFO model; UART register offsets
   and bit positions are asserted against the HWH of `pynq_z2_mem_uart.xsa`.
 - Board checks: `cargo run --example bram_test` (whole-RAM pattern, expect 0

@@ -87,6 +87,11 @@ matching IP is present):
 | `uart_hello` | AXI UART Lite | sends a greeting, prints what arrives for one second | G14 |
 | `fifo_loopback` | AXI4-Stream FIFO | sends a packet and reads it back (stream TX looped to RX) | G15 |
 
+`uart_hello` and `i2c_scan` need external wiring (a TX-to-RX jumper; a device on the
+bus). With no wiring, use the loopback fixture (`pynq_z2_loopback.xsa`, see
+[Fixtures](../reference/fixtures.md)): its two UARTs and two IIC cores are wired to each
+other in the fabric, and `fixtures/loopback/{uart_pair,iic_pair}.rs` test them.
+
 When a check passes, record it in
 [Verification gaps](../08-verification-gaps.md) with the date and the board
 image version.

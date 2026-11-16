@@ -74,7 +74,15 @@ impl<R: Mmio> AxiIic<R> {
         self.regs.write32(SOFTR, SOFT_RESET_KEY)?;
         self.regs.write32(CR, CR_TX_FIFO_RST)?;
         self.regs.write32(CR, CR_EN)?;
-        self.regs.write32(ISR, 0xFF)?; // clear status (toggle-on-write)
+        self.clear_status()
+    }
+
+    /// ISR bits are toggle-on-write (PG090): writing 1 *flips* a bit, so
+    /// clearing means writing back exactly the bits that are set. Writing
+    /// `0xFF` instead would set every clear bit, which reads as a NACK.
+    fn clear_status(&self) -> Result<(), IicError> {
+        let set = self.regs.read32(ISR)?;
+        self.regs.write32(ISR, set)?;
         Ok(())
     }
 
@@ -105,7 +113,7 @@ impl<R: Mmio> AxiIic<R> {
     }
 
     fn recover(&self) -> Result<(), IicError> {
-        self.regs.write32(ISR, 0xFF)?;
+        self.clear_status()?;
         self.init()
     }
 
@@ -191,7 +199,7 @@ mod tests {
     struct FakeIic {
         tx: RefCell<Vec<u32>>,
         rx: RefCell<VecDeque<u8>>,
-        nack: RefCell<bool>,
+        isr: RefCell<u32>,
     }
 
     impl Mmio for FakeIic {
@@ -209,7 +217,7 @@ mod tests {
                         }
                 }
                 RX_FIFO => self.rx.borrow_mut().pop_front().unwrap_or(0) as u32,
-                ISR if *self.nack.borrow() => ISR_TX_ERR,
+                ISR => *self.isr.borrow(),
                 _ => 0,
             })
         }
@@ -218,7 +226,7 @@ mod tests {
                 self.tx.borrow_mut().push(v);
             }
             if o == ISR {
-                *self.nack.borrow_mut() = false; // cleared by recovery
+                *self.isr.borrow_mut() ^= v; // toggle-on-write, as the core does
             }
             Ok(())
         }
@@ -264,7 +272,7 @@ mod tests {
             *i2c.regs.tx.borrow(),
             [TX_START | (0x10 << 1), 1, TX_STOP | 2]
         );
-        *i2c.regs.nack.borrow_mut() = true;
+        *i2c.regs.isr.borrow_mut() = ISR_TX_ERR;
         let e = i2c.write(0x10, &[1]).unwrap_err();
         assert!(matches!(e, IicError::Nack));
         assert!(matches!(i2c::Error::kind(&e), ErrorKind::NoAcknowledge(_)));

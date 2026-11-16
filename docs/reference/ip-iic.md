@@ -33,3 +33,5 @@ configured. 10-bit addressing and slave mode are not supported. **Unverified
 on hardware** ([G12](../08-verification-gaps.md)).
 
 `IicError`: `Mmio`, `Nack`, `ArbitrationLost`, `Timeout`, `ReadTooLong(n)`.
+
+**Status register note.** `ISR` is toggle-on-write (PG090): writing a 1 flips the bit. The driver clears it by writing back exactly the bits that are set. When used as a target, this core holds the bus until its RX FIFO is read, so drain it while the master transfer is in progress (the driver implements the master side only).

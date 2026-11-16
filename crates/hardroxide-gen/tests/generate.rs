@@ -27,6 +27,7 @@ const FIXTURES: &[&str] = &[
     "pynq_z2_hls_scale",
     "pynq_z2_mem_uart",
     "pynq_z2_fifo",
+    "pynq_z2_loopback",
 ];
 
 #[test]

@@ -75,6 +75,91 @@ pub(crate) fn bitstream_files(xsa: &Xsa) -> Result<Vec<(PathBuf, Vec<u8>)>, GenE
     ])
 }
 
+/// What a host-visible instance becomes in the generated crate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Kind {
+    /// A curated driver from `hardroxide-ip` (its type path).
+    Driver(String),
+    /// A typed wrapper generated from an HLS kernel's register map.
+    Hls(String),
+    /// No driver: a raw register window (`B::Region`) plus register constants.
+    Raw,
+}
+
+/// One instance of the design as seen from the PS.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstanceSummary {
+    pub name: String,
+    /// The field name on the generated `Design`.
+    pub field: String,
+    pub vlnv: String,
+    pub base: u64,
+    pub size: u64,
+    pub kind: Kind,
+    /// One line per connected interrupt output.
+    pub interrupts: Vec<String>,
+}
+
+/// Summary of what [`generate`] makes of a design.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Summary {
+    /// Instances software on the PS can reach, in address order.
+    pub instances: Vec<InstanceSummary>,
+    /// Instances that exist but are not reachable from the PS (they belong to
+    /// another master's private address map, e.g. a MicroBlaze), or have no
+    /// address at all. They get no field.
+    pub not_host_visible: Vec<String>,
+}
+
+/// Describe, instance by instance, what `generate` would produce.
+pub fn summarize(design: &hardroxide_hwh::Design) -> Summary {
+    let model = render::Model::build(design);
+    let instances = model
+        .insts
+        .iter()
+        .map(|i| InstanceSummary {
+            name: i.inst.name.clone(),
+            field: i.ident.clone(),
+            vlnv: i.inst.vlnv.clone(),
+            base: i.ranges[0].base,
+            size: i.ranges[0].size(),
+            kind: match (&i.generated, &i.driver) {
+                (Some(t), _) => Kind::Hls(format!("crate::ips::{t}")),
+                (None, Some(d)) => Kind::Driver(d.clone()),
+                (None, None) => Kind::Raw,
+            },
+            interrupts: render::irq_lines(i, design)
+                .into_iter()
+                .map(|l| {
+                    let to = match (&l.via_intc, l.f2p_bit) {
+                        (Some((c, b)), _) => format!("input {b} of {c}"),
+                        (None, Some(b)) => match l.gic_spi {
+                            Some(spi) => format!("IRQ_F2P[{b}] (GIC SPI {spi})"),
+                            None => format!("IRQ_F2P[{b}]"),
+                        },
+                        (None, None) => "not routed to the PS (no UIO device)".into(),
+                    };
+                    format!("{} -> {to}", l.port)
+                })
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    let mut instances = instances;
+    instances.sort_by_key(|i| i.base);
+    let mut not_host_visible: Vec<String> = design
+        .instances
+        .iter()
+        .filter(|i| !i.is_ps && design.ranges_of(&i.name).next().is_none())
+        .filter(|i| design.memory_ranges.iter().any(|r| r.instance == i.name))
+        .map(|i| i.name.clone())
+        .collect();
+    not_host_visible.sort();
+    Summary {
+        instances,
+        not_host_visible,
+    }
+}
+
 pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     let model = render::Model::build(&xsa.design);
     let crate_name = opts

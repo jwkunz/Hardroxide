@@ -6,7 +6,16 @@ use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let d = design_1::Design::load()?;
-    let uart = &d.axi_uartlite_0;
+    // Several instances: pass the name as the first argument. Default: axi_uartlite_0.
+    // Available: axi_uartlite_0, axi_uartlite_1
+    let uart = match std::env::args().nth(1).as_deref() {
+        None | Some("axi_uartlite_0") => &d.axi_uartlite_0,
+        Some("axi_uartlite_1") => &d.axi_uartlite_1,
+        Some(other) => {
+            eprintln!("unknown instance `{other}`; choose one of: axi_uartlite_0, axi_uartlite_1");
+            std::process::exit(2);
+        }
+    };
     uart.init()?;
     uart.send(b"hello from hardroxide\n", Duration::from_secs(1))?;
     let mut buf = [0u8; 64];

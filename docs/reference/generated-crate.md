@@ -121,4 +121,6 @@ unverified ([G11](../08-verification-gaps.md)).
 | `i2c_scan` | AXI IIC | probes addresses `0x08..0x78` on a pulled-up bus |
 | `irq_probe` | any routed interrupt | opens the UIO device of every interrupt line (checks the overlay); does not wait |
 
+**Designs with several instances of a core.** Examples other than `hls_smoke` and `irq_probe` take the instance name as an optional first argument (`./gpio_smoke leds_gpio`), default to the first instance in address order (for `gpio_smoke`, the first one that has output pins, so LEDs are chosen over buttons), and print the available names when given an unknown one. `hls_smoke` uses the first HLS kernel, because each kernel has its own generated type.
+
 All require root on the board. Each has run on a PYNQ-Z2 except `uart_hello` and `i2c_scan`, which need external wiring (the in-fabric loopback fixture covers UART and IIC instead); see the results in [Verification gaps](../08-verification-gaps.md#board-results).

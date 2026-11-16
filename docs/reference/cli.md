@@ -99,4 +99,11 @@ Options:
 ```
 
 Prints the block design name, device, Vivado version, interface hash, each
-enabled FCLK, and every address-map entry with its VLNV.
+enabled FCLK, and then every instance the PS can reach, in address order: its
+base address, size, the field name it gets on the generated `Design`, what it
+becomes (a curated driver from `hardroxide-ip`, a generated HLS wrapper, or a
+raw register window), its VLNV and each connected interrupt with where it goes
+(`IRQ_F2P[n]` with its GIC number, or an input of an AXI interrupt controller).
+It ends with a count by kind and the instances that get no field because they
+are private to another master (a MicroBlaze, for example). It uses the same
+model as `generate`, so what it lists is what `generate` produces.

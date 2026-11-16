@@ -569,64 +569,91 @@ impl<B: MmioBackend> Drop for Design<B> {
 }
 "#;
 
-/// Hardware smoke-test example for the first AXI GPIO, if the design has one.
+/// Hardware smoke-test example for AXI GPIO. With several GPIO instances the
+/// name is the first argument; the default is the first one that has output pins
+/// (so a design's LEDs are chosen over its buttons).
 pub fn gpio_example(m: &Model, crate_name: &str) -> Option<String> {
-    let i = m
-        .insts
-        .iter()
-        .find(|i| i.driver.as_deref() == Some("hardroxide_ip::gpio::AxiGpio"))?;
-    let p = |k: &str, d: &str| {
+    let mut all = all_with(m, "::AxiGpio");
+    if all.is_empty() {
+        return None;
+    }
+    let param = |i: &Inst, k: &str, d: &str| {
         i.inst
             .parameters
             .get(k)
             .cloned()
             .unwrap_or_else(|| d.into())
     };
-    let w1: u32 = p("C_GPIO_WIDTH", "32").parse().unwrap_or(32).clamp(1, 32);
-    let out1 = p("C_ALL_OUTPUTS", "0") == "1";
-    let dual = p("C_IS_DUAL", "0") == "1";
-    let in2 = p("C_ALL_INPUTS_2", "0") == "1";
+    let has_out = |i: &Inst| param(i, "C_ALL_INPUTS", "0") != "1";
+    all.sort_by_key(|i| !has_out(i)); // stable: outputs first, address order kept
     let lib = crate_name.replace('-', "_");
     let mut s = String::from(HEADER);
     let _ = writeln!(
         s,
-        "//! Hardware smoke test for `{}`: walks a one-hot pattern over channel 1",
-        i.inst.name
+        "//! Hardware smoke test for AXI GPIO: if the instance has output pins, walks a"
     );
     let _ = writeln!(
         s,
-        "//! and prints channel 2. Run as root on the board: `cargo run --example gpio_smoke`.\n"
+        "//! one-hot pattern over channel 1; otherwise reads channel 1. Channel 2, if it"
     );
-    let _ = writeln!(s, "use hardroxide_ip::gpio::Channel;");
-    if out1 {
-        let _ = writeln!(s, "use std::{{thread::sleep, time::Duration}};");
-    }
-    s.push('\n');
+    let _ = writeln!(
+        s,
+        "//! is an input, is printed. Run as root: `cargo run --example gpio_smoke [instance]`.\n"
+    );
+    let _ = writeln!(
+        s,
+        "use hardroxide_ip::gpio::Channel;\nuse std::{{thread::sleep, time::Duration}};\n"
+    );
     let _ = writeln!(s, "fn main() -> Result<(), Box<dyn std::error::Error>> {{");
     let _ = writeln!(s, "    let d = {lib}::Design::load()?;");
-    let _ = writeln!(s, "    let gpio = &d.{};", i.ident);
-    if out1 {
+    // (instance, width of channel 1, channel 1 has outputs, channel 2 is an input)
+    let tuple = |i: &Inst| {
+        let w1: u32 = param(i, "C_GPIO_WIDTH", "32")
+            .parse()
+            .unwrap_or(32)
+            .clamp(1, 32);
+        let in2 = param(i, "C_IS_DUAL", "0") == "1" && param(i, "C_ALL_INPUTS_2", "0") == "1";
+        format!("(&d.{}, {w1}u32, {}, {in2})", i.ident, has_out(i))
+    };
+    if all.len() == 1 {
         let _ = writeln!(
             s,
-            "    gpio.set_input_mask(Channel::One, 0)?; // all outputs"
+            "    // (gpio, width of channel 1, has outputs, channel 2 is an input)"
         );
-        let _ = writeln!(s, "    for step in 0..{} {{", w1 * 2);
-        let _ = writeln!(s, "        gpio.write(Channel::One, 1 << (step % {w1}))?;");
-        if dual && in2 {
-            let _ = writeln!(
-                s,
-                "        println!(\"channel 2 inputs: {{:#x}}\", gpio.read(Channel::Two)?);"
-            );
-        }
-        let _ = writeln!(s, "        sleep(Duration::from_millis(250));\n    }}");
-        let _ = writeln!(s, "    gpio.write(Channel::One, 0)?;");
+        let _ = writeln!(s, "    let (gpio, w1, out1, in2) = {};", tuple(all[0]));
     } else {
+        let list = all
+            .iter()
+            .map(|i| i.inst.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
         let _ = writeln!(
             s,
-            "    println!(\"channel 1: {{:#x}}\", gpio.read(Channel::One)?);"
+            "    // Several instances: pass the name as the first argument. Default: {}.\n    // Available: {list}\n    // (gpio, width of channel 1, has outputs, channel 2 is an input)",
+            all[0].inst.name
+        );
+        let _ = writeln!(
+            s,
+            "    let (gpio, w1, out1, in2) = match std::env::args().nth(1).as_deref() {{"
+        );
+        for (k, i) in all.iter().enumerate() {
+            let pat = if i.inst.name == i.ident {
+                format!("Some(\"{}\")", i.ident)
+            } else {
+                format!("Some(\"{}\") | Some(\"{}\")", i.inst.name, i.ident)
+            };
+            let pat = if k == 0 { format!("None | {pat}") } else { pat };
+            let _ = writeln!(s, "        {pat} => {},", tuple(i));
+        }
+        let _ = writeln!(
+            s,
+            "        Some(other) => {{\n            eprintln!(\"unknown instance `{{other}}`; choose one of: {list}\");\n            std::process::exit(2);\n        }}\n    }};"
         );
     }
-    let _ = writeln!(s, "    Ok(())\n}}");
+    let _ = writeln!(
+        s,
+        "    if out1 {{\n        gpio.set_input_mask(Channel::One, 0)?; // all outputs\n        for step in 0..w1 * 2 {{\n            gpio.write(Channel::One, 1 << (step % w1))?;\n            if in2 {{\n                println!(\"channel 2 inputs: {{:#x}}\", gpio.read(Channel::Two)?);\n            }}\n            sleep(Duration::from_millis(250));\n        }}\n        gpio.write(Channel::One, 0)?;\n    }} else {{\n        println!(\"channel 1: {{:#x}}\", gpio.read(Channel::One)?);\n    }}\n    Ok(())\n}}"
+    );
     Some(s)
 }
 
@@ -799,7 +826,7 @@ pub fn dma_example(m: &Model, crate_name: &str) -> Option<String> {
     );
     let _ = writeln!(s, "fn main() -> Result<(), Box<dyn std::error::Error>> {{");
     let _ = writeln!(s, "    let d = {lib}::Design::load()?;");
-    let _ = writeln!(s, "    let dma = &d.{};", i.ident);
+    s.push_str(&select("dma", &all_with(m, "::AxiDma"), false));
     let _ = writeln!(s, "    dma.reset()?;");
     let _ = writeln!(
         s,
@@ -830,6 +857,39 @@ pub fn dma_example(m: &Model, crate_name: &str) -> Option<String> {
         "    println!(\"DMA loopback OK: {{n}} bytes\");\n    Ok(())\n}}"
     );
     Some(s)
+}
+
+/// Every instance whose curated driver path ends with `suffix`, in address order.
+fn all_with<'a>(m: &'a Model, suffix: &str) -> Vec<&'a Inst<'a>> {
+    m.insts
+        .iter()
+        .filter(|i| i.driver.as_deref().is_some_and(|d| d.ends_with(suffix)))
+        .collect()
+}
+
+/// Rust that binds `var` to one of `insts` chosen by name from the first
+/// command-line argument (default: the first). `mutable` borrows `&mut`.
+fn select(var: &str, insts: &[&Inst], mutable: bool) -> String {
+    let r = if mutable { "&mut d." } else { "&d." };
+    if insts.len() == 1 {
+        return format!("    let {var} = {r}{};\n", insts[0].ident);
+    }
+    let names: Vec<&str> = insts.iter().map(|i| i.inst.name.as_str()).collect();
+    let list = names.join(", ");
+    let mut arms = String::new();
+    for (k, i) in insts.iter().enumerate() {
+        let pat = if i.inst.name == i.ident {
+            format!("Some(\"{}\")", i.ident)
+        } else {
+            format!("Some(\"{}\") | Some(\"{}\")", i.inst.name, i.ident)
+        };
+        let pat = if k == 0 { format!("None | {pat}") } else { pat };
+        let _ = writeln!(arms, "        {pat} => {r}{},", i.ident);
+    }
+    format!(
+        "    // Several instances: pass the name as the first argument. Default: {}.\n    // Available: {list}\n    let {var} = match std::env::args().nth(1).as_deref() {{\n{arms}        Some(other) => {{\n            eprintln!(\"unknown instance `{{other}}`; choose one of: {list}\");\n            std::process::exit(2);\n        }}\n    }};\n",
+        names[0]
+    )
 }
 
 fn first_with<'a>(m: &'a Model, suffix: &str) -> Option<&'a Inst<'a>> {
@@ -878,9 +938,9 @@ pub fn bram_example(m: &Model, crate_name: &str) -> Option<String> {
     let i = first_with(m, "::AxiBram")?;
     let lib = crate_name.replace('-', "_");
     Some(format!(
-        "{HEADER}//! Hardware test for `{n}`: writes an address-derived pattern over the whole\n//! block RAM and reads it back. Run as root on the board.\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n    let ram = &d.{id};\n    let words = ram.len() / 4;\n    for i in 0..words {{\n        ram.write_word(4 * i, (i as u32).wrapping_mul(0x9E37_79B9))?;\n    }}\n    let mut bad = 0;\n    for i in 0..words {{\n        if ram.read_word(4 * i)? != (i as u32).wrapping_mul(0x9E37_79B9) {{\n            bad += 1;\n        }}\n    }}\n    println!(\"{{}} bytes: {{bad}} mismatching words\", ram.len());\n    if bad > 0 {{\n        std::process::exit(1);\n    }}\n    Ok(())\n}}\n",
+        "{HEADER}//! Hardware test for `{n}`: writes an address-derived pattern over the whole\n//! block RAM and reads it back. Run as root on the board.\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n{sel}    let words = ram.len() / 4;\n    for i in 0..words {{\n        ram.write_word(4 * i, (i as u32).wrapping_mul(0x9E37_79B9))?;\n    }}\n    let mut bad = 0;\n    for i in 0..words {{\n        if ram.read_word(4 * i)? != (i as u32).wrapping_mul(0x9E37_79B9) {{\n            bad += 1;\n        }}\n    }}\n    println!(\"{{}} bytes: {{bad}} mismatching words\", ram.len());\n    if bad > 0 {{\n        std::process::exit(1);\n    }}\n    Ok(())\n}}\n",
         n = i.inst.name,
-        id = i.ident
+        sel = select("ram", &all_with(m, "::AxiBram"), false)
     ))
 }
 
@@ -889,9 +949,9 @@ pub fn fifo_example(m: &Model, crate_name: &str) -> Option<String> {
     let i = first_with(m, "::AxiFifo")?;
     let lib = crate_name.replace('-', "_");
     Some(format!(
-        "{HEADER}//! Hardware test for `{n}`: sends a packet and reads it back (the stream\n//! transmit port must be looped to the receive port, as in the test fixture).\n//! Run as root on the board.\n\nuse std::time::Duration;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n    let fifo = &d.{id};\n    fifo.reset()?;\n    let packet: Vec<u8> = (0..37u8).collect();\n    fifo.send(&packet)?;\n    match fifo.recv(Duration::from_secs(1))? {{\n        Some(p) if p.starts_with(&packet) && p[packet.len()..].iter().all(|&b| b == 0) => {{\n            println!(\"loopback ok: sent {{}} bytes, core reported {{}} (rounded up to whole words)\", packet.len(), p.len())\n        }}\n        Some(p) => {{\n            println!(\"MISMATCH: sent {{}} bytes, got {{}}: {{p:?}}\", packet.len(), p.len());\n            std::process::exit(1);\n        }}\n        None => {{\n            println!(\"no packet came back within 1 s\");\n            std::process::exit(1);\n        }}\n    }}\n    Ok(())\n}}\n",
+        "{HEADER}//! Hardware test for `{n}`: sends a packet and reads it back (the stream\n//! transmit port must be looped to the receive port, as in the test fixture).\n//! Run as root on the board.\n\nuse std::time::Duration;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n{sel}    fifo.reset()?;\n    let packet: Vec<u8> = (0..37u8).collect();\n    fifo.send(&packet)?;\n    match fifo.recv(Duration::from_secs(1))? {{\n        Some(p) if p.starts_with(&packet) && p[packet.len()..].iter().all(|&b| b == 0) => {{\n            println!(\"loopback ok: sent {{}} bytes, core reported {{}} (rounded up to whole words)\", packet.len(), p.len())\n        }}\n        Some(p) => {{\n            println!(\"MISMATCH: sent {{}} bytes, got {{}}: {{p:?}}\", packet.len(), p.len());\n            std::process::exit(1);\n        }}\n        None => {{\n            println!(\"no packet came back within 1 s\");\n            std::process::exit(1);\n        }}\n    }}\n    Ok(())\n}}\n",
         n = i.inst.name,
-        id = i.ident
+        sel = select("fifo", &all_with(m, "::AxiFifo"), false)
     ))
 }
 
@@ -900,9 +960,9 @@ pub fn uart_example(m: &Model, crate_name: &str) -> Option<String> {
     let i = first_with(m, "::AxiUart")?;
     let lib = crate_name.replace('-', "_");
     Some(format!(
-        "{HEADER}//! Hardware test for `{n}`: sends a greeting and prints what is received in\n//! the next second (connect TX to RX for a loopback). Run as root on the board.\n\nuse std::time::Duration;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n    let uart = &d.{id};\n    uart.init()?;\n    uart.send(b\"hello from hardroxide\\n\", Duration::from_secs(1))?;\n    let mut buf = [0u8; 64];\n    let n = uart.receive(&mut buf, Duration::from_secs(1))?;\n    println!(\"received {{n}} bytes: {{:?}}\", String::from_utf8_lossy(&buf[..n]));\n    println!(\"errors: {{:?}}\", uart.errors()?);\n    Ok(())\n}}\n",
+        "{HEADER}//! Hardware test for `{n}`: sends a greeting and prints what is received in\n//! the next second (connect TX to RX for a loopback). Run as root on the board.\n\nuse std::time::Duration;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n{sel}    uart.init()?;\n    uart.send(b\"hello from hardroxide\\n\", Duration::from_secs(1))?;\n    let mut buf = [0u8; 64];\n    let n = uart.receive(&mut buf, Duration::from_secs(1))?;\n    println!(\"received {{n}} bytes: {{:?}}\", String::from_utf8_lossy(&buf[..n]));\n    println!(\"errors: {{:?}}\", uart.errors()?);\n    Ok(())\n}}\n",
         n = i.inst.name,
-        id = i.ident
+        sel = select("uart", &all_with(m, "::AxiUart"), false)
     ))
 }
 
@@ -911,9 +971,9 @@ pub fn timer_example(m: &Model, crate_name: &str) -> Option<String> {
     let i = first_with(m, "::AxiTimer")?;
     let lib = crate_name.replace('-', "_");
     Some(format!(
-        "{HEADER}//! Hardware smoke test for `{n}`: a 100 ms hardware delay measured with\n//! the system clock (expect ~100 ms). Run as root on the board.\n\nuse std::time::Instant;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n    let t = &d.{id};\n    let ticks = t.ticks_for_ns(100_000_000);\n    let t0 = Instant::now();\n    t.delay_ticks(ticks)?;\n    println!(\"{{}} Hz timer: asked 100 ms, took {{:?}}\", t.clock_hz(), t0.elapsed());\n    Ok(())\n}}\n",
+        "{HEADER}//! Hardware smoke test for `{n}`: a 100 ms hardware delay measured with\n//! the system clock (expect ~100 ms). Run as root on the board.\n\nuse std::time::Instant;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let d = {lib}::Design::load()?;\n{sel}    let ticks = t.ticks_for_ns(100_000_000);\n    let t0 = Instant::now();\n    t.delay_ticks(ticks)?;\n    println!(\"{{}} Hz timer: asked 100 ms, took {{:?}}\", t.clock_hz(), t0.elapsed());\n    Ok(())\n}}\n",
         n = i.inst.name,
-        id = i.ident
+        sel = select("t", &all_with(m, "::AxiTimer"), false)
     ))
 }
 
@@ -922,9 +982,9 @@ pub fn spi_example(m: &Model, crate_name: &str) -> Option<String> {
     let i = first_with(m, "::AxiSpi")?;
     let lib = crate_name.replace('-', "_");
     Some(format!(
-        "{HEADER}//! Hardware smoke test for `{n}`: internal loopback (SPICR.LOOP), so no\n//! wiring is needed. Run as root on the board.\n\nuse embedded_hal::spi::{{MODE_0, SpiBus}};\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let mut d = {lib}::Design::load()?;\n    let spi = &mut d.{id};\n    spi.init(MODE_0, false, true)?;\n    let sent: Vec<u8> = (0..40u8).map(|i| i.wrapping_mul(13).wrapping_add(5)).collect();\n    let mut buf = sent.clone();\n    spi.transfer_in_place(&mut buf)?;\n    assert_eq!(buf, sent, \"loopback mismatch\");\n    println!(\"SPI loopback OK: {{}} bytes\", buf.len());\n    Ok(())\n}}\n",
+        "{HEADER}//! Hardware smoke test for `{n}`: internal loopback (SPICR.LOOP), so no\n//! wiring is needed. Run as root on the board.\n\nuse embedded_hal::spi::{{MODE_0, SpiBus}};\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let mut d = {lib}::Design::load()?;\n{sel}    spi.init(MODE_0, false, true)?;\n    let sent: Vec<u8> = (0..40u8).map(|i| i.wrapping_mul(13).wrapping_add(5)).collect();\n    let mut buf = sent.clone();\n    spi.transfer_in_place(&mut buf)?;\n    assert_eq!(buf, sent, \"loopback mismatch\");\n    println!(\"SPI loopback OK: {{}} bytes\", buf.len());\n    Ok(())\n}}\n",
         n = i.inst.name,
-        id = i.ident
+        sel = select("spi", &all_with(m, "::AxiSpi"), true)
     ))
 }
 
@@ -933,8 +993,8 @@ pub fn iic_example(m: &Model, crate_name: &str) -> Option<String> {
     let i = first_with(m, "::AxiIic")?;
     let lib = crate_name.replace('-', "_");
     Some(format!(
-        "{HEADER}//! Hardware smoke test for `{n}`: probes every 7-bit address with an empty\n//! write and lists the ones that acknowledge. Needs a pulled-up I2C bus.\n\nuse embedded_hal::i2c::I2c;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let mut d = {lib}::Design::load()?;\n    let i2c = &mut d.{id};\n    i2c.init()?;\n    for addr in 0x08..0x78u8 {{\n        if i2c.write(addr, &[]).is_ok() {{\n            println!(\"found device at {{addr:#04x}}\");\n        }}\n    }}\n    Ok(())\n}}\n",
+        "{HEADER}//! Hardware smoke test for `{n}`: probes every 7-bit address with an empty\n//! write and lists the ones that acknowledge. Needs a pulled-up I2C bus.\n\nuse embedded_hal::i2c::I2c;\n\nfn main() -> Result<(), Box<dyn std::error::Error>> {{\n    let mut d = {lib}::Design::load()?;\n{sel}    i2c.init()?;\n    for addr in 0x08..0x78u8 {{\n        if i2c.write(addr, &[]).is_ok() {{\n            println!(\"found device at {{addr:#04x}}\");\n        }}\n    }}\n    Ok(())\n}}\n",
         n = i.inst.name,
-        id = i.ident
+        sel = select("i2c", &all_with(m, "::AxiIic"), true)
     ))
 }

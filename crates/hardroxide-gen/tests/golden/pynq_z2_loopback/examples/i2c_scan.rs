@@ -6,7 +6,16 @@ use embedded_hal::i2c::I2c;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut d = design_1::Design::load()?;
-    let i2c = &mut d.axi_iic_0;
+    // Several instances: pass the name as the first argument. Default: axi_iic_0.
+    // Available: axi_iic_0, axi_iic_1
+    let i2c = match std::env::args().nth(1).as_deref() {
+        None | Some("axi_iic_0") => &mut d.axi_iic_0,
+        Some("axi_iic_1") => &mut d.axi_iic_1,
+        Some(other) => {
+            eprintln!("unknown instance `{other}`; choose one of: axi_iic_0, axi_iic_1");
+            std::process::exit(2);
+        }
+    };
     i2c.init()?;
     for addr in 0x08..0x78u8 {
         if i2c.write(addr, &[]).is_ok() {

@@ -110,9 +110,45 @@ fn main() -> Result<()> {
             for c in d.pl_clocks.iter().filter(|c| c.enabled) {
                 println!("FCLK{}: {} Hz", c.index, c.freq_hz);
             }
-            for r in d.host_ranges() {
-                let v = d.instance(&r.instance).map_or("?", |i| i.vlnv.as_str());
-                println!("{:#010x}-{:#010x}  {}  ({v})", r.base, r.high, r.instance);
+            let sum = hardroxide_gen::summarize(d);
+            println!("\nreachable from the PS (a field on the generated `Design`):");
+            let (mut drv, mut hls, mut raw) = (0, 0, 0);
+            for i in &sum.instances {
+                let what = match &i.kind {
+                    hardroxide_gen::Kind::Driver(t) => {
+                        drv += 1;
+                        t.clone()
+                    }
+                    hardroxide_gen::Kind::Hls(t) => {
+                        hls += 1;
+                        format!("{t} (HLS)")
+                    }
+                    hardroxide_gen::Kind::Raw => {
+                        raw += 1;
+                        "raw register window".into()
+                    }
+                };
+                println!(
+                    "{:#010x}  {:>6} KiB  {}  ->  {what}  ({})",
+                    i.base,
+                    i.size.div_ceil(1024),
+                    i.field,
+                    i.vlnv
+                );
+                for irq in &i.interrupts {
+                    println!("                           irq {irq}");
+                }
+            }
+            println!(
+                "\n{} instances: {drv} with a curated driver, {hls} HLS wrapper(s), {raw} raw register window(s)",
+                sum.instances.len()
+            );
+            if !sum.not_host_visible.is_empty() {
+                println!(
+                    "{} instance(s) are not reachable from the PS (private to another master such as a MicroBlaze) and get no field: {}",
+                    sum.not_host_visible.len(),
+                    sum.not_host_visible.join(", ")
+                );
             }
         }
     }

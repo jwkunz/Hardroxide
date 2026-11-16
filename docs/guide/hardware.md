@@ -72,7 +72,9 @@ first; nothing else is meaningful until step 1 passes.
 ## Then, per IP
 
 Run the examples that exist for your design (each is generated only when the
-matching IP is present):
+matching IP is present). When the design has several instances of a core, pass the
+instance name as the first argument (`./gpio_smoke leds_gpio`); `hardroxide inspect`
+lists the names, and an unknown name prints the choices:
 
 | Example | IP | What it does | Gap |
 |---|---|---|---|

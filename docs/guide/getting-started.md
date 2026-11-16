@@ -23,8 +23,17 @@ $ hardroxide inspect fixtures/pynq_z2_gpio.xsa
 design_1 (zynq 7z020, Vivado 2025.2)
 interface hash: 0ec1a9e3...
 FCLK0: 100000000 Hz
-0x41200000-0x4120ffff  axi_gpio_0  (xilinx.com:ip:axi_gpio:2.0)
+
+reachable from the PS (a field on the generated `Design`):
+0x41200000      64 KiB  axi_gpio_0  ->  hardroxide_ip::gpio::AxiGpio  (xilinx.com:ip:axi_gpio:2.0)
+
+1 instances: 1 with a curated driver, 0 HLS wrapper(s), 0 raw register window(s)
 ```
+
+This tells you what you will get before generating anything: which instances
+become typed drivers, which are generated HLS wrappers, which are raw register
+windows (no driver), where each interrupt goes, and which instances are not
+reachable from the PS at all.
 
 ## Generate and build a crate
 

@@ -146,13 +146,23 @@ impl<R: Mmio> AxiDma<R> {
     }
 
     /// Stop a channel (clear RS) and wait until it reports halted.
+    ///
+    /// A channel that is waiting for stream data that never comes (S2MM with
+    /// no sender) ignores the stop request, as measured on hardware. In that
+    /// case the whole core is soft-reset (this also resets the other channel)
+    /// and the channel must then report halted.
     fn halt(&self, dir: Direction) -> Result<(), DmaIpError> {
         let r = Self::r(dir);
         self.regs.modify32(r.cr, |v| v & !CR_RS)?;
         let t0 = Instant::now();
         while self.regs.read32(r.sr)? & SR_HALTED == 0 {
             if t0.elapsed() > Duration::from_millis(100) {
-                return Err(DmaIpError::StuckChannel);
+                self.reset()?;
+                return if self.regs.read32(r.sr)? & SR_HALTED != 0 {
+                    Ok(())
+                } else {
+                    Err(DmaIpError::StuckChannel)
+                };
             }
         }
         Ok(())
@@ -395,6 +405,24 @@ mod tests {
             t.wait(Duration::from_millis(5)),
             Err(DmaIpError::Timeout(_))
         ));
+    }
+
+    #[test]
+    fn a_channel_that_ignores_the_stop_request_is_soft_reset_then_reported() {
+        let (be, dma) = setup();
+        let t = dma
+            .start(Direction::StreamToMem, MockBuffer::new(16, 0), 8)
+            .unwrap();
+        be.poke(BASE + 0x34, 0); // running, and never reports halted
+        // The mock never clears the reset bit, so recovery cannot be confirmed:
+        // the error is StuckChannel and the buffer is leaked, not freed.
+        assert!(matches!(
+            t.wait(Duration::from_millis(5)),
+            Err(DmaIpError::StuckChannel)
+        ));
+        // The soft reset was attempted on both channels.
+        assert_eq!(be.peek(BASE) & CR_RESET, CR_RESET);
+        assert_eq!(be.peek(BASE + 0x30) & CR_RESET, CR_RESET);
     }
 
     #[test]

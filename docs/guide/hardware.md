@@ -107,6 +107,7 @@ image version.
 | `AlreadyLoaded` | a second `Design::load()` in the same process | keep one `Design` and pass references around |
 | `IrqError::NotFound { .. }` | the interrupt overlay is not applied, or the node did not bind | apply `interrupts.dtso`; `cat /sys/class/uio/uio*/name` |
 | A UIO device returns `EIO` and `dmesg` shows `irq: type mismatch, failed to map hwirq-N` | an earlier overlay mapped that GIC line with the other trigger type (level vs edge); the mapping survives overlay removal | reboot the board before applying the new overlay |
+| A UIO device returns `EIO` and `dmesg` is silent | the base design already mapped that GIC line (SPI 29 = `IRQ_F2P[0]` on the validated image) with the other trigger type | move the edge-triggered core to another `IRQ_F2P` bit, or reboot with the base overlay disabled |
 | `Fpga(PlInUse(..))` | a kernel driver is bound to a PL address; reprogramming under it can freeze the CPU | stop and unbind it (One-time board setup) |
 | `IrqError::ViaController { .. }` | the interrupt goes through an AXI interrupt controller | open the controller's `IRQ_IRQ` and use `AxiIntc::wait` |
 | The board freezes during `board_check` step 1 | the PL is in use by another driver (base overlay, HDMI, `zocl`) while it is reprogrammed | stop and unbind them first (One-time board setup); power-cycle to recover |

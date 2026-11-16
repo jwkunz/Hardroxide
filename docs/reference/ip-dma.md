@@ -49,6 +49,7 @@ touch memory the hardware may still be accessing.
   the buffer. After an interrupt, `wait(Duration::ZERO)` collects the result.
   On error or timeout the channel is **halted first**, then the error is
   returned and the buffer dropped.
+- A channel that is waiting for stream data that never arrives (S2MM with no sender) ignores the stop request (measured on hardware); the driver then soft-resets the whole core, **including the other channel**, and requires the channel to report halted.
 - Dropping an in-flight `Transfer` halts the channel before the buffer is
   freed. If the channel cannot be confirmed halted, the buffer is **leaked**
   (`DmaIpError::StuckChannel`) so hardware can never write freed memory.

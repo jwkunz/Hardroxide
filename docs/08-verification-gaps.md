@@ -39,17 +39,21 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | G5 GPIO | **Passes**: LED0 to LED3 light in order (seen by eye); buttons 0 to 3 read as bits 0 to 3 and both switches as bits 4 and 5 (`0b[sw1 sw0 btn3 btn2 btn1 btn0]`), all switch combinations seen |
 | G9 HLS scalar | **Passes**: `vadd` computes 1+2, 100+23, 0xFFFFFFFF+1 (wraps), 7+35; done interrupt fires and re-arms |
 | G11 interrupts | **Passes**: the generated `interrupts.dtso` applies unchanged through configfs; `irq_probe`/`board_check` open all UIO devices; Timer and HLS interrupts fire and re-arm |
+| G12 UART interrupts | **Pass**: RX interrupt delivers a byte about 130 us after it is sent (three rounds, re-arming), TX-empty interrupt fires, no error flags. IIC NACK interrupt (`ISR` int1) fires and re-arms over three rounds |
 | G12 Timer, SPI, IIC | Timer **passes** (100 ms asked, 100.017 ms measured; interrupt 50 ms +0.08 ms). SPI internal loopback **passes** (40 bytes). IIC **passes** on the loopback fixture (two cores on one in-fabric bus): a 5-byte write reaches the target at `0x2A` intact, an unanswered address NACKs, a bus scan finds only `0x2A`. This found a driver bug, fixed: the IIC `ISR` is toggle-on-write, and `init` wrote `0xFF`, which *set* every status bit, so every transfer reported a NACK |
 | G13 AXI intc | **Passes**: Timer interrupt through `axi_intc`, `pending`/`ack`/timeout |
 | G14 BRAM / UART | BRAM **passes** (8 KiB pattern, 0 mismatches). UART **passes** on the loopback fixture (two cores cross-wired in the fabric): 256 bytes each way, no overrun/frame/parity errors, 22 ms per 256 bytes (115200 baud). Interrupt-driven UART not tested |
 | G15 FIFO | **Passes**: lengths 1 to 65 bytes and the maximum 2032-byte packet round-trip (the length is reported rounded up to whole words, data intact, padding zero); an oversize packet is refused with nothing written; `ISR` flags clear when written with 1s and are untouched by 0 (receive and transmit complete read `0x0C000000`); interrupt-driven receive fires and re-arms over three rounds |
-| G10 DMA | **Passes**: 4096-byte MM2S to S2MM loopback matches through two `u-dma-buf` buffers (uncached, no cache maintenance); interrupt-driven completion works on both channels for three rounds |
+| G10 DMA | **Passes**: loopback matches for lengths from 4 bytes to 1 MiB, 200 back-to-back 4 KiB transfers with 0 mismatches, 400 MB/s on a 1 MiB transfer (the limit of a 32-bit stream at 100 MHz); interrupt-driven completion works on both channels and re-arms. Found and fixed: after a timeout on an S2MM channel with no sender, the channel ignored the stop request (`StuckChannel`, then `Busy`); `halt` now soft-resets the core and the next transfer works |
 | G9 HLS pointer arguments | **Passes**: `scale` reads one `u-dma-buf` buffer and writes another through `set_*_buffer` (256 elements, 0 mismatches) |
 | G16 guard | **Passes**: with `gpio-xilinx` rebound to `41200000.gpio`, `load()` refuses with `PlInUse` naming the device and does not touch the PL; after unbinding it loads. Passive `uio_pdrv_genirq` devices at PL addresses are correctly ignored |
 | Overlay trigger types | A GIC line keeps the trigger type (level/edge) of the first overlay that mapped it, even after the overlay is removed; a later overlay with the other type fails with `irq: type mismatch, failed to map hwirq-N` and the UIO device then returns EIO. Switching between designs with different types on the same line needs a reboot |
 | `u-dma-buf` | The image does not ship it; built for this kernel, see [Running on hardware](guide/hardware.md#building-u-dma-buf) |
 | G8 cross-build | **Passes**: Vitis `arm-linux-gnueabihf-gcc` as the linker; binaries need glibc 2.34 and run on the board's 2.35 |
-| G3, G6, G7 | Not exercised beyond the above |
+| G3 PL reset | **Passes**: a Timer left running is back at its reset state (`TCSR0 = 0`, counter 0) after the PL is reprogrammed |
+| G7 singleton | **Passes**: a second `load()` while one `Design` is alive returns `AlreadyLoaded` and leaves the first working; 25 load/delay/drop cycles in one process, loads about 300 ms each |
+| Base-design line mapping | On this image SPI 29 (`IRQ_F2P[0]`) is already mapped level-triggered at boot, so an overlay node that needs it as edge (for example an AXI UART Lite on F2P bit 0) gets a UIO device whose reads and writes return `EIO`, with no kernel message. Put edge-triggered cores on other F2P bits |
+| G6 | Not exercised |
 
 ## Needs the board
 

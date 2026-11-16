@@ -4,7 +4,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (a, b) = (&d.axi_uartlite_0, &d.axi_uartlite_1);
     a.init()?; b.init()?;
     let irq_b = design_1::pac::axi_uartlite_1::IRQ_INTERRUPT.open()?;
-    let irq_a = design_1::pac::axi_uartlite_0::IRQ_INTERRUPT.open()?;
     // RX interrupt on b: a sends a byte.
     b.set_interrupts(true)?;
     let t0 = Instant::now();
@@ -29,13 +28,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // idle: no event expected once RX is drained and TX is empty? report
     let idle = irq_b.wait(Some(Duration::from_millis(300)))?;
     println!("idle wait -> {idle:?}");
-    // TX-empty interrupt on a
-    a.set_interrupts(true)?;
-    let _ = irq_a.wait(Some(Duration::from_millis(50)))?;
-    a.try_write_byte(0x55)?;
+    // TX-empty interrupt on b (its own line; line SPI 29 of uart 0 is taken by the base design's mapping)
+    b.set_interrupts(true)?;
+    while b.try_read_byte()?.is_some() {}
+    let _ = irq_b.wait(Some(Duration::from_millis(50)))?;
+    b.try_write_byte(0x55)?;
     let t = Instant::now();
-    let ev = irq_a.wait(Some(Duration::from_secs(1)))?;
-    println!("TX-empty interrupt on a: {ev:?} after {:?}", t.elapsed());
+    let ev = irq_b.wait(Some(Duration::from_secs(1)))?;
+    println!("TX-empty interrupt on b: {ev:?} after {:?} (a byte at 115200 baud takes ~87 us)", t.elapsed());
+    // frame/overrun flags stay clear
+    println!("errors a {:?} b {:?}", a.errors()?, b.errors()?);
     println!("total {:?}", t0.elapsed());
     Ok(())
 }

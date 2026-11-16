@@ -43,8 +43,11 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | G13 AXI intc | **Passes**: Timer interrupt through `axi_intc`, `pending`/`ack`/timeout |
 | G14 BRAM / UART | BRAM **passes** (8 KiB pattern, 0 mismatches). UART: loopback not wired, nothing received; TX/RX unverified |
 | G15 FIFO | Data path **passes**; the length comes back rounded up to whole words (37 sent, 40 back), which the docs now say |
-| G10 DMA, HLS pointers | **Not run**: needs the `u-dma-buf` module, which this image lacks |
-| G3, G6, G7, G8 | Not exercised beyond the above |
+| G10 DMA | **Passes**: 4096-byte MM2S to S2MM loopback matches through two `u-dma-buf` buffers (uncached, no cache maintenance); interrupt-driven completion works on both channels for three rounds |
+| G9 HLS pointer arguments | **Passes**: `scale` reads one `u-dma-buf` buffer and writes another through `set_*_buffer` (256 elements, 0 mismatches) |
+| `u-dma-buf` | The image does not ship it; built for this kernel, see [Running on hardware](guide/hardware.md#building-u-dma-buf) |
+| G8 cross-build | **Passes**: Vitis `arm-linux-gnueabihf-gcc` as the linker; binaries need glibc 2.34 and run on the board's 2.35 |
+| G3, G6, G7 | Not exercised beyond the above |
 
 ## Needs the board
 
@@ -159,7 +162,7 @@ touches no IP register.
   port reaches the udmabuf's physical range (no AXI decode error) and that
   uncached buffers give the right data without cache maintenance.
 
-### G10. AXI DMA direct mode + udmabuf on hardware (UNVERIFIED)
+### G10. AXI DMA direct mode + udmabuf on hardware (VERIFIED 2026-11-16, see Board results)
 - Driver follows PG021 simple mode; register offsets/bits are asserted
   against the HWH (offline), behaviour is not. Mock models write-1-to-clear
   DMASR flags, which is an assumption about the real register semantics.

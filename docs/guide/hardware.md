@@ -26,6 +26,30 @@ On the stock PYNQ-Z2 image, as root:
 - for interrupts: apply the generated `interrupts.dtso` (see
   [Interrupts](interrupts.md#one-time-setup-on-the-board)).
 
+### Building u-dma-buf
+
+DMA and HLS pointer arguments need the
+[`u-dma-buf`](https://github.com/ikwzm/udmabuf) kernel module, which the image
+used for validation did not include. Its headers-only `build` directory cannot
+build modules on the board, so cross-build on the host against the same kernel:
+
+1. Clone the matching `linux-xlnx` tag (`xilinx-v2024.1` for kernel `6.6.10-xilinx-v2024.1`),
+   and copy the board's `/proc/config.gz`, `Module.symvers`,
+   `include/generated` and `include/config` from
+   `/lib/modules/$(uname -r)/build` over it. The kernel has `CONFIG_MODVERSIONS`,
+   so the exported-symbol checksums must come from the board.
+2. Set `SUBLEVEL` and `CONFIG_LOCALVERSION` so the release string equals
+   `uname -r` exactly (`modinfo -F vermagic` of an installed module shows what is
+   required).
+3. `make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- modules_prepare`, then build
+   u-dma-buf **v5.7.1** (older releases do not compile against kernel 6.6) with
+   `make -C <linux> M=<udmabuf> CONFIG_U_DMA_BUF=m modules`.
+4. Copy the `.ko` over and
+   `insmod u-dma-buf.ko udmabuf0=1048576 udmabuf1=1048576`.
+
+Building on the board itself failed: `make modules_prepare` there recursed
+forever because the packaged tree lacks the full Kbuild files.
+
 Building and copying binaries is covered in
 [Getting started](getting-started.md#build-for-the-board).
 

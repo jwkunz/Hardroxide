@@ -36,7 +36,7 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | G1 bitstream load | **Passes** once the base design's drivers are stopped (G16); freezes the board otherwise |
 | G2 FCLK readback | **Passes**: FCLK0 reads 100 000 000 Hz |
 | G4 `/dev/mem` mapping | **Passes**: PL registers read and write; no freeze |
-| G5 GPIO | Registers respond and inputs read plausible values (`0x30`); LED/button behaviour not observed by eye |
+| G5 GPIO | **Passes**: LED0 to LED3 light in order (seen by eye); buttons 0 to 3 read as bits 0 to 3 and both switches as bits 4 and 5 (`0b[sw1 sw0 btn3 btn2 btn1 btn0]`), all switch combinations seen |
 | G9 HLS scalar | **Passes**: `vadd` computes 1+2, 100+23, 0xFFFFFFFF+1 (wraps), 7+35; done interrupt fires and re-arms |
 | G11 interrupts | **Passes**: the generated `interrupts.dtso` applies unchanged through configfs; `irq_probe`/`board_check` open all UIO devices; Timer and HLS interrupts fire and re-arm |
 | G12 Timer, SPI, IIC | Timer **passes** (100 ms asked, 100.017 ms measured; interrupt 50 ms +0.08 ms). SPI internal loopback **passes** (40 bytes). IIC: scan completes with no devices and no hang; nothing is wired to the pins, so no device ACK was seen |
@@ -107,7 +107,7 @@ touches no IP register.
 - mmap uses `O_SYNC`; confirm the mapping is device/strongly-ordered memory
   (not cached) so volatile accesses reach the AXI bus in order.
 
-### G5. AXI GPIO driver semantics and the example (UNVERIFIED)
+### G5. AXI GPIO driver semantics and the example (VERIFIED 2026-11-16, see Board results)
 - `hardroxide-ip::gpio` follows PG144 offsets (DATA 0x0, TRI 0x4, DATA2 0x8,
   TRI2 0xC), `1` = input in TRI. HWH offsets agree (fixture test), but real
   pin behaviour is unverified.

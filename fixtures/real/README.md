@@ -7,3 +7,9 @@ Apache-2.0), repackaged as XSA archives from their `.bit` and `.hwh` files
 makes them a check that the tool copes with real designs: dozens of IP
 instances, MicroBlaze subsystems with private address maps, hierarchy, and
 custom IP.
+
+`hwh/` holds two handoff files from other Vivado versions, taken from the
+`pynqmetadata` test data that ships with PYNQ (Apache-2.0): an HLS resizer on a
+Zynq-7000 from Vivado 2019.2, and an RFSoC design (UltraScale+) from Vivado
+2020.2. They check that the parser copes with older tool versions and that the
+generator refuses architectures it does not support. They have no bitstream.

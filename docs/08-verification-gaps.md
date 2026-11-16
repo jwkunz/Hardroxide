@@ -19,7 +19,7 @@ toolchain on the board or a cross-compile
 | ID | Item | Evidence |
 |---|---|---|
 | V1 | `.bit` -> `.bin` conversion (header strip, per-word byte swap, NOP padding to 16 bytes) | Output of `hardroxide generate` is byte-identical to `bootgen -arch zynq -process_bitstream bin` (Vivado 2025.2) for `fixtures/pynq_z2_gpio.xsa`. Reproduce: bif `all:{pynq_z2_gpio.bit}`, `bootgen -image a.bif -arch zynq -process_bitstream bin -w on`, `cmp` against `bitstream/design.bin`. Whether the *kernel* accepts this format is G1. |
-| V2 | HWH parsing (instances, registers, fields, address map, FCLK, interrupt nets) | Eight 2025.2 fixtures (GPIO, HLS scalar, HLS `m_axi`, DMA, Timer/IIC/SPI, interrupt controller, BRAM/UART, AXI4-Stream FIFO); every driver's register offsets and control bits are asserted against them. Other Vivado versions untested (D5). |
+| V2 | HWH parsing (instances, registers, fields, address map, FCLK, interrupt nets) | Eight 2025.2 fixtures (GPIO, HLS scalar, HLS `m_axi`, DMA, Timer/IIC/SPI, interrupt controller, BRAM/UART, AXI4-Stream FIFO); every driver's register offsets and control bits are asserted against them. Real third-party designs and older Vivado versions are covered in D5. |
 | V3 | Generated crate compiles warning-free; mock-MMIO behaviour; singleton semantics; load-failure releases the singleton | `cargo test -p hardroxide-gen` generates, builds and tests a real crate. |
 | V4 | `/dev/mem`-style mmap path (page alignment, offsets, volatile access) | Unit test maps a regular file at an unaligned offset. Does not exercise real `/dev/mem`. |
 | V5 | Runtime crates work as 32-bit ARM binaries | `scripts/test-armv7.sh` builds the runtime crates' tests for `armv7-unknown-linux-gnueabihf` and runs them under `qemu-arm` user-mode emulation (in CI too). Includes mapping a window above 2 GiB (the SLCR at `0xF800_0000`) through a 32-bit `off_t`. Emulates the CPU and libc only, not the Zynq or its kernel. |
@@ -308,8 +308,12 @@ touches no IP register.
   and `load_with_bitstream`, never against the running hardware. Not exercised
   on the board (G1 prerequisite).
 - **D5 Other Vivado versions / designs**: HWH parsing is validated against
-  eight 2025.2 designs, all Zynq-7000. Collect samples from other Vivado versions
-  and from UltraScale+.
+  eight 2025.2 fixtures plus real third-party designs (the PYNQ `base`,
+  `logictools` and six `vidcap` overlays, Vivado 2024.1 to 2025.2), an HLS design
+  from Vivado 2019.2 and an UltraScale+ RFSoC design from Vivado 2020.2 (parsed;
+  `generate` refuses it with `UnsupportedArch`). Only parsing and generation are
+  checked for versions other than 2025.2; they have not been run on hardware.
+  Still missing: Vivado 2021 to 2023 samples and UltraScale+ support itself.
 - **D6 `cargo hardroxide` shim, optional zstd, rename map, async**: not done.
 - **D7 UIO backend**: `Uio` maps map 0 only; untested against a real device.
 - **D8 CI**: `.github/workflows/ci.yml` runs fmt, clippy, all tests (including

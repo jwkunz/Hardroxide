@@ -220,3 +220,31 @@ fn third_party_design_uses_only_ps_visible_addresses() {
         assert!(w[0].1 < w[1].0, "{} overlaps {}", w[0].2, w[1].2);
     }
 }
+
+fn hwh(name: &str) -> Design {
+    let text = std::fs::read_to_string(format!(
+        "{}/../../fixtures/real/hwh/{name}.hwh",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+    hardroxide_hwh::parse_hwh(&text).unwrap()
+}
+
+#[test]
+fn parses_a_vivado_2019_2_zynq7000_hls_design() {
+    let d = hwh("resizer_vivado2019_2_zynq7000");
+    assert_eq!(d.arch, "zynq");
+    assert!(d.vivado_version.starts_with("2019"), "{}", d.vivado_version);
+    assert_eq!(d.ps_clk_hz, 33_333_333); // a PS crystal other than 50 MHz
+    assert!(d.instances.iter().any(|i| i.is_hls()));
+    assert!(d.host_ranges().count() >= 1);
+    assert_eq!(d.interface_hash().len(), 64);
+}
+
+#[test]
+fn parses_an_ultrascale_plus_design_so_it_can_be_inspected_and_refused() {
+    let d = hwh("rfsoc_sam_vivado2020_2_zynqmp");
+    assert!(d.arch.starts_with("zynquplus"), "{}", d.arch);
+    assert!(d.vivado_version.starts_with("2020"), "{}", d.vivado_version);
+    assert!(d.instances.len() > 5);
+}

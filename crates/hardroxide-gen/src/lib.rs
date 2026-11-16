@@ -17,6 +17,12 @@ pub enum GenError {
     Bit(#[from] BitError),
     #[error(transparent)]
     Xsa(#[from] hardroxide_hwh::Error),
+    #[error(
+        "unsupported architecture `{arch}` (device `{device}`): only Zynq-7000 (`zynq`) is supported; \
+         the bitstream conversion, clock programming and interrupt numbering are specific to it. \
+         `hardroxide inspect` still works on this design"
+    )]
+    UnsupportedArch { arch: String, device: String },
     #[error("I/O error on {path}: {source}")]
     Io {
         path: PathBuf,
@@ -111,6 +117,19 @@ pub struct Summary {
     pub not_host_visible: Vec<String>,
 }
 
+/// Only Zynq-7000 is supported; anything else would produce a crate that
+/// programs the wrong registers.
+pub(crate) fn check_arch(d: &hardroxide_hwh::Design) -> Result<(), GenError> {
+    if d.arch.eq_ignore_ascii_case("zynq") {
+        Ok(())
+    } else {
+        Err(GenError::UnsupportedArch {
+            arch: d.arch.clone(),
+            device: d.device.clone(),
+        })
+    }
+}
+
 /// Describe, instance by instance, what `generate` would produce.
 pub fn summarize(design: &hardroxide_hwh::Design) -> Summary {
     let model = render::Model::build(design);
@@ -161,6 +180,7 @@ pub fn summarize(design: &hardroxide_hwh::Design) -> Summary {
 }
 
 pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
+    check_arch(&xsa.design)?;
     let model = render::Model::build(&xsa.design);
     let crate_name = opts
         .crate_name

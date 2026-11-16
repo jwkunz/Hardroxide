@@ -48,6 +48,13 @@ nothing hardware-related. Before going to the board, read through
 `src/lib.rs` (the `Design` fields tell you what was recognised) and
 `interrupts.dtso` (its comments list any interrupt that could not be traced).
 
+## Supported devices
+
+Only Zynq-7000 designs are supported (the bitstream conversion, clock
+programming and interrupt numbering are specific to it). `generate` and `update`
+refuse anything else, such as an UltraScale+ design, with an `unsupported
+architecture` error; `hardroxide inspect` still reads it.
+
 ## Naming
 
 Field and module names are the snake_case of the Vivado instance and register

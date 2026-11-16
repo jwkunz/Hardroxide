@@ -71,6 +71,7 @@ fn package_name(manifest: &str) -> Option<String> {
 }
 
 pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenError> {
+    crate::check_arch(&xsa.design)?;
     let old_text = read(crate_dir, "interface.txt")?;
     let new_text = xsa.design.interface_text();
     if old_text == new_text {

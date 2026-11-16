@@ -349,3 +349,18 @@ fn interrupts_overlay_applies_with_fdtoverlay() {
     }
     std::fs::remove_dir_all(tmp).unwrap();
 }
+
+#[test]
+fn non_zynq7000_designs_are_refused_with_a_clear_error() {
+    let mut x = fixture();
+    x.design.arch = "zynquplus".into();
+    x.design.device = "xczu7ev".into();
+    let e = hardroxide_gen::generate(&x, &Default::default()).unwrap_err();
+    assert!(
+        matches!(e, hardroxide_gen::GenError::UnsupportedArch { .. }),
+        "{e}"
+    );
+    assert!(e.to_string().contains("only Zynq-7000"), "{e}");
+    let dir = fresh_crate("arch");
+    assert!(hardroxide_gen::update::update(&dir, &x, false).is_err());
+}

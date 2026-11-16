@@ -41,20 +41,20 @@ real board) is the first item of the hardware checklist.
 
 ## Current state and what is left
 
-All work that can be checked without a board is done for the scope above, and
-CI runs the runtime tests as 32-bit ARM binaries under `qemu-arm`. What
-remains:
+The scope above is done and was validated on a PYNQ-Z2 on 2026-11-16 (results
+in [08](08-verification-gaps.md)); CI runs the runtime tests as 32-bit ARM
+binaries under `qemu-arm`. The first release is prepared (see
+[Releasing](release.md)). What remains:
 
-- **Needs the board (blocking):** the checklist in
-  [08](08-verification-gaps.md), starting with `board_check`.
-- **Offline, not started:**
+- **Not started:**
   - Zynq UltraScale+ (different clock registers, interrupt numbering, bitstream
-    handling and a 64-bit target); can be type-checked and emulated, not proven.
+    handling and a 64-bit target); `generate` refuses these designs today.
   - HLS AXI-Stream and array (BRAM) port arguments; AXI DMA scatter-gather.
   - Multiple address blocks per instance (08, D3); UIO maps beyond map 0 (D7).
-  - Publishing the runtime crates (so generated crates need no
-    `--hardroxide-path`), and a `cargo hardroxide` shim (D6).
-  - HWH samples from other Vivado versions (needs those tools; D5).
+  - A `cargo hardroxide` shim (D6).
+- **Needs more inputs:** HWH from Vivado 2021 to 2023 and more third-party
+  designs (D5); SPI against a real device; an automated on-board regression
+  script around `fixtures/board_tests/`.
 
 ## Documentation site
 

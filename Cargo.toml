@@ -8,6 +8,10 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Numerius Engineering LLC <numerius.engineering@gmail.com>"]
 repository = "https://github.com/jwkunz/Hardroxide"
+homepage = "https://jwkunz.github.io/Hardroxide/"
+documentation = "https://jwkunz.github.io/Hardroxide/"
+keywords = ["fpga", "zynq", "vivado", "pynq", "hal"]
+categories = ["embedded", "hardware-support"]
 
 [workspace.dependencies]
 thiserror = "2"
@@ -17,11 +21,11 @@ libc = "0.2"
 sha2 = "0.10"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
-hardroxide-hwh = { path = "crates/hardroxide-hwh" }
-hardroxide-mmio = { path = "crates/hardroxide-mmio" }
-hardroxide-fpga = { path = "crates/hardroxide-fpga" }
-hardroxide-ip = { path = "crates/hardroxide-ip" }
-hardroxide-gen = { path = "crates/hardroxide-gen" }
-hardroxide-dma = { path = "crates/hardroxide-dma" }
-hardroxide-irq = { path = "crates/hardroxide-irq" }
+hardroxide-hwh = { path = "crates/hardroxide-hwh", version = "0.1.0" }
+hardroxide-mmio = { path = "crates/hardroxide-mmio", version = "0.1.0" }
+hardroxide-fpga = { path = "crates/hardroxide-fpga", version = "0.1.0" }
+hardroxide-ip = { path = "crates/hardroxide-ip", version = "0.1.0" }
+hardroxide-gen = { path = "crates/hardroxide-gen", version = "0.1.0" }
+hardroxide-dma = { path = "crates/hardroxide-dma", version = "0.1.0" }
+hardroxide-irq = { path = "crates/hardroxide-irq", version = "0.1.0" }
 embedded-hal = "1"

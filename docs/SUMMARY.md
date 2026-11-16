@@ -45,6 +45,7 @@
 - [Runtime](04-runtime.md)
 - [Roadmap](05-roadmap.md)
 - [Session handoff](06-session-handoff.md)
+- [Releasing](release.md)
 - [ADR 0001: MMIO and DMA model](decisions/0001-mmio-and-dma-memory-model.md)
 - [ADR 0002: Bitstream embedding and updates](decisions/0002-bitstream-embedding-and-updates.md)
 

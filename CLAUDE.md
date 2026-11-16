@@ -26,23 +26,30 @@ decision changes.
 
 ## Current state and next step
 
-Milestone 1 hardware-free portion is done: `hardroxide generate` produces a
-crate from `fixtures/pynq_z2_gpio.xsa` (Vivado 2025.2 at `~/AMD/2025.2`), with
-golden snapshots and mock-MMIO tests passing (`cargo test --workspace`). Crates:
-hwh, mmio, fpga, dma, irq, ip (GPIO, HLS, DMA, Timer, IIC, SPI, INTC, BRAM, UART), gen, cli. No board is attached to the dev machine.
+Zynq-7000 only. `hardroxide generate`, `update` and `inspect` work (golden
+snapshots, mock-MMIO tests, compile-tested guide examples, armv7 emulation tests)
+and the drivers were **validated on a PYNQ-Z2 on 2026-11-16**; results and the
+bugs that validation found are in `docs/08-verification-gaps.md`. Crates: hwh,
+mmio, fpga, dma, irq, ip (GPIO, HLS, DMA, Timer, IIC, SPI, INTC, BRAM, UART,
+FIFO), gen, cli. On-board test programs are in `fixtures/board_tests/`; real
+third-party designs (PYNQ overlays) are in `fixtures/real/`.
 
-**Next step: run the checklist in `docs/08-verification-gaps.md` on the
-PYNQ-Z2**, in order (G1 bitstream load first; do not touch PL addresses before
-it passes). Milestone 2 (`hardroxide update`, `dev-bitstream`) is done
-offline. Milestone 3 (scalar HLS IP, `fixtures/pynq_z2_hls_vadd.xsa`) is done offline.
-Milestone 4 (AXI DMA direct mode, `hardroxide-dma`, `hardroxide-irq`, DMA loopback
-fixture) is done offline. Milestone 5 (Timer/IIC/SPI with embedded-hal, `fixtures/pynq_z2_peripherals.xsa`)
-is done offline. **Docs site: an mdBook (`book.toml`, source = `docs/`) is the authoritative
-API documentation, deployed to GitHub Pages by `.github/workflows/pages.yml`.
-When you change a public API or the CLI, update `docs/reference/` in the same
-change; `cargo test -p hardroxide-cli --test book` fails if signatures, help
-text or links drift. Logo: `docs/assets/logo.png`.** Interrupts are wired into generated crates (`IrqLine`, `interrupts.dtso`).
-Guide examples are compile-tested (`cargo test -p hardroxide-gen --test guide`; tag blocks `rust,ignore,fixture=<name>`, `# ` lines are hidden setup). AXI interrupt controller fan-in is supported (`AxiIntc`, `via_intc`, `fixtures/pynq_z2_intc.xsa`). HLS pointer (`m_axi`) arguments get `set_*_addr`/`set_*_buffer` helpers (`fixtures/pynq_z2_hls_scale.xsa`). Generated crates include a `board_check` example (load, FCLK readback, UIO devices) to run first on a board. AXI BRAM Controller, UART Lite and AXI4-Stream FIFO drivers exist (`fixtures/pynq_z2_mem_uart.xsa`). Remaining offline work: more IP drivers (stream FIFO, others), AXI-Stream HLS ports, more fixtures.
+**The mdBook (`docs/`, deployed by `.github/workflows/pages.yml`) is the
+authoritative documentation.** When you change a public API or the CLI, update
+`docs/reference/` in the same change; `cargo test -p hardroxide-cli --test book`
+fails if signatures, help text or links drift. Guide examples are compile-tested
+(`cargo test -p hardroxide-gen --test guide`; tag blocks
+`rust,ignore,fixture=<name>`, `# ` lines are hidden setup).
+
+**Next step:** the first release (`docs/release.md`: dry run is clean, crate names
+are unclaimed, publishing needs the maintainer's crates.io token). After that see
+`docs/05-roadmap.md` (UltraScale+, HLS stream ports, scatter-gather, an automated
+board regression script).
+
+On a board: stop anything using the PL before the first `load()` (it refuses if a
+driver is bound to a PL address; reprogramming under one froze the CPU), and
+reboot to switch between designs whose overlays need a different trigger type on
+the same interrupt line.
 
 ## Conventions
 

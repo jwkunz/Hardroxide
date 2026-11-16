@@ -71,6 +71,7 @@ S2MM through an `axis_data_fifo`; both interrupts via `xlconcat` to `IRQ_F2P`.
 - Interrupt nets: DMA `mm2s_introut` -> `xlconcat_0/In0`, `s2mm_introut` ->
   `In1`, `xlconcat_0/dout` -> PS7 `IRQ_F2P[1:0]`. `Design::ps7_irq_f2p_bit`
   resolves these by following `xlconcat` (`INk_WIDTH` parameters) to bit 0 / 1.
+- **Address maps are per master** (found with the PYNQ base overlay, `fixtures/real/`): each MicroBlaze, DMA and the PS has its own `<MEMORYMAP>` inside its `<MODULE>`. Only the PS's lists what software on the PS reaches; the others overlap it (a MicroBlaze subsystem's timer and interrupt controller sit at the same private addresses in all four subsystems).
 - The HP0 data path and the loopback FIFO do not appear in the address map
   (only the control interface at 0x40400000-0x4040FFFF).
 

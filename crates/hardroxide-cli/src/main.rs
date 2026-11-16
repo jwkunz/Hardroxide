@@ -110,7 +110,7 @@ fn main() -> Result<()> {
             for c in d.pl_clocks.iter().filter(|c| c.enabled) {
                 println!("FCLK{}: {} Hz", c.index, c.freq_hz);
             }
-            for r in &d.memory_ranges {
+            for r in d.host_ranges() {
                 let v = d.instance(&r.instance).map_or("?", |i| i.vlnv.as_str());
                 println!("{:#010x}-{:#010x}  {}  ({v})", r.base, r.high, r.instance);
             }

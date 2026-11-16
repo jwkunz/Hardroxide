@@ -36,6 +36,7 @@ pub pl_clocks: Vec<PlClock>,
 pub ps_clk_hz: u64,
 pub fn instance(&self, name: &str) -> Option<&Instance>
 pub fn ranges_of<'a>(&'a self, instance: &'a str) -> impl Iterator<Item = &'a MemRange>
+pub fn host_ranges(&self) -> impl Iterator<Item = &MemRange>
 pub fn enabled_fclks(&self) -> Vec<(u8, u64)>
 pub fn ps7_irq_f2p_bit(&self, instance: &str, port: &str) -> Option<u32>
 pub fn irq_route(&self, instance: &str, port: &str) -> Option<IrqRoute>
@@ -99,6 +100,8 @@ pub bit_offset: u32,
 pub bit_width: u32,
 pub enum Access
 pub struct MemRange
+pub master: String,
+pub master_is_ps: bool,
 pub address_block: String,
 pub slave_interface: String,
 pub master_interface: String,
@@ -114,6 +117,7 @@ pub reset_enabled: bool,
 
 Conventions and quirks (see [HWH findings](../07-hwh-findings.md)):
 
+- **Address maps are per master.** A block design can have several masters (the PS and any MicroBlaze or DMA engine), each with its own address map; the maps overlap. `memory_ranges` keeps every entry with its `master`, but `ranges_of` and `host_ranges` return only entries from the PS (`master_is_ps`), which are the addresses software on the PS can use. Only those are in the interface hash and in generated crates. (The PYNQ base overlay has four MicroBlaze subsystems whose private timers and interrupt controllers all sit at `0x41C00000` in their own maps.)
 - `MemRange::high` is **inclusive**; `size()` is `high - base + 1`.
 - `Register::offset` is relative to its address block. `size` is a hint only:
   Vivado is inconsistent (AXI GPIO data registers report their field width).

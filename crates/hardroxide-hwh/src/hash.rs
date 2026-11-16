@@ -39,7 +39,7 @@ impl Design {
                 let _ = writeln!(s, " irq {} w{} -> {:?}", p.name, p.width, p.sinks);
             }
         }
-        let mut rs: Vec<_> = self.memory_ranges.iter().collect();
+        let mut rs: Vec<_> = self.host_ranges().collect();
         rs.sort_by(|a, b| (&a.instance, &a.address_block).cmp(&(&b.instance, &b.address_block)));
         for r in rs {
             let _ = writeln!(

@@ -243,7 +243,9 @@ pub fn parse_hwh(xml: &str) -> Result<Design, Error> {
     let mut instances = Vec::new();
     let mut memory_ranges = Vec::new();
     for m in modules.children().filter(|c| c.has_tag_name("MODULE")) {
-        instances.push(parse_instance(m)?);
+        let inst = parse_instance(m)?;
+        let (master, master_is_ps) = (inst.name.clone(), inst.is_ps);
+        instances.push(inst);
         for r in m
             .children()
             .filter(|c| c.has_tag_name("MEMORYMAP"))
@@ -256,6 +258,8 @@ pub fn parse_hwh(xml: &str) -> Result<Design, Error> {
             let n = |k: &str| num(a(k)?).ok_or_else(|| bad(format!("MEMRANGE bad {k}")));
             memory_ranges.push(MemRange {
                 instance: a("INSTANCE")?.into(),
+                master: master.clone(),
+                master_is_ps,
                 address_block: a("ADDRESSBLOCK")?.into(),
                 slave_interface: r.attribute("SLAVEBUSINTERFACE").unwrap_or("").into(),
                 master_interface: r.attribute("MASTERBUSINTERFACE").unwrap_or("").into(),

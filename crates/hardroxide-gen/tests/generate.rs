@@ -253,8 +253,14 @@ fn update_interface_change_needs_regen() {
     use hardroxide_gen::update::{DiffLine, Outcome, update};
     let dir = fresh_crate("iface");
     let mut x = fixture();
-    x.design.memory_ranges[0].base = 0x4300_0000;
-    x.design.memory_ranges[0].high = 0x4300_FFFF;
+    let r = x
+        .design
+        .memory_ranges
+        .iter_mut()
+        .find(|r| r.master_is_ps)
+        .unwrap();
+    r.base = 0x4300_0000;
+    r.high = 0x4300_FFFF;
     let before = snapshot(&dir);
     let Outcome::InterfaceChanged { diff } = update(&dir, &x, false).unwrap() else {
         panic!()

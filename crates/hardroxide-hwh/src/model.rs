@@ -162,11 +162,17 @@ impl Design {
         self.instances.iter().find(|i| i.name == name)
     }
 
-    /// Address-map entries belonging to `instance`.
+    /// Address-map entries belonging to `instance` **as seen from the PS**.
+    /// Other masters (MicroBlaze subsystems with a private bus, DMA engines
+    /// looking at memory) have their own address maps that overlap the PS's
+    /// and say nothing about what software on the PS can reach.
     pub fn ranges_of<'a>(&'a self, instance: &'a str) -> impl Iterator<Item = &'a MemRange> {
-        self.memory_ranges
-            .iter()
-            .filter(move |r| r.instance == instance)
+        self.host_ranges().filter(move |r| r.instance == instance)
+    }
+
+    /// All address-map entries visible from the PS.
+    pub fn host_ranges(&self) -> impl Iterator<Item = &MemRange> {
+        self.memory_ranges.iter().filter(|r| r.master_is_ps)
     }
 }
 
@@ -270,6 +276,12 @@ pub enum Access {
 pub struct MemRange {
     /// Slave instance.
     pub instance: String,
+    /// The master module whose address map this entry belongs to (for
+    /// example `ps7_0`, or a MicroBlaze with a private bus).
+    pub master: String,
+    /// Whether that master is the Processing System, i.e. whether software
+    /// running on the PS can reach `instance` at `base`.
+    pub master_is_ps: bool,
     pub address_block: String,
     pub slave_interface: String,
     pub master_interface: String,

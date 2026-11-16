@@ -90,5 +90,3 @@ instance ps7_0_axi_periph xilinx.com:ip:axi_interconnect:2.1
 instance rst_ps7_0_100M xilinx.com:ip:proc_sys_reset:5.0
 instance xlconcat_0 xilinx.com:ip:xlconcat:2.1
 range axi_dma_0 Reg 0x40400000 0x4040ffff
-range processing_system7_0 HP0_DDR_LOWOCM 0x0 0x1fffffff
-range processing_system7_0 HP0_DDR_LOWOCM 0x0 0x1fffffff

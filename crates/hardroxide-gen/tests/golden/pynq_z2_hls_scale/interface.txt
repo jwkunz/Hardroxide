@@ -37,6 +37,4 @@ instance scale_0 xilinx.com:hls:scale:1.0
   reg k 0x30 WriteOnly 0x0
    field k 0 32 WriteOnly
  irq interrupt w1 -> [("processing_system7_0", "IRQ_F2P")]
-range processing_system7_0 HP0_DDR_LOWOCM 0x0 0x1fffffff
-range processing_system7_0 HP0_DDR_LOWOCM 0x0 0x1fffffff
 range scale_0 Reg 0x40000000 0x4000ffff

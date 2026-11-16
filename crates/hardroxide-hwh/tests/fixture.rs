@@ -79,7 +79,11 @@ fn interface_hash_is_stable_and_ignores_clocks() {
     d.pl_clocks[0].freq_hz = 50_000_000;
     d.vivado_version = "9999".into();
     assert_eq!(d.interface_hash(), h);
-    d.memory_ranges[0].base += 0x10000;
+    d.memory_ranges
+        .iter_mut()
+        .find(|r| r.master_is_ps)
+        .unwrap()
+        .base += 0x10000;
     assert_ne!(d.interface_hash(), h);
 }
 
@@ -182,4 +186,37 @@ fn constructor_parameters_are_part_of_the_interface() {
             .map(String::as_str),
         Some("23")
     );
+}
+
+#[test]
+fn third_party_design_uses_only_ps_visible_addresses() {
+    // The PYNQ base overlay has four MicroBlaze subsystems whose private
+    // address maps overlap each other and the PS's. Only ps7_0's map says what
+    // software on the PS can reach.
+    let d = open("real/pynq_base_overlay");
+    let ps: Vec<_> = d.host_ranges().collect();
+    assert!(
+        ps.len() > 10 && ps.len() < 40,
+        "{} PS-visible ranges",
+        ps.len()
+    );
+    assert!(
+        d.memory_ranges.len() > ps.len(),
+        "other masters are parsed too"
+    );
+    // MicroBlaze-private peripherals have no PS address at all.
+    assert_eq!(d.ranges_of("iop_pmoda_timer").count(), 0);
+    assert_eq!(
+        d.ranges_of("iop_arduino_timers_subsystem_timer_0").count(),
+        0
+    );
+    // PS-visible peripherals keep theirs.
+    let leds = d.ranges_of("leds_gpio").next().unwrap();
+    assert_eq!((leds.base, leds.master.as_str()), (0x4125_0000, "ps7_0"));
+    // No two PS-visible ranges overlap.
+    let mut spans: Vec<_> = ps.iter().map(|r| (r.base, r.high, &r.instance)).collect();
+    spans.sort();
+    for w in spans.windows(2) {
+        assert!(w[0].1 < w[1].0, "{} overlaps {}", w[0].2, w[1].2);
+    }
 }

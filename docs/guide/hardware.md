@@ -90,7 +90,7 @@ matching IP is present):
 `uart_hello` and `i2c_scan` need external wiring (a TX-to-RX jumper; a device on the
 bus). With no wiring, use the loopback fixture (`pynq_z2_loopback.xsa`, see
 [Fixtures](../reference/fixtures.md)): its two UARTs and two IIC cores are wired to each
-other in the fabric, and `fixtures/loopback/{uart_pair,iic_pair}.rs` test them.
+other in the fabric, and `fixtures/board_tests/loopback/{uart_pair,iic_pair}.rs` test them.
 
 When a check passes, record it in
 [Verification gaps](../08-verification-gaps.md) with the date and the board
@@ -106,6 +106,8 @@ image version.
 | `Fpga(ClockUnreachable { .. })` or a FCLK mismatch in `board_check` | the requested FCLK cannot be derived from the PS PLL within 1% | the PS crystal in the design (`ps_clk_hz` in `bitstream/load.cfg`) must match the board (50 MHz on PYNQ-Z2) |
 | `AlreadyLoaded` | a second `Design::load()` in the same process | keep one `Design` and pass references around |
 | `IrqError::NotFound { .. }` | the interrupt overlay is not applied, or the node did not bind | apply `interrupts.dtso`; `cat /sys/class/uio/uio*/name` |
+| A UIO device returns `EIO` and `dmesg` shows `irq: type mismatch, failed to map hwirq-N` | an earlier overlay mapped that GIC line with the other trigger type (level vs edge); the mapping survives overlay removal | reboot the board before applying the new overlay |
+| `Fpga(PlInUse(..))` | a kernel driver is bound to a PL address; reprogramming under it can freeze the CPU | stop and unbind it (One-time board setup) |
 | `IrqError::ViaController { .. }` | the interrupt goes through an AXI interrupt controller | open the controller's `IRQ_IRQ` and use `AxiIntc::wait` |
 | The board freezes during `board_check` step 1 | the PL is in use by another driver (base overlay, HDMI, `zocl`) while it is reprogrammed | stop and unbind them first (One-time board setup); power-cycle to recover |
 | `Udmabuf::open` fails | `u-dma-buf` not loaded, or fewer buffers than expected | `ls /dev/udmabuf*` |

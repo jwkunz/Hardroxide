@@ -10,16 +10,19 @@ pub fn sha256_hex(data: &[u8]) -> String
 pub struct FpgaPaths
 pub manager: PathBuf,
 pub firmware_dir: PathBuf,
+pub platform_devices: PathBuf,
+pub refuse_bound_pl_drivers: bool,
+pub fn pl_drivers_in_use(platform_devices: &Path) -> Result<Vec<String>, FpgaError>
 ```
 
 `load_bitstream` (1) checks `sha256_hex(bin) == expected_sha256`
-(`FpgaError::HashMismatch`), (2) writes the image to
+(`FpgaError::HashMismatch`), (1b) if `refuse_bound_pl_drivers` (default `true`) fails with `FpgaError::PlInUse` when any platform device at a PL address (`0x4000_0000..=0xBFFF_FFFF`) has a driver bound other than the passive `uio_pdrv_genirq` (`pl_drivers_in_use` scans `platform_devices`, default `/sys/bus/platform/devices`; a missing directory means none; see [G16](../08-verification-gaps.md): reprogramming under such a driver froze a board), (2) writes the image to
 `<firmware_dir>/hardroxide-<hash16>.bin`, (3) writes `0` to
 `<manager>/flags` (full reconfiguration), (4) writes the file name to
 `<manager>/firmware`, (5) removes the file and requires `<manager>/state` to
 read `operating` (`FpgaError::NotOperating`). `FpgaPaths::default()` is
-`/sys/class/fpga_manager/fpga0` and `/lib/firmware`; override for tests with a
-fake tree. Requires root. **Unverified on hardware** ([G1](../08-verification-gaps.md)).
+`/sys/class/fpga_manager/fpga0`, `/lib/firmware` and `/sys/bus/platform/devices`; override for tests with a
+fake tree. Requires root. Verified on a PYNQ-Z2 ([G1](../08-verification-gaps.md)).
 
 ## Load configuration
 

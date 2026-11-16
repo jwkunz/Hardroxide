@@ -35,16 +35,18 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 |---|---|
 | G1 bitstream load | **Passes** once the base design's drivers are stopped (G16); freezes the board otherwise |
 | G2 FCLK readback | **Passes**: FCLK0 reads 100 000 000 Hz |
-| G4 `/dev/mem` mapping | **Passes**: PL registers read and write; no freeze |
+| G4 `/dev/mem` and `Uio` mapping | **Passes**: PL registers read and write through `/dev/mem`; the `Uio` backend maps the Timer through `/dev/uioN`, runs a 100.019 ms delay, and sees the same counter as the `/dev/mem` view |
 | G5 GPIO | **Passes**: LED0 to LED3 light in order (seen by eye); buttons 0 to 3 read as bits 0 to 3 and both switches as bits 4 and 5 (`0b[sw1 sw0 btn3 btn2 btn1 btn0]`), all switch combinations seen |
 | G9 HLS scalar | **Passes**: `vadd` computes 1+2, 100+23, 0xFFFFFFFF+1 (wraps), 7+35; done interrupt fires and re-arms |
 | G11 interrupts | **Passes**: the generated `interrupts.dtso` applies unchanged through configfs; `irq_probe`/`board_check` open all UIO devices; Timer and HLS interrupts fire and re-arm |
 | G12 Timer, SPI, IIC | Timer **passes** (100 ms asked, 100.017 ms measured; interrupt 50 ms +0.08 ms). SPI internal loopback **passes** (40 bytes). IIC **passes** on the loopback fixture (two cores on one in-fabric bus): a 5-byte write reaches the target at `0x2A` intact, an unanswered address NACKs, a bus scan finds only `0x2A`. This found a driver bug, fixed: the IIC `ISR` is toggle-on-write, and `init` wrote `0xFF`, which *set* every status bit, so every transfer reported a NACK |
 | G13 AXI intc | **Passes**: Timer interrupt through `axi_intc`, `pending`/`ack`/timeout |
 | G14 BRAM / UART | BRAM **passes** (8 KiB pattern, 0 mismatches). UART **passes** on the loopback fixture (two cores cross-wired in the fabric): 256 bytes each way, no overrun/frame/parity errors, 22 ms per 256 bytes (115200 baud). Interrupt-driven UART not tested |
-| G15 FIFO | Data path **passes**; the length comes back rounded up to whole words (37 sent, 40 back), which the docs now say |
+| G15 FIFO | **Passes**: lengths 1 to 65 bytes and the maximum 2032-byte packet round-trip (the length is reported rounded up to whole words, data intact, padding zero); an oversize packet is refused with nothing written; `ISR` flags clear when written with 1s and are untouched by 0 (receive and transmit complete read `0x0C000000`); interrupt-driven receive fires and re-arms over three rounds |
 | G10 DMA | **Passes**: 4096-byte MM2S to S2MM loopback matches through two `u-dma-buf` buffers (uncached, no cache maintenance); interrupt-driven completion works on both channels for three rounds |
 | G9 HLS pointer arguments | **Passes**: `scale` reads one `u-dma-buf` buffer and writes another through `set_*_buffer` (256 elements, 0 mismatches) |
+| G16 guard | **Passes**: with `gpio-xilinx` rebound to `41200000.gpio`, `load()` refuses with `PlInUse` naming the device and does not touch the PL; after unbinding it loads. Passive `uio_pdrv_genirq` devices at PL addresses are correctly ignored |
+| Overlay trigger types | A GIC line keeps the trigger type (level/edge) of the first overlay that mapped it, even after the overlay is removed; a later overlay with the other type fails with `irq: type mismatch, failed to map hwirq-N` and the UIO device then returns EIO. Switching between designs with different types on the same line needs a reboot |
 | `u-dma-buf` | The image does not ship it; built for this kernel, see [Running on hardware](guide/hardware.md#building-u-dma-buf) |
 | G8 cross-build | **Passes**: Vitis `arm-linux-gnueabihf-gcc` as the linker; binaries need glibc 2.34 and run on the board's 2.35 |
 | G3, G6, G7 | Not exercised beyond the above |
@@ -97,7 +99,7 @@ touches no IP register.
   deassert via SLCR (unlock, clear bits, lock) and add to `hardroxide-fpga`.
   Also AXI level shifters (`LVL_SHFTR_EN`, SLCR `0x900`) may need enabling.
 
-### G4. `/dev/mem` mapping of PL addresses (UNVERIFIED)
+### G4. `/dev/mem` and UIO mapping of PL addresses (VERIFIED 2026-11-16, see Board results)
 - Assumed: `open("/dev/mem", O_RDWR|O_SYNC)` + `mmap` at `0x41200000` works
   as root (no `CONFIG_STRICT_DEVMEM` block for non-RAM ranges).
 - Check: `devmem 0x41200000` before and after load (before load an AXI access
@@ -239,7 +241,7 @@ touches no IP register.
 - The fixture's UART pins are unconstrained, so it cannot be used on a board
   as is; it only fixes the interface model.
 
-### G15. AXI4-Stream FIFO (UNVERIFIED)
+### G15. AXI4-Stream FIFO (VERIFIED 2026-11-16, see Board results)
 - `hardroxide_ip::fifo::AxiFifo` is tested against a loopback model; register
   offsets are asserted against the HWH of `pynq_z2_fifo.xsa`. The reset keys
   (`0xA5`), the `TLR`-starts-the-packet order and the `RLR` length mask are from
@@ -263,8 +265,11 @@ touches no IP register.
   `systemctl stop panther-desktop jupyter; rmmod panther_drm panther_audio zocl`,
   then unbind the PL platform devices (`echo <dev> > /sys/bus/platform/devices/<dev>/driver/unbind`
   for each `4*` device). Documented in [Running on hardware](guide/hardware.md).
-- Open: `load()` could refuse (or warn) when a platform device already sits on a
-  PL address; not implemented.
+- Guard (implemented): `load_bitstream` now refuses with `FpgaError::PlInUse`,
+  naming the devices, when a driver other than `uio_pdrv_genirq` is bound to a
+  platform device at a PL address (`FpgaPaths::refuse_bound_pl_drivers`, default
+  on). Unit-tested on a fake sysfs tree; its detection on the real board is
+  checked in the board results below.
 
 ## Design gaps (implemented partially or not at all)
 

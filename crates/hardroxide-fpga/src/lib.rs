@@ -19,6 +19,12 @@ pub enum FpgaError {
     },
     #[error("fpga_manager did not reach `operating` state after load (state: `{0}`)")]
     NotOperating(String),
+    #[error(
+        "kernel drivers are bound to PL addresses and would be running while the PL is reprogrammed, \
+         which can freeze the CPU: {0}. Stop and unbind them first (see the \"Running on hardware\" chapter), \
+         or set `FpgaPaths::refuse_bound_pl_drivers` to false"
+    )]
+    PlInUse(String),
     #[error("PL clock FCLK{0} does not exist (valid: 0..=3)")]
     BadClockIndex(u8),
     #[error(
@@ -58,6 +64,12 @@ pub struct FpgaPaths {
     pub manager: PathBuf,
     /// Directory the kernel searches for firmware, normally `/lib/firmware`.
     pub firmware_dir: PathBuf,
+    /// e.g. `/sys/bus/platform/devices`, scanned for drivers bound to PL addresses.
+    pub platform_devices: PathBuf,
+    /// Refuse to program the PL while a kernel driver other than the passive
+    /// `uio_pdrv_genirq` is bound to a PL address (default `true`). Reprogramming
+    /// under a live driver froze a test board.
+    pub refuse_bound_pl_drivers: bool,
 }
 
 impl Default for FpgaPaths {
@@ -65,8 +77,48 @@ impl Default for FpgaPaths {
         Self {
             manager: "/sys/class/fpga_manager/fpga0".into(),
             firmware_dir: "/lib/firmware".into(),
+            platform_devices: "/sys/bus/platform/devices".into(),
+            refuse_bound_pl_drivers: true,
         }
     }
+}
+
+/// First PL address on Zynq-7000 (M_AXI_GP0 starts here; GP1 is `0x8000_0000..`).
+const PL_ADDR_LO: u64 = 0x4000_0000;
+const PL_ADDR_HI: u64 = 0xBFFF_FFFF;
+
+/// Platform devices at PL addresses that have a driver other than
+/// `uio_pdrv_genirq` bound, as `"<device> (<driver>)"`. Platform device names
+/// look like `41200000.gpio`; a missing directory means none.
+pub fn pl_drivers_in_use(platform_devices: &Path) -> Result<Vec<String>, FpgaError> {
+    let Ok(rd) = std::fs::read_dir(platform_devices) else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::new();
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let Some((addr, _)) = name.split_once('.') else {
+            continue;
+        };
+        let Ok(a) = u64::from_str_radix(addr, 16) else {
+            continue;
+        };
+        if !(PL_ADDR_LO..=PL_ADDR_HI).contains(&a) {
+            continue;
+        }
+        let Ok(drv) = std::fs::read_link(e.path().join("driver")) else {
+            continue;
+        };
+        let drv = drv
+            .file_name()
+            .map(|d| d.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if drv != "uio_pdrv_genirq" {
+            out.push(format!("{name} ({drv})"));
+        }
+    }
+    out.sort();
+    Ok(out)
 }
 
 /// Program the PL with a raw `.bin`, after verifying its SHA-256.
@@ -84,6 +136,12 @@ pub fn load_bitstream(
             expected: expected_sha256.into(),
             actual,
         });
+    }
+    if paths.refuse_bound_pl_drivers {
+        let bound = pl_drivers_in_use(&paths.platform_devices)?;
+        if !bound.is_empty() {
+            return Err(FpgaError::PlInUse(bound.join(", ")));
+        }
     }
     let name = format!("hardroxide-{}.bin", &actual[..16]);
     let fw = paths.firmware_dir.join(&name);
@@ -188,6 +246,8 @@ mod tests {
         let p = FpgaPaths {
             manager: root.join("mgr"),
             firmware_dir: root.join("fw"),
+            platform_devices: root.join("platform"),
+            refuse_bound_pl_drivers: true,
         };
         std::fs::create_dir_all(&p.manager).unwrap();
         std::fs::create_dir_all(&p.firmware_dir).unwrap();
@@ -214,5 +274,48 @@ mod tests {
                 .starts_with("hardroxide-")
         );
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn refuses_to_reprogram_under_a_bound_pl_driver() {
+        use std::os::unix::fs::symlink;
+        let (root, p) = fake();
+        let dev = |name: &str, drv: Option<&str>| {
+            let d = p.platform_devices.join(name);
+            std::fs::create_dir_all(&d).unwrap();
+            if let Some(drv) = drv {
+                symlink(
+                    format!("../../../bus/platform/drivers/{drv}"),
+                    d.join("driver"),
+                )
+                .unwrap();
+            }
+        };
+        dev("41200000.gpio", Some("gpio-xilinx")); // active driver: blocks
+        dev("43c00000.audio", Some("uio_pdrv_genirq")); // passive UIO: fine
+        dev("40000000.fabric", None); // no driver: fine
+        dev("e0001000.serial", Some("xuartps")); // not a PL address: fine
+        assert_eq!(
+            pl_drivers_in_use(&p.platform_devices).unwrap(),
+            ["41200000.gpio (gpio-xilinx)"]
+        );
+        let bin = b"\x01\x02\x03\x04";
+        let hash = sha256_hex(bin);
+        let e = load_bitstream(&p, bin, &hash).unwrap_err();
+        assert!(
+            matches!(e, FpgaError::PlInUse(ref s) if s.contains("gpio-xilinx")),
+            "{e}"
+        );
+        assert!(
+            !p.firmware_dir
+                .join(format!("hardroxide-{}.bin", &hash[..16]))
+                .exists()
+        );
+        let mut allow = p.clone();
+        allow.refuse_bound_pl_drivers = false;
+        load_bitstream(&allow, bin, &hash).unwrap();
+        // a missing directory (non-Linux, or tests) means nothing is bound
+        assert!(pl_drivers_in_use(&root.join("nope")).unwrap().is_empty());
+        let _ = std::fs::remove_dir_all(root);
     }
 }

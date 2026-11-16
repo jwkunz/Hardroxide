@@ -30,4 +30,4 @@ After rebuilding, refresh the golden snapshots with
 `UPDATE_GOLDEN=1 cargo test -p hardroxide-gen` and review the diff. See
 [HWH findings](../07-hwh-findings.md) for what each export contains.
 
-`fixtures/loopback/{uart_pair,iic_pair}.rs` are the on-board tests for the loopback fixture (generate its crate, copy them into `examples/`, build for the board). The UART pair exchanges 256 bytes each way; the IIC pair makes core 1 a target at `0x2A` (its `ADR` register, offset `0x110`), writes five bytes from core 0, and scans the bus.
+`fixtures/board_tests/` holds the on-board test programs (see its README); `board_tests/loopback/{uart_pair,iic_pair}.rs` test the loopback fixture (generate its crate, copy them into `examples/`, build for the board). The UART pair exchanges 256 bytes each way; the IIC pair makes core 1 a target at `0x2A` (its `ADR` register, offset `0x110`), writes five bytes from core 0, and scans the bus.

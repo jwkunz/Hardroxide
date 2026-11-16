@@ -69,7 +69,7 @@ device whose `maps/map0/addr` equals `base`; otherwise `None` (also `None` if
 the directory does not exist). `open()` uses `/sys/class/uio` and `/dev`;
 `open_in` lets tests substitute both. If no device is found the error is
 `IrqError::NotFound { instance, port, node, base }`, whose message points at
-the overlay. Discovery behaviour on the real kernel is unverified
+the overlay. Discovery behaviour on the real kernel is verified
 ([G11](../08-verification-gaps.md)).
 
 ## Async (feature `async`)

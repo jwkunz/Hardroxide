@@ -114,6 +114,6 @@ exposes the interrupt as a UIO device. Your code then blocks on that device
 
 Every part of this pipeline that can be checked without a board is checked
 against real Vivado 2025.2 output, and the runtime crates' tests also run as
-32-bit ARM binaries under emulation. Nothing has yet been run on a PYNQ-Z2;
-[Verification gaps](../08-verification-gaps.md) lists every assumption and how
-to check it.
+32-bit ARM binaries under emulation. Most drivers have also been run on a PYNQ-Z2;
+[Verification gaps](../08-verification-gaps.md) lists the results and every
+remaining assumption.

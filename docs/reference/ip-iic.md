@@ -29,8 +29,8 @@ impl<R: Mmio> i2c::I2c for AxiIic<R>
   NACK or arbitration loss the core is reset.
 
 Bus speed is whatever the IP's timing registers default to; they are not
-configured. 10-bit addressing and slave mode are not supported. **Unverified
-on hardware** ([G12](../08-verification-gaps.md)).
+configured. 10-bit addressing and slave mode are not supported. Verified on
+hardware against a second IIC core acting as target ([G12](../08-verification-gaps.md)).
 
 `IicError`: `Mmio`, `Nack`, `ArbitrationLost`, `Timeout`, `ReadTooLong(n)`.
 

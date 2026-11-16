@@ -32,7 +32,7 @@ Backed by the `u-dma-buf` kernel module: `/dev/udmabufN` is mapped with
 `O_SYNC` (uncached), the physical address is read from
 `/sys/class/u-dma-buf/udmabufN/phys_addr` (hex with `0x` or decimal) and the
 size from `.../size`. Uncached means the CPU is slow on the buffer but no
-cache maintenance is ever needed (ADR 0001). **Unverified on hardware**
+cache maintenance is ever needed (ADR 0001). Verified on hardware
 ([G10](../08-verification-gaps.md)).
 
 Any `DmaBuffer` also works as the memory behind an HLS pointer argument

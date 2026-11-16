@@ -121,4 +121,4 @@ unverified ([G11](../08-verification-gaps.md)).
 | `i2c_scan` | AXI IIC | probes addresses `0x08..0x78` on a pulled-up bus |
 | `irq_probe` | any routed interrupt | opens the UIO device of every interrupt line (checks the overlay); does not wait |
 
-All require root on the board and have **not** been run on hardware.
+All require root on the board. Each has run on a PYNQ-Z2 except `uart_hello` and `i2c_scan`, which need external wiring (the in-fabric loopback fixture covers UART and IIC instead); see the results in [Verification gaps](../08-verification-gaps.md#board-results).

@@ -88,7 +88,7 @@ impl UdmabufPaths {
     }
 }
 
-/// A `u-dma-buf` buffer, mapped uncached. UNVERIFIED on hardware.
+/// A `u-dma-buf` buffer, mapped uncached. Verified on a PYNQ-Z2 (docs/08, G10).
 pub struct Udmabuf {
     region: SysRegion,
     phys: u64,

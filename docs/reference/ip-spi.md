@@ -32,5 +32,5 @@ impl<R: Mmio> SpiDevice<u8> for SpiSlave<'_, R>
   `Operation::DelayNs` sleeps the thread.
 
 `SpiError`: `Mmio`, `Timeout`, `BadChipSelect(n)`. All errors map to
-`ErrorKind::Other`. Quad-SPI/XIP modes are not supported. **Unverified on
-hardware.**
+`ErrorKind::Other`. Quad-SPI/XIP modes are not supported. Verified on hardware in internal loopback only
+([G12](../08-verification-gaps.md)); mode and clock-divider behaviour against a real device are untested.

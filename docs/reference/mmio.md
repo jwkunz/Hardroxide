@@ -57,7 +57,7 @@ pub fn new(path: impl Into<PathBuf>) -> Self
 
 Maps map 0 of a `/dev/uioN` device. The requested physical address is ignored
 (the kernel owns the window). Interrupt waiting is in
-[hardroxide-irq](irq.md). Unverified on hardware.
+[hardroxide-irq](irq.md). Verified on hardware (Timer through `/dev/uioN`).
 
 ## Mock backend
 

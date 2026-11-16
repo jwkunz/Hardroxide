@@ -34,7 +34,7 @@ Flat zip: `design_1.hwh`, `<name>.bit`, `ps7_init.{c,h,tcl,html}`, `sysdef.xml`,
 ## Implemented
 
 `hardroxide-hwh`: `Xsa::open`, `parse_hwh`, `BitFile` (header strip and
-byte-swapped `.bin`). The byte-swap convention is **unverified on hardware**.
+byte-swapped `.bin`). The byte-swap convention is **verified on hardware** (G1): the kernel accepts this `.bin` on the PYNQ-Z2.
 
 ## HLS fixture (`fixtures/pynq_z2_hls_vadd.xsa`)
 

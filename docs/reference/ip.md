@@ -31,7 +31,7 @@ Common conventions:
   sleep until an interrupt instead.
 - Methods that only touch registers return `Result<_, MmioError>`.
 - Register offsets and control-bit positions are asserted against real Vivado
-  HWH output in the unit tests; behaviour on real hardware is unverified
-  ([G5, G9–G15](../08-verification-gaps.md)).
+  HWH output in the unit tests; behaviour on real hardware was checked on a PYNQ-Z2
+  ([results](../08-verification-gaps.md#board-results)).
 
 The crate re-exports `Mmio` and `MmioError`.

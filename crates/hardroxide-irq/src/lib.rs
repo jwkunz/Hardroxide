@@ -2,8 +2,8 @@
 //!
 //! UIO protocol: writing a 32-bit `1` unmasks the interrupt; a blocking
 //! 4-byte read returns the cumulative event count once it fires (the kernel
-//! masks the line while it is pending). Device-tree/UIO setup per IP and the
-//! behaviour on the stock PYNQ image are UNVERIFIED (docs/08).
+//! masks the line while it is pending). Verified on a PYNQ-Z2 (docs/08, G11); note that a GIC line keeps the
+//! trigger type of the first overlay that mapped it until reboot.
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};

@@ -34,7 +34,7 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | Gap | Result |
 |---|---|
 | G1 bitstream load | **Passes** once the base design's drivers are stopped (G16); freezes the board otherwise |
-| G2 FCLK readback | **Passes**: FCLK0 reads 100 000 000 Hz |
+| G2 FCLK readback | **Passes**: FCLK0 reads 100 000 000 Hz; on a second design FCLK0 = 50 MHz and FCLK1 = 142.857 MHz both read back correctly from the SLCR, and a Timer built for 50 MHz measures 100.018 ms |
 | G4 `/dev/mem` and `Uio` mapping | **Passes**: PL registers read and write through `/dev/mem`; the `Uio` backend maps the Timer through `/dev/uioN`, runs a 100.019 ms delay, and sees the same counter as the `/dev/mem` view |
 | G5 GPIO | **Passes**: LED0 to LED3 light in order (seen by eye); buttons 0 to 3 read as bits 0 to 3 and both switches as bits 4 and 5 (`0b[sw1 sw0 btn3 btn2 btn1 btn0]`), all switch combinations seen |
 | G9 HLS scalar | **Passes**: `vadd` computes 1+2, 100+23, 0xFFFFFFFF+1 (wraps), 7+35; done interrupt fires and re-arms |
@@ -50,6 +50,9 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | Overlay trigger types | A GIC line keeps the trigger type (level/edge) of the first overlay that mapped it, even after the overlay is removed; a later overlay with the other type fails with `irq: type mismatch, failed to map hwirq-N` and the UIO device then returns EIO. Switching between designs with different types on the same line needs a reboot |
 | `u-dma-buf` | The image does not ship it; built for this kernel, see [Running on hardware](guide/hardware.md#building-u-dma-buf) |
 | G8 cross-build | **Passes**: Vitis `arm-linux-gnueabihf-gcc` as the linker; binaries need glibc 2.34 and run on the board's 2.35 |
+| `hardroxide update` | **Passes**: replacing only the bitstream (same interface, different `USERID`) leaves `src/` and `Cargo.toml` byte-identical, changes `design.bin`'s hash, and the crate loads and runs; a design with a different FCLK0 is refused with a diff because the Timer's constructor clock is part of the interface hash. An implementation-only change (placement directives) can produce an identical bitstream, which `update` reports as "up to date" |
+| Async interrupts | **Pass**: `UioIrq::wait_async` under a minimal executor wakes three times at about 40 ms and returns `None` on timeout |
+| Register access cost | user-space `/dev/mem` read 193 ns, write 231 ns per access (uncached, 200 000-access average) |
 | G3 PL reset | **Passes**: a Timer left running is back at its reset state (`TCSR0 = 0`, counter 0) after the PL is reprogrammed |
 | G7 singleton | **Passes**: a second `load()` while one `Design` is alive returns `AlreadyLoaded` and leaves the first working; 25 load/delay/drop cycles in one process, loads about 300 ms each |
 | Base-design line mapping | On this image SPI 29 (`IRQ_F2P[0]`) is already mapped level-triggered at boot, so an overlay node that needs it as edge (for example an AXI UART Lite on F2P bit 0) gets a UIO device whose reads and writes return `EIO`, with no kernel message. Put edge-triggered cores on other F2P bits |
@@ -61,7 +64,7 @@ Start with the generated `board_check` example: it runs G1 (load), a G2 FCLK
 readback against the design, and the G11 UIO-device check in one go, and
 touches no IP register.
 
-### G1. fpga_manager accepts the `.bin` and programs the PL (UNVERIFIED)
+### G1. fpga_manager accepts the `.bin` and programs the PL (VERIFIED 2026-11-16, see Board results)
 - Assumed: write `0` to `/sys/class/fpga_manager/fpga0/flags`, copy bin to
   `/lib/firmware/<name>`, write `<name>` to `.../fpga0/firmware`, then
   `.../state` reads `operating` (`hardroxide-fpga::load_bitstream`).
@@ -77,7 +80,7 @@ touches no IP register.
   load; confirm the firmware path search works when `firmware_dir` is the
   default, and whether the kernel needs `firmware_class.path`.
 
-### G2. PL clock programming via SLCR (UNVERIFIED)
+### G2. PL clock programming via SLCR (VERIFIED 2026-11-16, see Board results)
 - Assumed (UG585): SLCR at `0xF8000000`; unlock `0x008`<-`0xDF0D`, lock
   `0x004`<-`0x767B`; `ARM/DDR/IO_PLL_CTRL` at `0x100/0x104/0x108` with
   `PLL_FDIV` in bits 18:12 and `PLL_BYPASS_FORCE` bit 4; `FPGAn_CLK_CTRL` at
@@ -96,7 +99,7 @@ touches no IP register.
 - Also check whether `fpga_manager` load resets/gates the FCLKs, which would
   require applying clocks *after* load (current order) or re-enabling them.
 
-### G3. PL reset (FCLK_RESET) handling (DESIGN-GAP)
+### G3. PL reset (FCLK_RESET) handling (VERIFIED 2026-11-16 for the reload case, see Board results)
 - Not implemented. The HWH exposes `PCW_EN_RSTn_PORT` (modeled as
   `PlClock::reset_enabled`) but `load()` does not touch `FPGA_RST_CTRL`
   (SLCR `0x240`). Check whether the fabric is in reset after load; if so,
@@ -132,14 +135,14 @@ touches no IP register.
   fixture with the real PYNQ-Z2 board files / preset (`tul.com.tw:pynq-z2`)
   and refresh the golden files (`UPDATE_GOLDEN=1 cargo test -p hardroxide-gen`).
 
-### G7. Singleton and process behaviour on the board (UNVERIFIED)
+### G7. Singleton and process behaviour on the board (VERIFIED 2026-11-16, see Board results)
 - The singleton is an in-process `AtomicBool`; it does not stop a second
   *process* (or PYNQ's Python) from loading another bitstream underneath a
   running program. Decide whether to add a lock file (`/run/hardroxide.lock`).
 - Check what happens to a running design when the process exits (PL keeps
   running; registers keep state). Document the intended semantic.
 
-### G8. Cross-compilation and deployment (UNVERIFIED)
+### G8. Cross-compilation and deployment (VERIFIED 2026-11-16, see Board results)
 - armv7 binaries link with `arm-linux-gnueabihf-gcc` and the runtime tests
   pass under `qemu-arm` (V5). Not verified: that a cross-built binary runs on
   the stock image's glibc (a newer workstation glibc gives `GLIBC_2.xx not
@@ -147,7 +150,7 @@ touches no IP register.
   glibc version). The embedded bitstream makes
   binaries ~4 MB.
 
-### G9. HLS IP on hardware (UNVERIFIED)
+### G9. HLS IP on hardware (VERIFIED 2026-11-16, see Board results)
 - `hardroxide-ip::hls::HlsIp` follows the `ap_ctrl_hs` layout from the
   generated RTL header (CTRL/GIER/IP_IER/IP_ISR, user regs from 0x10).
   `start()` reads CTRL first (to preserve `auto_restart`), which clears the
@@ -185,7 +188,7 @@ touches no IP register.
 - `Transfer` halts a channel on timeout/error/drop and leaks the buffer if the
   channel will not halt; confirm the halted state is reached on real hardware.
 
-### G11. UIO interrupts (UNVERIFIED)
+### G11. UIO interrupts (VERIFIED 2026-11-16, see Board results)
 - `hardroxide-irq::UioIrq` implements the standard UIO protocol and is
   tested only against a socketpair. `IrqLine::open` finds `/dev/uioN` by
   scanning `/sys/class/uio` (tested on a fake tree only).
@@ -218,7 +221,7 @@ touches no IP register.
   (`set_interrupts(true)`, start, `wait`, then `Transfer::wait(ZERO)`), and
   confirm the line re-arms on the second round.
 
-### G13. AXI Interrupt Controller (UNVERIFIED)
+### G13. AXI Interrupt Controller (VERIFIED 2026-11-16, see Board results)
 - `hardroxide_ip::intc::AxiIntc` is tested against the mock and a fake
   `IrqWaiter`; register offsets and the `MER` bit positions are asserted against
   the HWH of `fixtures/pynq_z2_intc.xsa`. The fixture builds in Vivado and its

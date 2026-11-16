@@ -56,7 +56,7 @@ touch memory the hardware may still be accessing.
 
 For a stream loopback, arm the receiver (`StreamToMem`) before starting the
 sender. Register map and bit positions are asserted against a real HWH; real
-behaviour is unverified ([G10](../08-verification-gaps.md)).
+behaviour is verified ([G10](../08-verification-gaps.md)).
 
 `DmaIpError`: `Mmio`, `BadLength { len, max, buf }`, `Busy(sr)`,
 `Hardware(sr)`, `Timeout(d)`, `StuckChannel`.

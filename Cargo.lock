@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -239,7 +239,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-dma"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hardroxide-mmio",
  "thiserror",
@@ -247,7 +247,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-fpga"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hardroxide-mmio",
  "sha2",
@@ -256,7 +256,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-gen"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hardroxide-fpga",
  "hardroxide-hwh",
@@ -265,7 +265,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-hwh"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "roxmltree",
  "sha2",
@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-ip"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "embedded-hal",
  "hardroxide-dma",
@@ -287,7 +287,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-irq"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "libc",
  "thiserror",
@@ -295,7 +295,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-mmio"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "libc",
  "thiserror",

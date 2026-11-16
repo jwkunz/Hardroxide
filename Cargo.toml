@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Numerius Engineering LLC <numerius.engineering@gmail.com>"]
@@ -20,10 +20,10 @@ libc = "0.2"
 sha2 = "0.10"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
-hardroxide-hwh = { path = "crates/hardroxide-hwh", version = "0.1.0" }
-hardroxide-mmio = { path = "crates/hardroxide-mmio", version = "0.1.0" }
-hardroxide-fpga = { path = "crates/hardroxide-fpga", version = "0.1.0" }
-hardroxide-gen = { path = "crates/hardroxide-gen", version = "0.1.0" }
-hardroxide-dma = { path = "crates/hardroxide-dma", version = "0.1.0" }
-hardroxide-irq = { path = "crates/hardroxide-irq", version = "0.1.0" }
+hardroxide-hwh = { path = "crates/hardroxide-hwh", version = "1.0.0" }
+hardroxide-mmio = { path = "crates/hardroxide-mmio", version = "1.0.0" }
+hardroxide-fpga = { path = "crates/hardroxide-fpga", version = "1.0.0" }
+hardroxide-gen = { path = "crates/hardroxide-gen", version = "1.0.0" }
+hardroxide-dma = { path = "crates/hardroxide-dma", version = "1.0.0" }
+hardroxide-irq = { path = "crates/hardroxide-irq", version = "1.0.0" }
 embedded-hal = "1"

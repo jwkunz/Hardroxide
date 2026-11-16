@@ -31,7 +31,7 @@ Documentation (user guide, API reference, design docs):
 
 ## Status
 
-Version 0.1. Validated on a **PYNQ-Z2** (PYNQ 3.1, kernel 6.6): bitstream
+Version 1.0. Validated on a **PYNQ-Z2** (PYNQ 3.1, kernel 6.6): bitstream
 loading, PL clocks, GPIO, HLS (scalar and pointer arguments), DMA, Timer, IIC,
 SPI (internal loopback), UART, BRAM, FIFO, interrupts (including through an AXI
 interrupt controller), and a crate generated from the PYNQ base overlay. The

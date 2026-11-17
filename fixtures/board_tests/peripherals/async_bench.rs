@@ -1,3 +1,6 @@
+//! Register access cost, and the async interrupt API under a minimal
+//! executor. Needs the `async` feature of `hardroxide-irq` in the crate's
+//! Cargo.toml (`hardroxide-irq = { ..., features = ["async"] }`).
 use hardroxide_mmio::Mmio;
 use std::future::Future;
 use std::pin::pin;
@@ -6,12 +9,21 @@ use std::task::{Context, Poll, Wake, Waker};
 use std::time::{Duration, Instant};
 
 struct Park(std::thread::Thread);
-impl Wake for Park { fn wake(self: Arc<Self>) { self.0.unpark(); } }
+impl Wake for Park {
+    fn wake(self: Arc<Self>) {
+        self.0.unpark();
+    }
+}
 fn block_on<F: Future>(f: F) -> F::Output {
     let waker = Waker::from(Arc::new(Park(std::thread::current())));
     let mut cx = Context::from_waker(&waker);
     let mut f = pin!(f);
-    loop { if let Poll::Ready(v) = f.as_mut().poll(&mut cx) { return v; } std::thread::park(); }
+    loop {
+        if let Poll::Ready(v) = f.as_mut().poll(&mut cx) {
+            return v;
+        }
+        std::thread::park();
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,10 +34,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let n = 200_000u32;
     let s = Instant::now();
     let mut acc = 0u32;
-    for _ in 0..n { acc ^= r.read32(0x8)?; }
+    for _ in 0..n {
+        acc ^= r.read32(0x8)?;
+    }
     let rd = s.elapsed().as_nanos() as f64 / n as f64;
     let s = Instant::now();
-    for i in 0..n { r.write32(0x4, i)?; }
+    for i in 0..n {
+        r.write32(0x4, i)?;
+    }
     let wr = s.elapsed().as_nanos() as f64 / n as f64;
     println!("register read {rd:.0} ns, write {wr:.0} ns (acc {acc})");
     r.write32(0x4, 0)?;

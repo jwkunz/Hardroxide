@@ -1,11 +1,18 @@
 # Getting started
 
+Two ways in: **try it** with the XSAs in this repository (no Vivado, no board for the
+first half), or **use your own design** ([the workflow](workflow.md)). Either way,
+this page gets the tool and the toolchain ready. When you are, the
+[tutorials](../tutorials/index.md) are the fastest way to learn it by doing.
+
 ## Requirements
 
 - Rust (latest stable, edition 2024).
-- An `.xsa` exported from Vivado (the tool was developed against 2025.2).
-  Hardroxide itself does **not** need Vivado installed.
-- To run on a board: a PYNQ-Z2 with the stock PYNQ image and root access.
+- An `.xsa` exported from Vivado. Hardroxide itself does **not** need Vivado
+  installed; the repository has ready-made ones in `fixtures/`. To make your own,
+  see [Exporting an XSA from Vivado](vivado.md).
+- To run on hardware: a PYNQ-Z2 on the network (the stock PYNQ image, root
+  access), and a cross linker for 32-bit ARM Linux.
 
 ## Build the tool
 
@@ -13,8 +20,12 @@
 $ git clone https://github.com/jwkunz/Hardroxide
 $ cd Hardroxide
 $ cargo build --release -p hardroxide-cli
-$ ./target/release/hardroxide --help
+$ export PATH=$PWD/target/release:$PATH
+$ hardroxide --help
 ```
+
+(Once the crates are published, `cargo install hardroxide-cli` installs the
+`hardroxide` binary directly.)
 
 ## Inspect a design
 
@@ -43,48 +54,65 @@ $ hardroxide generate fixtures/pynq_z2_gpio.xsa -o my_design \
 $ cd my_design && cargo build
 ```
 
-`--hardroxide-path` makes the crate depend on the runtime crates by path
-(use it while they are unpublished; the path must be valid wherever you build
-the crate).
+`--hardroxide-path` makes the crate depend on the runtime crates in your checkout
+(use it until they are published; the path is made absolute for you). The crate
+builds on your workstation, where it can be tested against a mock backend
+([Using a generated crate](using.md)); it can only reach hardware on the board.
 
 ## Build for the board
 
 The PYNQ-Z2's ARM cores run 32-bit Linux, so binaries for it use the
-`armv7-unknown-linux-gnueabihf` target. Either build **on the board** (install
-Rust there with `rustup`; slow but no setup), or **cross-compile** on your
-workstation:
+`armv7-unknown-linux-gnueabihf` target. Either build **on the board** (install Rust
+there with `rustup`; slow but no setup), or **cross-compile** on your workstation:
 
 ```console
 $ rustup target add armv7-unknown-linux-gnueabihf
 $ sudo apt install gcc-arm-linux-gnueabihf      # Debian/Ubuntu cross linker
 ```
 
-Tell Cargo which linker to use, in `my_design/.cargo/config.toml`:
+The simplest way to build, copy and run is the helper script, which finds the
+linker for you (see [Board scripts](../reference/scripts.md)):
+
+```console
+$ export BOARD=xilinx@pynq
+$ scripts/board/run.sh my_design board_check
+```
+
+Doing it by hand: tell Cargo which linker to use in `my_design/.cargo/config.toml`,
 
 ```toml
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
 ```
 
-Then build, copy and run (the board's default user on the PYNQ image is
-`xilinx`; root is needed for `/dev/mem` and the FPGA manager):
+then build, copy and run (the board's default user on the PYNQ image is `xilinx`;
+root is needed for `/dev/mem` and the FPGA manager):
 
 ```console
+$ cd my_design
 $ cargo build --release --target armv7-unknown-linux-gnueabihf --example board_check
 $ scp target/armv7-unknown-linux-gnueabihf/release/examples/board_check xilinx@pynq:
-$ ssh xilinx@pynq sudo ./board_check
+$ ssh -t xilinx@pynq sudo ./board_check
 ```
 
-A cross-compiled binary links against the workstation's glibc. If the board
-reports `GLIBC_2.xx not found`, its glibc is older than your toolchain's:
-build on the board, or build against an older glibc (for example
-`cargo zigbuild --target armv7-unknown-linux-gnueabihf.2.35`, matching the
-board's `ldd --version`). Cross-building and running on the board is not
-yet verified ([G8](../08-verification-gaps.md)).
+Before the first run, free the PL of whatever the stock image keeps using it for
+([Running on hardware](hardware.md#one-time-board-setup)); `load()` refuses
+otherwise.
 
-You can run the runtime crates' own tests as armv7 binaries without a board,
-under `qemu-arm` user-mode emulation: `scripts/test-armv7.sh` (needs
+**C library versions.** A cross-compiled binary links against your toolchain's glibc.
+Binaries built with the Vitis-bundled gcc used only glibc symbols up to 2.34 and ran
+on the board's glibc 2.35. If the board reports `GLIBC_2.xx not found`, its glibc is
+older than your toolchain's: build on the board, or build against an older glibc
+(for example `cargo zigbuild --target armv7-unknown-linux-gnueabihf.2.35`, matching
+the board's `ldd --version`).
+
+You can run the runtime crates' own tests as armv7 binaries without a board, under
+`qemu-arm` user-mode emulation: `scripts/test-armv7.sh` (needs
 `gcc-arm-linux-gnueabihf` and `qemu-user`, or the copies bundled with Vitis).
 
-Next: [How it works](concepts.md), or straight to
-[Generating a crate](generating.md).
+## Next
+
+- **Learn by doing:** [Tutorial 1: LEDs, buttons and switches](../tutorials/01-gpio.md).
+- **The whole picture:** [The workflow](workflow.md), then
+  [How it works](concepts.md).
+- **Your own design:** [Exporting an XSA from Vivado](vivado.md).

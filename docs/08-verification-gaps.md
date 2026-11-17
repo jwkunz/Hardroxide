@@ -47,6 +47,7 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | G10 DMA | **Passes**: loopback matches for lengths from 4 bytes to 1 MiB, 200 back-to-back 4 KiB transfers with 0 mismatches, 400 MB/s on a 1 MiB transfer (the limit of a 32-bit stream at 100 MHz); interrupt-driven completion works on both channels and re-arms. Found and fixed: after a timeout on an S2MM channel with no sender, the channel ignored the stop request (`StuckChannel`, then `Busy`); `halt` now soft-resets the core and the next transfer works |
 | G9 HLS pointer arguments | **Passes**: `scale` reads one `u-dma-buf` buffer and writes another through `set_*_buffer` (256 elements, 0 mismatches) |
 | Real third-party designs | The PYNQ `base` overlay (about 70 IP instances, four MicroBlaze subsystems, video, DMA) and `logictools` generate crates that cross-build for armv7 without warnings. Found and fixed: the parser used every master's address map, giving MicroBlaze-private peripherals bogus PS addresses that collided (four different instances at `0x41C00000`), which could hang the CPU; only the PS's own map is used now. The base crate then ran on the board: all four FCLKs read back (100, 142.857, 200, 100 MHz), switches, buttons and LEDs work through typed GPIO drivers, the system interrupt controller reads, and the generated BRAM test passes on a 64 KiB MicroBlaze memory |
+| G17 HP port wedge | Observed twice after many design switches; cleared only by power cycle; cause not found (see G17) |
 | G16 guard | **Passes**: with `gpio-xilinx` rebound to `41200000.gpio`, `load()` refuses with `PlInUse` naming the device and does not touch the PL; after unbinding it loads. Passive `uio_pdrv_genirq` devices at PL addresses are correctly ignored |
 | Overlay trigger types | A GIC line keeps the trigger type (level/edge) of the first overlay that mapped it, even after the overlay is removed; a later overlay with the other type fails with `irq: type mismatch, failed to map hwirq-N` and the UIO device then returns EIO. Switching between designs with different types on the same line needs a reboot |
 | `u-dma-buf` | The image does not ship it; built for this kernel, see [Running on hardware](guide/hardware.md#building-u-dma-buf) |
@@ -278,6 +279,46 @@ touches no IP register.
   platform device at a PL address (`FpgaPaths::refuse_bound_pl_drivers`, default
   on). Unit-tested on a fake sysfs tree; its detection on the real board is
   checked in the board results below.
+
+### G17. The PS-PL HP port can wedge after many design switches
+Status: **observed, cause unknown.**
+- **Observed** on 2026-11-16, twice, on a PYNQ-Z2 (kernel 6.6.10, stock `fpga_manager`),
+  after tens of reprogrammings that alternated between designs, including two
+  that use an `S_AXI_HP0` master (`pynq_z2_dma_loopback`, `pynq_z2_hls_scale`):
+  - transfers through HP0 complete without error but **lose the last 16 words of a
+    write** (the receive buffer keeps its old fill value for the final 64 bytes; the
+    data never arrives later), and an HLS `m_axi` kernel can time out or write
+    shifted data;
+  - or the AXI DMA fails its soft reset (`DmaIpError::StuckChannel`) straight after
+    `load()`;
+  - in that state `AFI_WRDEBUG` (`0xF8008024`) read `2` (one write command in flight
+    between the HP port and the memory switch) and `AFI_WRDATAFIFO_LEVEL`
+    (`0xF8008020`) read `2` (one stuck 64-bit beat); both read `0` when healthy.
+- The state **persisted across reprogramming** and across loading a different design,
+  and cleared only by a **power cycle**. A software `reboot` did not bring the board
+  back at all in that state.
+- **Not the cause** (tried): cache attributes of the buffers (`sync_mode=1`,
+  uncached), the HP port width (64-bit in these designs and in the AFI registers),
+  holding the PL in reset while programming, aborting a DMA mid-transfer, the DMA
+  stop-fallback soft reset, or loading the base overlay.
+- **Not reproduced** on a clean boot in a short alternation of the same designs (dozens
+  of switches ran clean), and it returned in a long mixed rotation (base overlay,
+  interrupt-controller, DMA, HLS pointer and scalar designs) after about twenty
+  switches. The register evidence says a PL master vanished in the middle of a write
+  burst; the Linux FPGA manager enables the PL-to-PS level shifters while the PL is still
+  being configured, which is a plausible way for a spurious beat to enter the AFI
+  FIFO, but this was not confirmed.
+- **Unrelated freeze found while investigating:** reading the AFI FIFO-level registers
+  when the HP port clock is not running hangs the CPU (the register documentation says
+  so). Do not read them unless the design clocks the HP port. Hardroxide never does.
+- **Advice:** treat it as a property of repeated PL reprogramming on this platform.
+  Reprogram as seldom as practical (one `Design::load()` per process, keep one design
+  across runs), and if DMA or `m_axi` results look wrong, or `StuckChannel` appears
+  right after load, power-cycle the board before debugging your logic. The DMA
+  driver's error message says so.
+- **Next:** a stress script around `fixtures/board_tests/` that switches designs and
+  checks a known transfer each time would find a trigger; a library-level mitigation
+  needs the actual cause.
 
 ## Design gaps (implemented partially or not at all)
 

@@ -1,10 +1,10 @@
 # Running on hardware
 
-Several drivers have been run on a board (see the results table in
-[Verification gaps](../08-verification-gaps.md#board-results)); the rest have
-not. Before relying on anything, work
-through [Verification gaps](../08-verification-gaps.md) **in order**: later
-checks assume the earlier ones passed.
+Most drivers have been run on a PYNQ-Z2 (see the results table in
+[Verification gaps](../08-verification-gaps.md#board-results)); the checks that
+remain are listed there. If you want a guided run through real designs with real output,
+use the [tutorials](../tutorials/index.md); this page is the reference for setting up
+the board and fixing problems.
 
 ## One-time board setup
 
@@ -12,18 +12,24 @@ On the stock PYNQ-Z2 image, as root:
 
 - the FPGA manager must exist: `ls /sys/class/fpga_manager/fpga0`;
 - `/dev/mem` must be usable by root (it is on the PYNQ image);
-- if the image loads its own overlay at boot (the PYNQ-Z2 "base" design, or a
-  vendor image that drives HDMI/LEDs from the PL), **stop everything using it
-  first**. Reprogramming the PL under a live driver froze a test board
-  completely (see [G16](../08-verification-gaps.md)). As root:
+- **free the PL.** The stock image keeps services and drivers attached to the
+  programmable logic (the HDMI display, the board's GPIOs, `zocl`). Reprogramming
+  the PL under a live driver froze a test board completely (see
+  [G16](../08-verification-gaps.md)), and `load()` refuses to do it (`PlInUse`).
+  Run [`scripts/board/prep.sh`](../reference/scripts.md) on the board, as root, once
+  per boot **after it has finished starting** (late services can bind drivers again;
+  if `PlInUse` appears, run it again):
+
   ```console
-  # systemctl stop panther-desktop jupyter        # whatever uses the PL on your image
-  # rmmod panther_drm panther_audio zocl          # check `lsmod`
-  # for d in /sys/bus/platform/devices/4*; do echo $(basename $d) > $d/driver/unbind; done
+  $ scp scripts/board/*.sh xilinx@pynq: && ssh -t xilinx@pynq sudo sh prep.sh
   ```
+
+  It stops the services, removes the kernel modules and unbinds the drivers on PL
+  addresses, and says what it could not. A reboot restores the stock desktop.
 - for DMA or HLS pointer arguments: load `u-dma-buf` with one buffer per
   `/dev/udmabufN` you plan to use;
-- for interrupts: apply the generated `interrupts.dtso` (see
+- for interrupts: apply the generated `interrupts.dtso` with
+  [`scripts/board/overlay.sh`](../reference/scripts.md) (see
   [Interrupts](interrupts.md#one-time-setup-on-the-board)).
 
 ### Building u-dma-buf
@@ -31,7 +37,8 @@ On the stock PYNQ-Z2 image, as root:
 DMA and HLS pointer arguments need the
 [`u-dma-buf`](https://github.com/ikwzm/udmabuf) kernel module, which the image
 used for validation did not include. Its headers-only `build` directory cannot
-build modules on the board, so cross-build on the host against the same kernel:
+build modules on the board, so cross-build on the host against the same kernel (you need `flex`, `bison`, `make`
+and an ARM cross gcc on the host):
 
 1. Clone the matching `linux-xlnx` tag (`xilinx-v2024.1` for kernel `6.6.10-xilinx-v2024.1`),
    and copy the board's `/proc/config.gz`, `Module.symvers`,
@@ -109,9 +116,11 @@ image version.
 | `AlreadyLoaded` | a second `Design::load()` in the same process | keep one `Design` and pass references around |
 | `IrqError::NotFound { .. }` | the interrupt overlay is not applied, or the node did not bind | apply `interrupts.dtso`; `cat /sys/class/uio/uio*/name` |
 | A UIO device returns `EIO` and `dmesg` shows `irq: type mismatch, failed to map hwirq-N` | an earlier overlay mapped that GIC line with the other trigger type (level vs edge); the mapping survives overlay removal | reboot the board before applying the new overlay |
-| A UIO device returns `EIO` and `dmesg` is silent | the base design already mapped that GIC line (SPI 29 = `IRQ_F2P[0]` on the validated image) with the other trigger type | move the edge-triggered core to another `IRQ_F2P` bit, or reboot with the base overlay disabled |
-| `Fpga(PlInUse(..))` | a kernel driver is bound to a PL address; reprogramming under it can freeze the CPU | stop and unbind it (One-time board setup) |
+| A UIO device returns `EIO`, and `dmesg` shows `genirq: Flags mismatch irq N ... vs. ... (fabric)` and `uio_pdrv_genirq: probe ... failed with error -16` | the image's own device tree already claims that PL interrupt line (SPI 29, `IRQ_F2P[0]` on the validated image) with a different trigger type | move the edge-triggered core to a higher `IRQ_F2P` bit, or reboot with the base overlay disabled |
+| `Fpga(PlInUse(..))` | a kernel driver is bound to a PL address; reprogramming under it can freeze the CPU | run `prep.sh` ([setup](#one-time-board-setup)); if it appeared right after power-up, a late service rebound a driver, so run `prep.sh` again once the board has settled |
 | `IrqError::ViaController { .. }` | the interrupt goes through an AXI interrupt controller | open the controller's `IRQ_IRQ` and use `AxiIntc::wait` |
 | The board freezes during `board_check` step 1 | the PL is in use by another driver (base overlay, HDMI, `zocl`) while it is reprogrammed | stop and unbind them first (One-time board setup); power-cycle to recover |
+| The board stops answering (SSH times out, serial silent) | usually reprogramming under a live driver, or an access to an unclocked PL (never read PS-PL HP-port registers unless their clock runs) | power-cycle it; a software `reboot` did not recover a board in this state |
+| A DMA or HLS transfer silently loses its last 16 words, or a DMA call fails with `StuckChannel` right after loading, after many design switches | the PS-PL HP port is wedged by a half-finished write burst (see [G17](../08-verification-gaps.md#g17-the-ps-pl-hp-port-can-wedge-after-many-design-switches)) | power-cycle the board |
 | `Udmabuf::open` fails | `u-dma-buf` not loaded, or fewer buffers than expected | `ls /dev/udmabuf*` |
 | A driver call returns `Timeout` | the IP never signalled completion: wrong clock, unconnected stream, or the core is held in reset | the IP's status registers through `regs()`, and G3 (PL resets) |

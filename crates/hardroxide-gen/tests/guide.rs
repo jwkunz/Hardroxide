@@ -1,4 +1,4 @@
-//! Compiles the Rust examples in the user guide against freshly generated
+//! Compiles the Rust examples in the user guide and the tutorials against freshly generated
 //! crates. A block tagged `rust,ignore,fixture=<name>` is wrapped in a `main`
 //! (unless it already defines one), with `# ` hidden lines as setup, and
 //! `my_design` replaced by the generated crate's name. Type-checked only.
@@ -19,8 +19,9 @@ fn root() -> PathBuf {
 /// (fixture, source) for every tagged block in the guide.
 fn guide_blocks() -> Vec<(String, String)> {
     let mut out = Vec::new();
-    let mut files: Vec<_> = std::fs::read_dir(root().join("docs/guide"))
-        .unwrap()
+    let mut files: Vec<PathBuf> = ["docs/guide", "docs/tutorials"]
+        .iter()
+        .flat_map(|d| std::fs::read_dir(root().join(d)).unwrap())
         .map(|e| e.unwrap().path())
         .collect();
     files.sort();

@@ -1,3 +1,7 @@
+//! Interrupts through an AXI interrupt controller: the Timer's interrupt is
+//! input 0 of `axi_intc_0`, whose single output reaches the PS. Wait on the
+//! controller, see which input is pending, acknowledge it. Needs
+//! `interrupts.dtso` applied.
 use std::time::{Duration, Instant};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let d = design_1::Design::load()?;

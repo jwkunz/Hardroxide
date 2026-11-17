@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+- New tutorials (eleven, one per test design) with output captured on a PYNQ-Z2, a
+  page on the end-to-end workflow, and a page on exporting an XSA from Vivado.
+- Stale statements corrected (hardware status, cross-building).
+- Known issue G17 (PS-PL HP port can wedge after many design switches) documented.
+
+### Tooling
+- `scripts/board/{prep,overlay,run}.sh`: free the PL, apply the interrupt overlay,
+  cross-build and run on the board.
+- `fixtures/variants/` (update tutorial) and a test that compiles every program in
+  `fixtures/board_tests/` against a freshly generated crate.
+- The DMA `StuckChannel` error now says what to do about a wedged HP port.
+
 ## 1.0.0 (2026-11-16)
 
 First release.

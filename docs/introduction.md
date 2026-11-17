@@ -33,29 +33,41 @@ First target: PYNQ-Z2 (Zynq-7000, ARMv7) with Vivado 2025.2, running under the
 stock PYNQ Linux image. The runtime lives in Linux userspace on the PS and
 manages the PL only.
 
+## Where to start
+
+| You want to | Go to |
+|---|---|
+| see it work, step by step, with real output | [Tutorials](tutorials/index.md): one per test design, from LEDs to DMA to a 70-IP third-party design |
+| understand the whole flow in one page | [The workflow](guide/workflow.md) |
+| use your own Vivado design | [Exporting an XSA from Vivado](guide/vivado.md), then [The workflow](guide/workflow.md) |
+| install the tool and the toolchain | [Getting started](guide/getting-started.md) |
+| look up an API, the CLI or a driver | [Reference](reference/cli.md) |
+| know what has been verified on hardware | [Verification gaps](08-verification-gaps.md) |
+
 ## How this book is organised
 
-- **User Guide**: install, generate, use and update a crate. New readers:
-  [Getting started](guide/getting-started.md), then
-  [How it works](guide/concepts.md).
-- **Reference**: the authoritative description of the CLI, the generated
-  crate, and every public runtime crate. Function signatures in the reference
-  chapters are checked against the source by the test suite, and the CLI help
-  text against the real `--help` output, so they cannot silently drift. Rustdoc
-  (`cargo doc`, published under [`api/`](api/hardroxide_hwh/index.html)) is
-  the generated companion for exhaustive type listings.
+- **User Guide**: install, generate, use and update a crate; the workflow, and how
+  to prepare a board.
+- **Tutorials**: eleven hands-on walk-throughs, each on one of the test designs in
+  `fixtures/`, with output captured on a PYNQ-Z2.
+- **Reference**: the authoritative description of the CLI, the generated crate, the
+  board scripts and every public runtime crate. Function signatures in the reference
+  chapters are checked against the source by the test suite, and the CLI help text
+  against the real `--help` output, so they cannot silently drift. Rustdoc
+  (`cargo doc`, published under [`api/`](api/hardroxide_hwh/index.html)) is the
+  generated companion for exhaustive type listings.
 - **Design**: the specifications and decision records behind the project.
-- **Status**: what real Vivado output looks like (*HWH findings*) and what has
-  **not** yet been verified on hardware (*Verification gaps*).
+- **Status**: what real Vivado output looks like (*HWH findings*) and what has and
+  has not been verified on hardware (*Verification gaps*).
 
 > **Hardware status.** Generation, bitstream loading, clocks, interrupts and
-> drivers for GPIO, HLS (scalar and pointer arguments), DMA, Timer, IIC, SPI,
-> the AXI interrupt controller, BRAM, UART Lite and the AXI4-Stream FIFO are
-> implemented and tested without a board: mock MMIO, golden snapshots,
-> register maps checked against real Vivado 2025.2 output, and the runtime
-> tests run as 32-bit ARM binaries under emulation. Nothing has been validated
-> on a PYNQ-Z2 yet. Read [Verification gaps](08-verification-gaps.md) before
-> trusting any driver on real hardware.
+> the drivers for GPIO, HLS (scalar and pointer arguments), DMA, Timer, IIC, SPI,
+> the AXI interrupt controller, BRAM, UART Lite and the AXI4-Stream FIFO have been run
+> on a PYNQ-Z2, as has a crate generated from the PYNQ base overlay. Hardware testing
+> found and fixed several driver bugs and one generator bug, and turned up one
+> unexplained platform problem (a wedged HP port after many design switches, [G17](08-verification-gaps.md));
+> everything is recorded in [Verification gaps](08-verification-gaps.md). Zynq-7000
+> only; Vivado 2025.2 is the version exercised on hardware.
 
 ## Crates
 

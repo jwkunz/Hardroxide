@@ -1,3 +1,6 @@
+//! Wait for the AXI Timer's interrupt instead of polling: start a 50 ms
+//! one-shot with the interrupt enabled, block on the UIO device, repeat three
+//! times. Needs `interrupts.dtso` applied (scripts/board/overlay.sh).
 use std::time::{Duration, Instant};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let d = design_1::Design::load()?;
@@ -8,7 +11,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let t0 = Instant::now();
         t.start(t.ticks_for_ns(50_000_000) as u32, false, true)?;
         let r = irq.wait(Some(Duration::from_secs(2)))?;
-        println!("round {round}: event {:?} after {:?}, expired={}", r, t0.elapsed(), t.expired()?);
+        println!(
+            "round {round}: event {:?} after {:?}, expired={}",
+            r,
+            t0.elapsed(),
+            t.expired()?
+        );
         t.clear()?;
     }
     Ok(())

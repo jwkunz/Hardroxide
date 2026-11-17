@@ -18,6 +18,21 @@ board-accurate; the PL side is).
 | `pynq_z2_intc.xsa` | AXI Timer + IIC + GPIO interrupts combined by an AXI Interrupt Controller (`xlconcat` → `intr`), whose `irq` drives `IRQ_F2P[0]`. GPIO/IIC pins unconstrained | `build_pynq_z2_intc.tcl` |
 | `pynq_z2_peripherals.xsa` | AXI Timer + IIC + Quad SPI; three interrupts via `xlconcat`. IIC/SPI pins unconstrained | `build_pynq_z2_peripherals.tcl` |
 
+Variants for the update tutorial are in `fixtures/variants/`: `pynq_z2_peripherals_rev2.xsa`
+is the peripherals design rebuilt with a different bitstream `USERID` (same interface:
+`hardroxide update` accepts it), and `pynq_z2_peripherals_50mhz.xsa` has FCLK0 at 50 MHz
+and FCLK1 at 142.857 MHz (a different interface: `update` refuses it without `--regen`).
+They come from `build_pynq_z2_peripherals.tcl` with, respectively,
+`set_property BITSTREAM.CONFIG.USERID 0xC0FFEE42 [current_design]` added to the
+write-bitstream pre-hook and `PCW_FPGA0_PERIPHERAL_FREQMHZ {50}` /
+`PCW_EN_CLK1_PORT {1}` / `PCW_FPGA1_PERIPHERAL_FREQMHZ {142.857}` in the PS7 settings.
+Real designs from other sources are in `fixtures/real/` (see its README).
+
+Each [tutorial](../tutorials/index.md) uses one of these designs and the matching
+programs in `fixtures/board_tests/`; `cargo test -p hardroxide-gen --test board_tests`
+compiles every one of those programs against a freshly generated crate, so the
+tutorial code cannot drift from the API.
+
 Rebuild one (Vivado 2025.2 required; not needed to use Hardroxide):
 
 ```console

@@ -64,7 +64,11 @@ pub enum DmaIpError {
     Hardware(u32),
     #[error("timed out after {0:?} (channel halted)")]
     Timeout(Duration),
-    #[error("channel did not halt/reset in time")]
+    #[error(
+        "channel did not halt/reset in time. If this happens right after loading a design, the \
+         PS-PL HP port may be wedged by an earlier reprogramming (seen on a PYNQ-Z2 after many \
+         design switches); power-cycle the board (docs/08-verification-gaps.md, G17)"
+    )]
     StuckChannel,
 }
 

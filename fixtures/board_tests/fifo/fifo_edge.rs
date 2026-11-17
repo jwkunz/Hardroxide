@@ -1,3 +1,7 @@
+//! AXI4-Stream FIFO: packet lengths from 1 to 65 bytes (lengths come back
+//! rounded up to whole words), the largest packet, refusing an oversize packet,
+//! status-flag behaviour, and interrupt-driven receive. The stream transmit port
+//! is looped back to the receive port in this design.
 use hardroxide_ip::fifo::FifoError;
 use std::time::Duration;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -5,13 +9,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let f = &d.axi_fifo_mm_s_0;
     f.reset()?;
     let t = Duration::from_millis(500);
-    println!("tx vacancy {} words, rx occupancy {}", f.tx_vacancy()?, f.rx_occupancy()?);
+    println!(
+        "tx vacancy {} words, rx occupancy {}",
+        f.tx_vacancy()?,
+        f.rx_occupancy()?
+    );
     // odd and small lengths
     for len in [1usize, 2, 3, 4, 5, 7, 8, 9, 63, 64, 65] {
         let p: Vec<u8> = (0..len as u32).map(|i| (i * 7 + 3) as u8).collect();
         f.send(&p)?;
         match f.recv(t)? {
-            Some(r) => println!("len {len:>2}: got {:>2} bytes, prefix ok={}, padding zero={}", r.len(), r.starts_with(&p), r[p.len().min(r.len())..].iter().all(|&b| b == 0)),
+            Some(r) => println!(
+                "len {len:>2}: got {:>2} bytes, prefix ok={}, padding zero={}",
+                r.len(),
+                r.starts_with(&p),
+                r[p.len().min(r.len())..].iter().all(|&b| b == 0)
+            ),
             None => println!("len {len}: NO PACKET"),
         }
     }
@@ -25,10 +38,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let before = (f.tx_vacancy()?, f.rx_occupancy()?);
     let big = vec![0u8; max + 1];
     match f.send(&big) {
-        Err(FifoError::NoRoom { len, need, have }) => println!("oversize refused: len {len} need {need} have {have}"),
+        Err(FifoError::NoRoom { len, need, have }) => {
+            println!("oversize refused: len {len} need {need} have {have}")
+        }
         other => println!("oversize NOT refused: {other:?}"),
     }
-    println!("vacancy/occupancy before {before:?} after {:?}, stray packet: {:?}", (f.tx_vacancy()?, f.rx_occupancy()?), f.recv(Duration::from_millis(100))?);
+    println!(
+        "vacancy/occupancy before {before:?} after {:?}, stray packet: {:?}",
+        (f.tx_vacancy()?, f.rx_occupancy()?),
+        f.recv(Duration::from_millis(100))?
+    );
     // ISR semantics
     f.clear_interrupts(0xFFFF_FFFF)?;
     println!("ISR after clear-all: {:#x}", f.interrupt_status()?);
@@ -51,8 +70,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let isr = f.interrupt_status()?;
         let p = f.try_recv()?;
         f.clear_interrupts(isr)?;
-        println!("round {round}: event {ev:?}, ISR {isr:#x}, packet {:?}", p.map(|p| p.len()));
+        println!(
+            "round {round}: event {ev:?}, ISR {isr:#x}, packet {:?}",
+            p.map(|p| p.len())
+        );
     }
-    println!("idle wait -> {:?}", irq.wait(Some(Duration::from_millis(300)))?);
+    println!(
+        "idle wait -> {:?}",
+        irq.wait(Some(Duration::from_millis(300)))?
+    );
     Ok(())
 }

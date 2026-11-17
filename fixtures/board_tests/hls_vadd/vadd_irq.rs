@@ -1,3 +1,5 @@
+//! Start the HLS `vadd` kernel and wait for its done interrupt, three times.
+//! Needs `interrupts.dtso` applied (scripts/board/overlay.sh).
 use std::time::Duration;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let d = design_1::Design::load()?;
@@ -5,7 +7,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let irq = design_1::pac::vadd_0::IRQ_INTERRUPT.open()?;
     v.enable_done_interrupt()?;
     for i in 0..3u32 {
-        v.set_a(i)?; v.set_b(10)?;
+        v.set_a(i)?;
+        v.set_b(10)?;
         v.start()?;
         let r = irq.wait(Some(Duration::from_secs(2)))?;
         let flags = v.ack_interrupts()?;

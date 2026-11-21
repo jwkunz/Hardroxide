@@ -66,7 +66,7 @@
 - [Releasing](release.md)
 - [ADR 0001: MMIO and DMA model](decisions/0001-mmio-and-dma-memory-model.md)
 - [ADR 0002: Bitstream embedding and updates](decisions/0002-bitstream-embedding-and-updates.md)
-- [ADR 0003: Bare-metal and RTOS platforms (proposed)](decisions/0003-bare-metal-and-rtos-platforms.md)
+- [ADR 0003: Bare-metal and RTOS platforms](decisions/0003-bare-metal-and-rtos-platforms.md)
 
 # Status
 

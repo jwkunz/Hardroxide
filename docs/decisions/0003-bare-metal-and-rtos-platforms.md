@@ -1,7 +1,7 @@
 # ADR 0003: Bare-metal and RTOS platforms
 
-Status: **proposed** (decisions below are the maintainer's; the plan is a draft
-for review). Supersedes, for the new platforms only, the scope rule "PL only;
+Status: **accepted** 2026-11-20 (the decisions below are the maintainer's; the phase
+plan may be revised as work proceeds). Supersedes, for the new platforms only, the scope rule "PL only;
 Linux owns PS peripherals".
 
 ## Decision

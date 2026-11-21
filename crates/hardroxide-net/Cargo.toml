@@ -1,0 +1,12 @@
+[package]
+name = "hardroxide-net"
+description = "A small IPv4 stack written for Hardroxide: Ethernet, ARP, ICMP echo, UDP, DHCP, TCP and an HTTP/1.1 server; no_std, no allocation, no dependencies"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true

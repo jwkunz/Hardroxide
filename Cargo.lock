@@ -329,6 +329,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-net"
+version = "2.4.0"
+
+[[package]]
 name = "hardroxide-ps7"
 version = "2.4.0"
 dependencies = [

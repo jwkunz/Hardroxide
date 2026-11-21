@@ -129,3 +129,19 @@ and writes are recorded in `log()` as `MockAccess::Read/Write { addr, value }`.
 `set_write1_clear_mask` makes the masked bits of a register write-1-to-clear
 (a write clears the bits set in the value; other bits store normally), for
 modelling status registers.
+
+## Block devices
+
+```rust,ignore
+pub const BLOCK_SIZE: usize = 512;
+pub type Block = [u8; BLOCK_SIZE];
+pub trait BlockDevice
+pub enum SliceDiskError
+pub struct SliceDisk<'a>
+pub fn new(bytes: &'a mut [u8]) -> Self
+```
+
+`hardroxide_mmio::block`: storage addressed in 512-byte blocks, the meeting point of a card driver and a file system, so neither depends on the other.
+`BlockDevice` has an associated `Error`, `block_count()`, `read_blocks(lba, buf)`, `write_blocks(lba, buf)` (the buffer is a whole number of blocks, may be
+many) and `flush()` (default: nothing). `SliceDisk` is a disk in memory over a byte slice, used by the tests of [`hardroxide-fat`](fat.md) and for images
+loaded into RAM. The PS SD controller driver ([`ps7::sd`](ps7.md#sd-card-controller)) implements the trait.

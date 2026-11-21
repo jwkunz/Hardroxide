@@ -13,3 +13,4 @@ boot mode. Do [Bare metal 1](../baremetal/01-jtag.md) first.
 | 1 | [Lights and buttons](01-base-lights.md) | the base overlay on bare metal and under the kernel; hardware interrupts through the interrupt controller; `IrqEvent` |
 | 2 | [Pixels on the HDMI output](02-hdmi.md) | the HDMI pipeline, `hardroxide-video` and `hardroxide-gfx`, double buffering |
 | 3 | [Sound](03-audio.md) | the ADAU1761 codec, WAV playback, synthesis, recording, a one-cable loopback self-test |
+| 4 | [An SD card and files](04-sd.md) | the SD host controller, the block trait, FAT32, a data logger, WAV and BMP files from the card |

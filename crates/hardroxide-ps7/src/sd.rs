@@ -521,7 +521,13 @@ fn cid_manufacturer(cid: &[u32; 4]) -> u8 {
 }
 
 fn cid_product(cid: &[u32; 4]) -> [u8; 5] {
-    [(cid[2] >> 24) as u8, (cid[2] >> 16) as u8, (cid[2] >> 8) as u8, cid[2] as u8, (cid[1] >> 24) as u8]
+    [
+        (cid[2] >> 24) as u8,
+        (cid[2] >> 16) as u8,
+        (cid[2] >> 8) as u8,
+        cid[2] as u8,
+        (cid[1] >> 24) as u8,
+    ]
 }
 
 fn cid_serial(cid: &[u32; 4]) -> u32 {

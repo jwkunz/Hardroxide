@@ -30,7 +30,12 @@ fn u16le(b: &[u8], i: usize) -> Option<u16> {
     Some(u16::from_le_bytes([*b.get(i)?, *b.get(i + 1)?]))
 }
 fn u32le(b: &[u8], i: usize) -> Option<u32> {
-    Some(u32::from_le_bytes([*b.get(i)?, *b.get(i + 1)?, *b.get(i + 2)?, *b.get(i + 3)?]))
+    Some(u32::from_le_bytes([
+        *b.get(i)?,
+        *b.get(i + 1)?,
+        *b.get(i + 2)?,
+        *b.get(i + 3)?,
+    ]))
 }
 
 impl BmpInfo {
@@ -48,7 +53,11 @@ impl BmpInfo {
         let height = u32le(header, 22).ok_or(BmpError::Truncated)? as i32;
         let bits = u16le(header, 28).ok_or(BmpError::Truncated)?;
         let compression = u32le(header, 30).ok_or(BmpError::Truncated)?;
-        if width <= 0 || height == 0 || !matches!(bits, 24 | 32) || !(compression == 0 || compression == 3 && bits == 32) {
+        if width <= 0
+            || height == 0
+            || !matches!(bits, 24 | 32)
+            || !(compression == 0 || compression == 3 && bits == 32)
+        {
             return Err(BmpError::Unsupported);
         }
         Ok(BmpInfo {
@@ -63,7 +72,11 @@ impl BmpInfo {
 
     /// The stored row that holds image row `y` (counting from the top).
     pub fn stored_row(&self, y: u32) -> u32 {
-        if self.bottom_up { self.height - 1 - y } else { y }
+        if self.bottom_up {
+            self.height - 1 - y
+        } else {
+            y
+        }
     }
 
     /// File offset of image row `y` (from the top).
@@ -90,7 +103,9 @@ pub fn decode(file: &[u8], out: &mut [u32]) -> Result<(u32, u32), BmpError> {
     }
     for y in 0..h {
         let start = info.row_offset(y as u32) as usize;
-        let row = file.get(start..start + w * usize::from(info.bits_per_pixel / 8)).ok_or(BmpError::Truncated)?;
+        let row = file
+            .get(start..start + w * usize::from(info.bits_per_pixel / 8))
+            .ok_or(BmpError::Truncated)?;
         info.convert_row(row, &mut out[y * w..(y + 1) * w]);
     }
     Ok((info.width, info.height))
@@ -150,7 +165,10 @@ mod tests {
         let f = encode(5, 3, &px);
         assert_eq!(f.len(), 54 + 16 * 3);
         let info = BmpInfo::parse(&f).unwrap();
-        assert_eq!((info.width, info.height, info.bits_per_pixel, info.row_bytes), (5, 3, 24, 16));
+        assert_eq!(
+            (info.width, info.height, info.bits_per_pixel, info.row_bytes),
+            (5, 3, 24, 16)
+        );
         let mut out = std::vec![0u32; 15];
         assert_eq!(decode(&f, &mut out).unwrap(), (5, 3));
         assert_eq!(out, px);

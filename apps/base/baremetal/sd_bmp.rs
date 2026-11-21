@@ -1,7 +1,7 @@
 //! Base overlay, bare metal: save a picture from the screen to the SD card as a BMP, and show one from the card.
 //!
 //! A test picture (colour bars, a gradient, text) is drawn and shown on the HDMI output at 1280x720. The program
-//! saves it to `/screen.bmp` (a standard 24-bit BMP, which any PC can open), blanks the screen, loads the file
+//! saves it to `/screen.bmp` (a standard 24-bit BMP), blanks the screen, loads the file
 //! back from the card row by row onto the screen, and compares every pixel with a fresh copy of the picture.
 //! The card must carry a FAT32 file system (`sd_erase_and_test` makes one). Needs `hardroxide-gfx`, `hardroxide-video`
 //! and `hardroxide-fat`. Base overlay application 16.

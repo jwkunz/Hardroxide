@@ -204,3 +204,41 @@ A transfer is at most one FIFO (16 bytes; longer is `I2cError::TooLong`), `write
 missing acknowledge is `I2cError::Nack(address)`.
 
 > **Verified on a PYNQ-Z2:** it configured the audio codec over the EMIO-routed I2C 1 (see [Verification gaps](../08-verification-gaps.md)). A bug found there: the `embedded-hal` `transaction` must call the controller's own `write`/`read`, not `self.write` (which resolves to the trait default and recurses).
+
+## SD card controller
+
+```rust,ignore
+pub enum SdError
+pub struct CardInfo
+pub fn clock_divisor(base_hz: u32, target_hz: u32) -> (u32, u32)
+pub fn csd_blocks(r: &[u32; 4]) -> u64
+pub struct SdHost<R: Mmio>
+pub fn new(regs: R, base_hz: u32) -> Self
+pub fn regs(&self) -> &R
+pub fn info(&self) -> Option<&CardInfo>
+pub fn card_present(&self) -> Result<bool, MmioError>
+pub fn init(&mut self) -> Result<CardInfo, SdError>
+pub fn init_ignoring_card_detect(&mut self) -> Result<CardInfo, SdError>
+pub fn read(&mut self, lba: u64, buf: &mut [u8]) -> Result<(), SdError>
+pub fn write(&mut self, lba: u64, buf: &[u8]) -> Result<(), SdError>
+pub fn sdio_ref_hz(slcr: &impl Mmio, ps_clk_hz: u64) -> Result<u64>
+```
+
+`hardroxide_ps7::sd`: the Zynq's SD/SDIO host controller (`map::SDIO0_BASE`, `0xE010_0000`; `SDIO1_BASE` is `0xE010_1000`), an Arasan SDHCI 2.0 with the
+standard register set, driven by polling and programmed I/O through the buffer data port (no DMA, no interrupts). `SdHost::new(regs, base_hz)` takes the
+mapped registers and the controller's input clock (`clocks::sdio_ref_hz(&slcr, 50_000_000)`, 50 MHz on the PYNQ-Z2). `init` does the whole card
+bring-up: it applies the 3.3 V card power, runs the identification at 400 kHz (CMD0, CMD8, ACMD41 with the high-capacity bit, CMD2, CMD3, CMD9, CMD7),
+switches the bus to four bits and the clock to 25 MHz, and returns a `CardInfo` (capacity in 512-byte blocks, SDHC or standard capacity, the manufacturer,
+the five-character product name and the serial number from the CID, and the bus clock). `init_ignoring_card_detect` skips the card-detect pin, for a board
+whose pin is not wired. `read` and `write` move whole 512-byte blocks (any number per call) and wait for the card to leave its programming state after
+a write. `SdHost` implements [`BlockDevice`](mmio.md#block-devices), so it plugs straight into [`hardroxide-fat`](fat.md). The card is expected to be a
+standard SD card: SDSC, SDHC and SDXC work; MMC and eMMC do not. `SdError::NoResponse` means the card did not answer the first commands (a card that is not
+seated, a dead card or one that is not an SD card).
+
+> **Board requirement found on the PYNQ-Z2:** the SD card, the Ethernet PHY and the USB PHY are on **MIO bank 1, which the board supplies at 1.8 V**. The PS
+> configuration must say so (`ps7_init` sets `MIO_PIN_40` to `MIO_PIN_45` to `0x1280`, the 1.8 V input/output type); with the 3.3 V setting (`0x1680`) every
+> command timed out with a command-conflict error. The generator's board preset carries `PCW_PRESET_BANK0_VOLTAGE` and `PCW_PRESET_BANK1_VOLTAGE` for this.
+>
+> **Verified on a PYNQ-Z2** with a SanDisk 16 GB and a 32 GB SDHC card (see [Verification gaps](../08-verification-gaps.md)): initialisation at 25 MHz on four bits,
+> raw transfers of 1, 4 and 64 blocks, and 4 MiB files at about 1.6 MB/s written and 7.4 MB/s read. A Netac 8 GB microSD did not answer on the board or in a PC's card
+> reader, so it was not usable (the card or its adapter). Not run: 1-bit buses, SDSC cards, the second controller, cards that need a voltage switch (UHS).

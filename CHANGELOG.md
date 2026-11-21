@@ -2,18 +2,32 @@
 
 ## Unreleased
 
-### 2.3 (board-verified: playback, WAV, line-in loop, recording to memory)
-- `hardroxide-ps7`: the PS I2C controllers (`i2c`, also an `embedded-hal` I2C bus) and `clocks::cpu_1x_hz`.
-- `hardroxide-ip`: `AudioCodecCtrl`, the PYNQ audio codec controller (I2S, one frame each way, no FIFO).
-- `hardroxide-audio`: the ADAU1761 codec over I2C, WAV parsing and writing, tones, resampling, playback, recording and pass-through.
-- `apps/base`: `audio_tone`, `audio_wav`, `audio_record`, `audio_loopback` and a generated `chime.wav`.
+Applications on the PYNQ base overlay, versions 2.2 and 2.3 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
+version is 2.3.0, not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
 
-### 2.2 (board-verified at 800x600 to 1920x1080; 640x480 is an open item)
+### HDMI output and graphics (2.2)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
   reconfigurable pixel clock); the generator uses them for the base overlay's video cores.
 - `hardroxide-video`: display modes (640x480 to 1920x1080 at 60 Hz) and `Display`, the bring-up of the HDMI output.
 - `hardroxide-gfx`: a small 2D graphics library over a pixel buffer (shapes, blits, a 5x7 font).
-- `apps/base`: `video_demo` (bare metal) and `rt_video` (RTOS, paced by the frame interrupt).
+- `hardroxide-ps7`: `mem::set_non_cacheable`, for a buffer a PL master uses at a fixed address.
+- `apps/base`: `video_demo` (bare metal, 60 fps double buffering), `video_modes`, and `rt_video` (RTOS, paced by the frame interrupt).
+- Verified: 800x600, 1024x768, 1280x720, 1280x1024 and 1920x1080 display; 60 fps; `rt_video` frame interval within 10 us of 16.667 ms under load.
+  **Open item: 640x480 is rejected by the tested monitor.** The first run found, by reading the Linux desktop's registers over JTAG: the clock
+  generator core in the overlay has no reference-frequency register; the video DMA reaches DDR only at `0x10000000` to `0x1FFFFFFF`; the VDMA
+  start sequence and the timing controller's polarity and vsync values.
+
+### Audio (2.3)
+- `hardroxide-ps7`: the PS I2C controllers (`i2c`, also an `embedded-hal` I2C bus) and `clocks::cpu_1x_hz`.
+- `hardroxide-ip`: `AudioCodecCtrl`, the PYNQ audio codec controller (I2S, one frame each way, no FIFO).
+- `hardroxide-audio`: the ADAU1761 codec over I2C, WAV parsing and writing, tones, resampling, playback, recording, pass-through and full-duplex `play_record`.
+- `apps/base`: `audio_tone`, `audio_wav`, `audio_record`, `audio_loopback`, `audio_loopback_test`, `audio_record_test` and a generated `chime.wav`.
+- Verified: tones, WAV playback, a line-in loop with a cable from HPH OUT to LINE IN, recording to memory and playing it back, no missed samples.
+  Not run: `audio_record` and `audio_loopback` (they need a separate source and headphones), the microphone input, RTOS audio (not written).
+  Fixed on the board: unbounded recursion in the I2C `embedded-hal` impl; the missed-sample counter.
+
+### Tooling
+- `scripts/test-board.sh` also runs the video and audio programs (audio loopback with `HRX_AUDIO_LOOPBACK=1`).
 
 ## 2.1.0
 

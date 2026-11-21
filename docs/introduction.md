@@ -57,7 +57,7 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 
 - **User Guide**: install, generate, use and update a crate; the workflow, and how
   to prepare a board.
-- **Tutorials**: sixteen hands-on walk-throughs grouped by flavor (eleven Linux, three bare metal, one RTOS, one application), each on
+- **Tutorials**: eighteen hands-on walk-throughs grouped by flavor (eleven Linux, three bare metal, one RTOS, three applications), each on
   one of the test designs in `fixtures/`, with output captured on a PYNQ-Z2.
 - **Reference**: the authoritative description of the CLI, the generated crate, the
   board scripts and every public runtime crate. Function signatures in the reference

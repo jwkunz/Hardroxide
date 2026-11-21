@@ -321,15 +321,20 @@ mod tests {
         assert!(matches!(i.wait_done(0x3B), Err(I2cError::ArbitrationLost)));
     }
 
+    /// Goes through the trait's own methods, as generic driver code (the codec driver) does.
+    fn through_the_trait<B: embedded_hal::i2c::I2c>(bus: &mut B) -> Result<(), B::Error> {
+        bus.write(0x3B, &[0x40, 0x19, 0x33])
+    }
+
     #[test]
     fn the_embedded_hal_trait_reaches_the_controller_without_recursing() {
-        use embedded_hal::i2c::I2c as _;
         let be = MockBackend::new();
         let mut i = I2c::new(be.map(BASE, 0x1000).unwrap());
         // The mock keeps what is written to the status register (0x2FF: every flag, so a NACK), which is enough
-        // to check the point: the trait's `write` reaches the controller's own code and ends (it used to recurse
-        // without end, which overflowed the stack on the board).
-        let r = i.write(0x3B, &[0x40, 0x19, 0x33]);
+        // to check the point: the trait's `write` reaches the controller's own code and ends. It used to recurse
+        // without end (`transaction` called `self.write`, which resolved to the trait's default), overflowing the
+        // stack on the board.
+        let r = through_the_trait(&mut i);
         assert!(matches!(r, Err(I2cError::Nack(0x3B))), "{r:?}");
         assert_eq!(be.peek(BASE + ADDR as u64), 0x3B);
     }

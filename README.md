@@ -15,7 +15,7 @@ Documentation: <https://jwkunz.github.io/Hardroxide/> (book at `/book/`, API ref
 `scripts/build-site.sh` (output in `target/site`).
 
 - **New here?** Start with the [tutorials](https://jwkunz.github.io/Hardroxide/book/tutorials/index.html),
-  grouped by flavor (Linux, bare metal, RTOS): sixteen step-by-step walk-throughs with real
+  grouped by flavor (Linux, bare metal, RTOS): eighteen step-by-step walk-throughs with real
   output from a PYNQ-Z2. No Vivado needed.
 - **Your own design?** [The workflow](https://jwkunz.github.io/Hardroxide/book/guide/workflow.html)
   and [Exporting an XSA from Vivado](https://jwkunz.github.io/Hardroxide/book/guide/vivado.html).

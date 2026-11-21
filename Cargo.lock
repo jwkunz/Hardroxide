@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-audio"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "embedded-hal",
  "hardroxide-ip",
@@ -239,7 +239,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-cli"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -250,7 +250,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-dma"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "hardroxide-mmio",
  "thiserror",
@@ -258,7 +258,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-fat"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "hardroxide-mmio",
  "thiserror",
@@ -266,7 +266,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-fpga"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "hardroxide-mmio",
  "sha2",
@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-gen"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "hardroxide-fpga",
  "hardroxide-hwh",
@@ -285,14 +285,14 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-gfx"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "hardroxide-hwh"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "roxmltree",
  "sha2",
@@ -302,7 +302,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-ip"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "embedded-hal",
  "hardroxide-dma",
@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-irq"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "libc",
  "thiserror",
@@ -322,7 +322,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-mmio"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "libc",
  "thiserror",
@@ -330,7 +330,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-ps7"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "embedded-hal",
  "hardroxide-irq",
@@ -340,7 +340,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-rt"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "hardroxide-irq",
  "hardroxide-mmio",
@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "hardroxide-video"
-version = "2.3.0"
+version = "2.4.0"
 dependencies = [
  "hardroxide-ip",
  "hardroxide-mmio",

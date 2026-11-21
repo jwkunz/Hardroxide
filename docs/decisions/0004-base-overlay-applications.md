@@ -268,7 +268,7 @@ this ADR's status table below.
 | 2.1 | implemented, board-verified including the buttons and LEDs by hand (2026-11-21); released as 2.1.0 |
 | 2.2 | implemented and board-verified (2026-11-21) except 640x480; on branch `v2.2`, not yet merged |
 | 2.3 | implemented and board-verified (2026-11-21) for playback, the line-in loop and recording to memory; `audio_record`/`audio_loopback` with a separate source, the microphone and RTOS audio (an interrupt-driven sample pump) not done; on branch `v2.3`, not yet merged |
-| 2.4 | implemented and board-verified (2026-11-21) with a 32 GB SDHC card: the SD driver lives in `hardroxide-ps7` (`sd`) behind a `BlockDevice` trait in `hardroxide-mmio`, not in a separate `hardroxide-sd` crate; `hardroxide-fat` is the file system; programs `sd_info`, `sd_erase_and_test`, `sd_logger`, `sd_wav`, `sd_bmp`. Open: `fsck.fat` on a board-formatted card, SDSC cards, RTOS; on branch `v2.4`, not yet merged |
+| 2.4 | implemented and board-verified (2026-11-21) with a 32 GB SDHC card: the SD driver lives in `hardroxide-ps7` (`sd`) behind a `BlockDevice` trait in `hardroxide-mmio`, not in a separate `hardroxide-sd` crate; `hardroxide-fat` is the file system; programs `sd_info`, `sd_erase_and_test`, `sd_logger`, `sd_wav`, `sd_bmp`. Open: `fsck.fat` on a board-formatted card, SDSC cards, RTOS; merged to `main` (workspace 2.4.0), not released |
 | 2.5 | not started |
 | 2.6 | not started |
 | 2.7 | not started |

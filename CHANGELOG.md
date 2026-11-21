@@ -3,7 +3,7 @@
 ## Unreleased
 
 Applications on the PYNQ base overlay, versions 2.2, 2.3 and 2.4 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
-version is 2.3.0 (2.4 is in progress on a branch), not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
+version is 2.4.0, not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
 
 ### HDMI output and graphics (2.2)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
@@ -26,7 +26,7 @@ version is 2.3.0 (2.4 is in progress on a branch), not yet released (the release
   Not run: `audio_record` and `audio_loopback` (they need a separate source and headphones), the microphone input, RTOS audio (not written).
   Fixed on the board: unbounded recursion in the I2C `embedded-hal` impl; the missed-sample counter.
 
-### SD card and FAT32 (2.4, in progress)
+### SD card and FAT32 (2.4)
 - `hardroxide-mmio`: the `BlockDevice` trait (512-byte blocks) and `SliceDisk`, a disk in memory.
 - `hardroxide-ps7`: `sd::SdHost`, the PS SD controller (SDHCI) in programmed I/O: card identification, 4-bit bus at 25 MHz, block reads and writes; `clocks::sdio_ref_hz`.
 - `hardroxide-fat` (new): FAT32 over any block device: mount (MBR or bare volume), long names, directories, read, write, append, seek, truncate, remove, format. Tested against

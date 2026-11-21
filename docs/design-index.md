@@ -23,7 +23,7 @@ and verified is in the [reference](reference/cli.md) and [Verification gaps](08-
 | [07-hwh-findings.md](07-hwh-findings.md) | What a real Vivado 2025.2 HWH contains |
 | [release.md](release.md) | Maintainer checklist for a release |
 | [08-verification-gaps.md](08-verification-gaps.md) | What is unverified without hardware, and how to check each item |
-| [decisions/](decisions/) | ADRs: 0001 MMIO/DMA model, 0002 bitstream embedding and updates, 0003 bare-metal and RTOS platforms, 0004 base overlay applications (2.1 to 2.6, proposed) |
+| [decisions/](decisions/) | ADRs: 0001 MMIO/DMA model, 0002 bitstream embedding and updates, 0003 bare-metal and RTOS platforms, 0004 base overlay applications (2.1 to 2.7, accepted) |
 
 ## Baseline context
 

@@ -87,7 +87,7 @@
 - [ADR 0001: MMIO and DMA model](decisions/0001-mmio-and-dma-memory-model.md)
 - [ADR 0002: Bitstream embedding and updates](decisions/0002-bitstream-embedding-and-updates.md)
 - [ADR 0003: Bare-metal and RTOS platforms](decisions/0003-bare-metal-and-rtos-platforms.md)
-- [ADR 0004: Base overlay applications (2.1 to 2.6)](decisions/0004-base-overlay-applications.md)
+- [ADR 0004: Base overlay applications (2.1 to 2.7)](decisions/0004-base-overlay-applications.md)
 
 # Status
 

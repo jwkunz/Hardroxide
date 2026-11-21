@@ -68,11 +68,11 @@ What remains:
   sections, tickless idle, a blocking `IrqWait` integration.
 - Both cores (SMP), UltraScale+, and more bare-metal tutorials (timers and interrupts, DMA).
 
-## 2.1 to 2.6: applications on the base overlay
+## 2.1 to 2.7: applications on the base overlay
 
-Proposed in [ADR 0004](decisions/0004-base-overlay-applications.md): the PYNQ base overlay brought up bare metal and RTOS (2.1), a
+Accepted in [ADR 0004](decisions/0004-base-overlay-applications.md): the PYNQ base overlay brought up bare metal and RTOS (2.1), a
 graphics library on the HDMI output (2.2), WAV playback and recording (2.3), an SD card and FAT32 (2.4), Ethernet and a web
-server (2.5), and an integrated application (2.6), one minor version each, each with board-verified acceptance tests.
+server (2.5), HTTPS with a self-signed certificate (2.6), and an integrated application (2.7), one minor version each, each with board-verified acceptance tests.
 
 ## Documentation site
 

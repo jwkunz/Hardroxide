@@ -22,7 +22,7 @@ tracked in each document.
 | [07-hwh-findings.md](07-hwh-findings.md) | What a real Vivado 2025.2 HWH contains |
 | [release.md](release.md) | Maintainer checklist for a release |
 | [08-verification-gaps.md](08-verification-gaps.md) | What is unverified without hardware, and how to check each item |
-| [decisions/](decisions/) | ADRs: 0001 MMIO/DMA model, 0002 bitstream embedding and updates |
+| [decisions/](decisions/) | ADRs: 0001 MMIO/DMA model, 0002 bitstream embedding and updates, 0003 bare-metal and RTOS platforms (proposed) |
 
 ## Baseline context
 

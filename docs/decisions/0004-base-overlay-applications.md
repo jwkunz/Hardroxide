@@ -237,6 +237,19 @@ network needs for a login form or a control page. Scope: **TLS 1.3 server only**
 4. **Publishing is deferred.** Nothing in 2.x is published for now; the libraries are published later, once the maintainer
    decides, after their board acceptance tests pass.
 
+## Later: hardware acceleration and a hardware random source
+
+Software TLS is the decision for 2.6 (maintainer, 2026-11-21). The project's own premise suggests the next step: put the
+slow and the sensitive parts in the programmable logic. Candidates, for a later ADR once 2.6 has numbers to beat:
+
+- a **hardware random number generator** in the PL (ring-oscillator or metastability based, with health tests), which
+  also replaces the clock-jitter seeding planned for 2.6 and fixes the Zynq's lack of an entropy source;
+- accelerators for the hot spots the 2.6 measurements show: SHA-256, ChaCha20-Poly1305 or AES-GCM, and the X25519 / Ed25519
+  field arithmetic that dominates the handshake, as AXI-Lite or AXI-Stream cores driven through the curated-driver
+  mechanism, with the software implementation kept as the reference and the fallback.
+
+Both would need a Hardroxide-built design (not the stock base overlay), which fits the project: it is what the generator is for.
+
 ## Documentation obligations
 
 Each version updates: the reference pages (new crates and drivers), the "Applications" tutorials (output captured from a

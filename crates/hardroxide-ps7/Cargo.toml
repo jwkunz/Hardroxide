@@ -1,0 +1,28 @@
+[package]
+name = "hardroxide-ps7"
+description = "Zynq-7000 processing-system support for bare metal: startup, exceptions, GIC, timers, UART console"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = ["default-irq-entry", "default-svc-entry"]
+# Provide a `#[panic_handler]` that prints the panic on the console and halts.
+panic-handler = []
+# The default (non-nesting) IRQ vector entry. The RTOS kernel turns this off and
+# supplies its own, scheduler-aware entry.
+default-irq-entry = []
+# The default supervisor-call entry (reports it as unhandled). The kernel supplies its own.
+default-svc-entry = []
+
+[dependencies]
+hardroxide-mmio = { workspace = true, features = ["physmem"] }
+
+[dev-dependencies]
+hardroxide-mmio = { workspace = true, features = ["std"] }

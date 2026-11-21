@@ -39,6 +39,7 @@
 - [hardroxide-fpga](reference/fpga.md)
 - [hardroxide-dma](reference/dma.md)
 - [hardroxide-irq](reference/irq.md)
+- [hardroxide-ps7](reference/ps7.md)
 - [hardroxide-ip](reference/ip.md)
   - [AXI GPIO](reference/ip-gpio.md)
   - [HLS IP](reference/ip-hls.md)

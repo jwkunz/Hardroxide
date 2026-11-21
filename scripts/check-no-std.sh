@@ -6,6 +6,8 @@ set -euo pipefail
 rustup target add armv7a-none-eabihf >/dev/null
 CRATES="-p hardroxide-mmio -p hardroxide-fpga -p hardroxide-dma -p hardroxide-irq -p hardroxide-ip"
 cargo build --release --target armv7a-none-eabihf --no-default-features $CRATES "$@"
+# The PS support crate (ARM only parts included).
+cargo build --release --target armv7a-none-eabihf -p hardroxide-ps7 --features panic-handler "$@"
 # `alloc` adds the Vec-returning conveniences and needs a global allocator at link time,
 # so only check that it type-checks.
 cargo check --release --target armv7a-none-eabihf --no-default-features --features hardroxide-ip/alloc -p hardroxide-ip "$@"

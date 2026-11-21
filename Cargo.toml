@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+# Bare-metal programs have their own workspace (they target armv7a-none-eabihf).
+exclude = ["baremetal"]
 
 [workspace.package]
 version = "1.0.0"

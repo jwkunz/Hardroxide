@@ -74,6 +74,8 @@ fn package_name(manifest: &str) -> Option<String> {
 fn platform_of(manifest: &str) -> crate::Platform {
     if manifest.contains("(platform: baremetal)") {
         crate::Platform::BareMetal
+    } else if manifest.contains("(platform: rtos)") {
+        crate::Platform::Rtos
     } else {
         crate::Platform::Linux
     }
@@ -85,7 +87,7 @@ pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenEr
     let new_text = xsa.design.interface_text();
     let manifest = read(crate_dir, "Cargo.toml")?;
     let platform = platform_of(&manifest);
-    if old_text == new_text && platform == crate::Platform::BareMetal {
+    if old_text == new_text && platform != crate::Platform::Linux {
         // A bare-metal crate embeds no bitstream (the loader takes it from the XSA), so a
         // rebuild with the same interface leaves the crate exactly as it is.
         return Ok(Outcome::Unchanged);
@@ -118,7 +120,7 @@ pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenEr
     };
     let mut g = generate(xsa, &opts)?;
     g.files.remove(Path::new("Cargo.toml"));
-    if platform == crate::Platform::BareMetal {
+    if platform != crate::Platform::Linux {
         for f in [".cargo/config.toml", "build.rs", "link.ld"] {
             g.files.remove(Path::new(f));
         }

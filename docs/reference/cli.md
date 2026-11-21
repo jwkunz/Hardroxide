@@ -48,8 +48,8 @@ Options:
 
 Writes the crate described in [Generated crate](generated-crate.md). Output is
 deterministic. `--platform baremetal` writes a `no_std` crate for core 0 with no
-operating system ([Bare-metal crate](baremetal.md)); `rtos` is reserved and fails with
-a clear message until the kernel exists. Exit status is non-zero on any error (unreadable XSA, malformed
+operating system ([Bare-metal crate](baremetal.md)); `--platform rtos` writes the same crate
+with the [`hardroxide-rt`](rt.md) kernel as a dependency and a kernel example ([RTOS crate](rt.md#generated-rtos-crates)). Exit status is non-zero on any error (unreadable XSA, malformed
 HWH, I/O failure).
 
 ## `update`

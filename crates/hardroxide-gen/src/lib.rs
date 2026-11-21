@@ -239,9 +239,18 @@ fn generate_baremetal(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenEr
     put("build.rs", baremetal::build_rs());
     put("link.ld", baremetal::link_ld());
     put("src/pac.rs", render::pac_rs(&model, d));
-    put("src/lib.rs", baremetal::lib_rs(&model, d));
+    let rtos = opts.platform == Platform::Rtos;
+    put("src/lib.rs", baremetal::lib_rs(&model, d, rtos));
     if let Some(ips) = render::ips_rs(&model) {
         put("src/ips.rs", ips);
+    }
+    if rtos {
+        // Programs that use the kernel; examples that use the default interrupt entries
+        // would not link here.
+        put("examples/rt_control.rs", baremetal::rt_example(&crate_name));
+        put("interface.txt", d.interface_text());
+        put("interface.sha256", d.interface_hash());
+        return Ok(GeneratedCrate { files });
     }
     put(
         "examples/board_check.rs",
@@ -271,7 +280,7 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     match opts.platform {
         Platform::Linux => {}
         Platform::BareMetal => return generate_baremetal(xsa, opts),
-        Platform::Rtos => return Err(GenError::PlatformUnavailable("rtos")),
+        Platform::Rtos => return generate_baremetal(xsa, opts),
     }
     let model = render::Model::build(&xsa.design);
     let crate_name = opts

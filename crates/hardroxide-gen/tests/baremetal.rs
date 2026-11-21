@@ -1,7 +1,7 @@
 //! The bare-metal platform: golden snapshots of the generated sources, and a check that
 //! every fixture's crate builds for the Cortex-A9 (`armv7a-none-eabihf`).
 
-use hardroxide_gen::{GenError, Options, Platform, generate};
+use hardroxide_gen::{Options, Platform, generate};
 use hardroxide_hwh::Xsa;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -77,21 +77,40 @@ fn deterministic_and_has_no_bitstream() {
 }
 
 #[test]
-fn rtos_is_not_available_yet() {
+fn rtos_crate_depends_on_the_kernel_and_has_only_kernel_examples() {
     let o = Options {
         platform: Platform::Rtos,
+        hardroxide_path: Some("/h".into()),
         ..Default::default()
     };
-    assert!(matches!(
-        generate(&fixture("pynq_z2_gpio"), &o),
-        Err(GenError::PlatformUnavailable("rtos"))
-    ));
+    let g = generate(&fixture("pynq_z2_gpio"), &o).unwrap();
+    let manifest = String::from_utf8_lossy(&g.files[Path::new("Cargo.toml")]).into_owned();
+    assert!(manifest.contains("(platform: rtos)"));
+    assert!(manifest.contains("hardroxide-rt"));
+    // The kernel supplies the interrupt entries, so the PS crate's defaults are off.
+    let ps7 = manifest
+        .lines()
+        .find(|l| l.starts_with("hardroxide-ps7"))
+        .unwrap();
+    assert!(ps7.contains("default-features = false"), "{ps7}");
+    assert!(g.files.contains_key(Path::new("examples/rt_control.rs")));
+    assert!(!g.files.contains_key(Path::new("examples/board_check.rs")));
 }
 
 /// Generate every fixture as a bare-metal crate and build its library and examples for the
 /// Cortex-A9. Skipped (with a note) if the target is not installed.
 #[test]
 fn every_fixture_builds_for_the_target() {
+    build_all(Platform::BareMetal);
+}
+
+/// The same for the RTOS flavour (the kernel and its example).
+#[test]
+fn every_fixture_builds_with_the_kernel() {
+    build_all(Platform::Rtos);
+}
+
+fn build_all(platform: Platform) {
     let have = Command::new("rustc")
         .args(["--print", "target-list"])
         .output()
@@ -107,9 +126,11 @@ fn every_fixture_builds_for_the_target() {
         return;
     }
     for name in FIXTURES {
-        let tmp = std::env::temp_dir().join(format!("hrx-bm-{name}-{}", std::process::id()));
+        let tmp =
+            std::env::temp_dir().join(format!("hrx-bm-{name}-{platform:?}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         let o = Options {
+            platform,
             crate_name: Some("design_1".into()),
             ..opts(root().to_str().unwrap())
         };

@@ -64,6 +64,16 @@ impl core::fmt::Display for Error {
     }
 }
 
+/// The Cortex-A9 peripheral clock (the kernel's tick source), read from the SLCR.
+#[cfg(target_arch = "arm")]
+pub fn periph_hz() -> Result<u64, Error> {
+    use ps7::map;
+    // SAFETY: read-only access to the SLCR.
+    let be = unsafe { hardroxide_mmio::PhysMem::new() };
+    let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE)?;
+    Ok(ps7::clocks::periph_hz(&slcr, PS_CLK_HZ)?)
+}
+
 /// Park the core (low power) forever.
 pub fn halt() -> ! {
     loop {

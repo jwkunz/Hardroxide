@@ -223,11 +223,11 @@ spirit as the existing driver tests against the HWH.
 | Phase | Deliverable | Gate |
 |---|---|---|
 | 0 | Recon: tools, JTAG, QEMU, targets, console, DDR | **complete** (2026-11-20; findings below) |
-| 1 | `no_std` refactor of the shared crates (Linux unchanged) | all existing tests and the armv7 emulation pass |
-| 2 | `hardroxide-ps7`: startup, UART, timers, GIC; QEMU tests; then on the board via JTAG | hello on the UART; a PL interrupt serviced; time source accurate |
-| 3 | `--platform baremetal`, `hardroxide run`, board-accurate PS7 fixtures | `fixtures/board_tests` programs run on the board |
+| 1 | `no_std` refactor of the shared crates (Linux unchanged) | all existing tests and the armv7 emulation pass; **complete** |
+| 2 | `hardroxide-ps7`: startup, UART, timers, GIC; QEMU tests; then on the board via JTAG | hello on the UART; a PL interrupt serviced; time source accurate; **complete** |
+| 3 | `--platform baremetal`, `hardroxide run`, board-accurate PS7 fixtures | `fixtures/board_tests` programs run on the board; **complete** for the GPIO, timer, interrupt and HLS paths |
 | 4 | MMU, caches, L2, DMA buffers; jitter benchmark | measured latency and jitter recorded |
-| 5 | `hardroxide-rt` and `--platform rtos` | priority-inheritance and stress tests; 10 ms task jitter measured over hours |
+| 5 | `hardroxide-rt` and `--platform rtos` | priority-inheritance and stress tests; 10 ms task jitter measured over hours; **kernel, generator platform and smoke tests done (2026-11-21); hours-long jitter run outstanding** |
 | 6 | `hardroxide package` (BOOT.BIN), tutorials and reference pages, 2.0.0 | standalone boot of an rtos crate |
 
 Later: bare metal on core 1 beside Linux on core 0 (shared GIC, SLCR and memory

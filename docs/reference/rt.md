@@ -83,6 +83,15 @@ pub fn lock(&self, timeout: u64) -> Option<SharedGuard<'_, T>>
 `Shared<T>` is a value behind a priority-inheriting mutex: a `static Shared<Design<PhysMem>>`, filled with `set` in `main`
 before `start`, lets several tasks use the generated `Design`; `lock` returns a guard that derefs to `&mut T` and unlocks on drop.
 
+## Generated RTOS crates
+
+`hardroxide generate design.xsa --platform rtos` writes the [bare-metal crate](baremetal.md) (same `Design`, `pac`, `ips`,
+`link.ld`) with `hardroxide-rt` as a dependency, `hardroxide-ps7` without its default interrupt entries, `hardroxide_rt`
+re-exported as `rt`, and `periph_hz()` (the tick source's clock). It has one example, `examples/rt_control.rs`: a 10 ms
+control task (priority 5) that takes the `Design` from a `Shared`, and a reporting task. Only kernel programs link in
+this flavour, so the bare-metal examples are not generated. On the PYNQ-Z2 the example's control loop reported a worst
+deviation of 1 us from its 10 ms period over 700 releases. `hardroxide update` handles these crates like bare-metal ones.
+
 ## Not yet
 
 Event flags and task notifications, software timers, task suspend/delete from other tasks, GIC-priority-mask critical

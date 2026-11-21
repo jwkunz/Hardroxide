@@ -325,6 +325,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-video"
+version = "2.1.0"
+dependencies = [
+ "hardroxide-ip",
+ "hardroxide-mmio",
+ "thiserror",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

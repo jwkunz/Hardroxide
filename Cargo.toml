@@ -28,6 +28,7 @@ hardroxide-fpga = { path = "crates/hardroxide-fpga", version = "2.1.0", default-
 hardroxide-gen = { path = "crates/hardroxide-gen", version = "2.1.0" }
 hardroxide-dma = { path = "crates/hardroxide-dma", version = "2.1.0", default-features = false }
 hardroxide-irq = { path = "crates/hardroxide-irq", version = "2.1.0", default-features = false }
+hardroxide-ip = { path = "crates/hardroxide-ip", version = "2.1.0", default-features = false }
 hardroxide-ps7 = { path = "crates/hardroxide-ps7", version = "2.1.0", default-features = false }
 hardroxide-rt = { path = "crates/hardroxide-rt", version = "2.1.0" }
 embedded-hal = "1"

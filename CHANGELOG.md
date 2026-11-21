@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 2.2 (written, not yet run on a board)
+- `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
+  reconfigurable pixel clock); the generator uses them for the base overlay's video cores.
+- `hardroxide-video`: display modes (640x480 to 1920x1080 at 60 Hz) and `Display`, the bring-up of the HDMI output.
+- `hardroxide-gfx`: a small 2D graphics library over a pixel buffer (shapes, blits, a 5x7 font).
+- `apps/base`: `video_demo` (bare metal) and `rt_video` (RTOS, paced by the frame interrupt).
+
 ## 2.1.0
 
 The PYNQ base overlay on bare metal and under the kernel ([ADR 0004](docs/decisions/0004-base-overlay-applications.md)).

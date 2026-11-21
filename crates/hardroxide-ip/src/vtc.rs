@@ -158,7 +158,10 @@ mod tests {
         assert_eq!(p(GHSYNC), 1390 | 1430 << 16);
         assert_eq!(p(GVSYNC), 724 | 729 << 16);
         assert_eq!(p(GVSHOFF), 1390 | 1390 << 16);
-        assert_eq!(p(GPOL), POL_AVP | POL_ACP | POL_FIP | POL_HBP | POL_VBP | POL_HSP | POL_VSP);
+        assert_eq!(
+            p(GPOL),
+            POL_AVP | POL_ACP | POL_FIP | POL_HBP | POL_VBP | POL_HSP | POL_VSP
+        );
         assert_eq!(p(CTL), CTL_SOURCE_ALL | CTL_SW | CTL_RU | CTL_GE);
     }
 

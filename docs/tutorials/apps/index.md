@@ -11,3 +11,4 @@ boot mode. Do [Bare metal 1](../baremetal/01-jtag.md) first.
 | # | Tutorial | You learn |
 |---|---|---|
 | 1 | [Lights and buttons](01-base-lights.md) | the base overlay on bare metal and under the kernel; hardware interrupts through the interrupt controller; `IrqEvent` |
+| 2 | [Pixels on the HDMI output](02-hdmi.md) | the HDMI pipeline, `hardroxide-video` and `hardroxide-gfx`, double buffering; **not yet run on a board** |

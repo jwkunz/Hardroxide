@@ -1,0 +1,21 @@
+[package]
+name = "hardroxide-video"
+description = "HDMI output for the PYNQ base overlay: display modes and the bring-up of the pixel clock, timing generator and frame buffer DMA"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = ["std"]
+std = ["hardroxide-ip/std", "hardroxide-mmio/std", "thiserror/std"]
+
+[dependencies]
+hardroxide-ip = { workspace = true, default-features = false }
+hardroxide-mmio.workspace = true
+thiserror.workspace = true

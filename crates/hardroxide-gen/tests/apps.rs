@@ -61,7 +61,12 @@ fn applications_build() {
         }
         assert!(n > 0, "no applications in {}", src.display());
         let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
-        manifest.push_str("\n[workspace]\n");
+        // The applications use the library crates beyond what a generated crate depends on.
+        manifest.push_str(&format!(
+            "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\n\n[workspace]\n",
+            root().join("crates/hardroxide-gfx"),
+            root().join("crates/hardroxide-video")
+        ));
         std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();
         let out = Command::new(env!("CARGO"))
             .args([

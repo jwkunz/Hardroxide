@@ -33,7 +33,7 @@ all checks passed; next run the per-IP examples
 |---|---|---|
 | `btns_gpio`, `switches_gpio`, `leds_gpio`, `rgbleds_gpio` | the four buttons, two switches, four LEDs, two RGB LEDs (six pins) | `AxiGpio` |
 | `system_interrupts` | AXI interrupt controller; its `irq` output is GIC interrupt 61 (SPI 29) | `AxiIntc` |
-| `video_axi_vdma`, `..._vtc_out`, `..._axi_dynclk`, `..._color_convert`, `..._pixel_unpack`, and the `video_hdmi_in_*` set | the HDMI input and output pipelines | raw windows and generated HLS wrappers (typed drivers planned for [2.2](../decisions/0004-base-overlay-applications.md)) |
+| `video_axi_vdma`, `..._vtc_out`, `..._axi_dynclk`, `..._color_convert`, `..._pixel_unpack`, and the `video_hdmi_in_*` set | the HDMI input and output pipelines | `AxiVdma`, `VideoTimingController`, `AxiDynclk` (2.2) and generated HLS wrappers; [`hardroxide-video`](video.md) drives the output |
 | `audio_codec_ctrl_0` | the audio codec's I2S controller (AXI-Lite only; no stream port, no interrupt) | a raw window (planned for 2.3) |
 | `trace_analyzer_*`, `iop_*_mb_bram_ctrl` | the logic analyser and the MicroBlaze program memories | `AxiDma`, `AxiBram`, HLS wrappers |
 
@@ -53,5 +53,7 @@ The programs in `apps/base/` build against this crate (`cargo test -p hardroxide
 | `lights` | bare metal | buttons through the interrupt controller: count on the LEDs, colours from the switches |
 | `rt_lights` | RTOS | a mood light: four tasks with PWM, rainbow patterns, brightness and on/off from the buttons |
 | `rt_irq_latency` | RTOS | interrupt-to-task latency under load, as a histogram |
+| `video_demo` | bare metal | HDMI at 1280x720: test pattern and a double-buffered animation ([Applications 2](../tutorials/apps/02-hdmi.md); not yet run on a board) |
+| `rt_video` | RTOS | a 60 fps animation paced by the display's frame interrupt (not yet run on a board) |
 
 `scripts/test-board.sh` runs the self-checking ones (and the earlier tutorials' programs) on a board in one go.

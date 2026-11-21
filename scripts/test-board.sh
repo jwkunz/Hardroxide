@@ -63,5 +63,12 @@ gen base-rt fixtures/board/pynq_base_overlay.xsa rtos apps/base/rtos && {
   run_check "base/rt_lights" base-rt rt_lights fixtures/board/pynq_base_overlay.xsa 8 "mood light"
 }
 
+# The video programs need a monitor on HDMI OUT to be seen; this only checks that the pipeline comes up and the
+# program runs to its end (a hang or a DMA error shows as a missing line).
+gen base-video fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremetal && {
+  (cd "$WORK/base-video" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-gfx" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-video" --no-default-features && cargo build -q --release --examples 2>&1) \
+    && run_check "base/video_demo (starts and runs)" base-video video_demo fixtures/board/pynq_base_overlay.xsa 30 "animated frames in"
+}
+
 echo "board regression: $pass passed, $fail failed"
 [ "$fail" = 0 ] || { printf 'failed: %s\n' "${failed[@]}"; exit 1; }

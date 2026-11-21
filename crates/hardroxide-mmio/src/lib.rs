@@ -17,6 +17,7 @@ mod mock;
 mod phys;
 #[cfg(feature = "std")]
 mod sys;
+pub mod block;
 pub mod time;
 
 #[cfg(feature = "std")]

@@ -1,0 +1,16 @@
+[package]
+name = "hardroxide-fat"
+description = "A FAT32 file system over a block device: read, write, directories, long names, format; no_std, no allocation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+hardroxide-mmio = { workspace = true, default-features = false }
+thiserror.workspace = true

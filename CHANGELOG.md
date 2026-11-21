@@ -20,11 +20,13 @@ Linux crates are unchanged; their dependencies move to 2.
   default); `IrqLine` gained `edge`; `mmio::time` is a registered time source.
 
 ### Verified
-On a PYNQ-Z2 and under QEMU; see `docs/08-verification-gaps.md`. `hardroxide package` has built a
+On a PYNQ-Z2 and under QEMU; see `docs/08-verification-gaps.md`. A two-hour run of the kernel under load (a
+processor hog and a cache-thrashing task): the 10 ms task was released at most 10.2 us late with no missed release, and an
+interrupt reached its waiting task within 5.4 us. `hardroxide package` has built a
 BOOT.BIN but it has not yet been booted from SD.
 
 ### Documentation
-- Tutorials are grouped by flavor: eleven for Linux (one per test design), one for bare metal and one for
+- Tutorials are grouped by flavor: eleven for Linux (one per test design), three for bare metal and one for
   the RTOS, with output captured on a PYNQ-Z2. New reference pages for `hardroxide-ps7`, `hardroxide-rt` and the
   bare-metal crate; a "Choosing a flavor" section in the workflow guide; a page on the end-to-end workflow and one
   on exporting an XSA from Vivado.

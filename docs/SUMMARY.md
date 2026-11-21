@@ -38,6 +38,8 @@
 
 - [Setup](tutorials/baremetal/index.md)
   - [1. Run over JTAG](tutorials/baremetal/01-jtag.md)
+  - [2. A PL interrupt through the GIC](tutorials/baremetal/02-timer-interrupt.md)
+  - [3. DMA with the caches on](tutorials/baremetal/03-dma.md)
 
 # RTOS tutorials
 

@@ -86,15 +86,8 @@ fn main() -> ! { ... }`: it never returns, and `halt()` parks the core. The driv
 
 ## 5. Interrupts and DMA
 
-The other designs work the same way. Generate a crate from `fixtures/board/pynq_z2_peripherals.xsa` for
-`timer_irq` (a PL interrupt reaching a bare-metal program through the GIC) or from
-`fixtures/board/pynq_z2_dma_loopback.xsa` for `dma_loopback` (buffers from `static_dma_buffer!`, which the MMU maps
-non-cacheable, so no cache maintenance is needed):
-
-```console
-$ hardroxide run .../examples/dma_loopback --xsa fixtures/board/pynq_z2_dma_loopback.xsa
-DMA loopback OK: 4096 bytes
-```
+The other designs work the same way: [Bare metal 2](02-timer-interrupt.md) takes a PL interrupt through the GIC, and
+[Bare metal 3](03-dma.md) moves data with the DMA engine and the caches on.
 
 ## 6. Booting without the cable
 

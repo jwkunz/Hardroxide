@@ -29,7 +29,8 @@ recovers it with a system reset, so there is no board prep and no power cycling.
 | # | Tutorial | You learn |
 |---|---|---|
 | 1 | [Run over JTAG](01-jtag.md) | generate, build, `hardroxide run`, the console |
+| 2 | [A PL interrupt through the GIC](02-timer-interrupt.md) | `IrqWait`, level and edge lines, a periodic interrupt measured |
+| 3 | [DMA with the caches on](03-dma.md) | `.dma` buffers, ownership, DMA speed against CPU speed |
 
-The generated crate also contains examples for timers, PL interrupts and DMA (`timer_delay`, `timer_irq`,
-`dma_loopback`); they are described in the [bare-metal crate reference](../../reference/baremetal.md).
+The examples are described in the [bare-metal crate reference](../../reference/baremetal.md).
 Next: the [RTOS tutorials](../rtos/index.md).

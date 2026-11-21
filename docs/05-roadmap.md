@@ -63,8 +63,7 @@ Done and verified on a PYNQ-Z2 and under QEMU ([ADR 0003](decisions/0003-bare-me
 `hardroxide-rt` (tasks, semaphores, mutexes with priority inheritance, queues), `hardroxide run`/`package`/`doctor`.
 What remains:
 
-- A multi-hour jitter measurement of the 10 ms loop (`baremetal/rt-jitter`), booting a `hardroxide package` image from SD,
-  cached DMA buffers with explicit cache maintenance against a PL master.
+- Booting a `hardroxide package` image from SD, cached DMA buffers with explicit cache maintenance against a PL master.
 - Kernel features listed under [Not yet](reference/rt.md#not-yet): event flags, software timers, GIC-priority-mask critical
   sections, tickless idle, a blocking `IrqWait` integration.
 - Both cores (SMP), UltraScale+, and more bare-metal tutorials (timers and interrupts, DMA).

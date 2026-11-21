@@ -216,6 +216,12 @@ fn tutorial_programs_build() {
     }
     for (dir, platform, xsa) in [
         ("baremetal_gpio", Platform::BareMetal, "pynq_z2_gpio"),
+        (
+            "baremetal_timer",
+            Platform::BareMetal,
+            "pynq_z2_peripherals",
+        ),
+        ("baremetal_dma", Platform::BareMetal, "pynq_z2_dma_loopback"),
         ("rtos_gpio", Platform::Rtos, "pynq_z2_gpio"),
     ] {
         let tmp = std::env::temp_dir().join(format!("hrx-tut-{dir}-{}", std::process::id()));

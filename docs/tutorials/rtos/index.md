@@ -18,4 +18,6 @@ shows the build-and-run loop these tutorials reuse.
 | 1 | [A 10 ms control loop on the kernel](01-control-loop.md) | tasks, priorities, `Periodic`, `Shared` |
 
 How well the kernel keeps its deadlines under load is measured in
-[Verification gaps](../../08-verification-gaps.md).
+[Verification gaps](../../08-verification-gaps.md): over two hours with a processor hog and a cache-thrashing task
+running, the 10 ms task was released at most 10.2 us late (mean 1.06 us) with no missed release, and an interrupt reached
+its waiting task within 5.4 us.

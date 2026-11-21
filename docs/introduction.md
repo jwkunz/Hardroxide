@@ -45,7 +45,7 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 
 | You want to | Go to |
 |---|---|
-| see it work, step by step, with real output | [Tutorials](tutorials/index.md), by flavor: eleven for Linux (LEDs to DMA to a 70-IP third-party design), then bare metal and RTOS |
+| see it work, step by step, with real output | [Tutorials](tutorials/index.md), by flavor: eleven for Linux (LEDs to DMA to a 70-IP third-party design), then three for bare metal and one for the RTOS |
 | decide between Linux, bare metal and RTOS | [Choosing a flavor](guide/workflow.md#choosing-a-flavor) |
 | understand the whole flow in one page | [The workflow](guide/workflow.md) |
 | use your own Vivado design | [Exporting an XSA from Vivado](guide/vivado.md), then [The workflow](guide/workflow.md) |
@@ -57,7 +57,7 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 
 - **User Guide**: install, generate, use and update a crate; the workflow, and how
   to prepare a board.
-- **Tutorials**: thirteen hands-on walk-throughs grouped by flavor (eleven Linux, one bare metal, one RTOS), each on
+- **Tutorials**: fifteen hands-on walk-throughs grouped by flavor (eleven Linux, three bare metal, one RTOS), each on
   one of the test designs in `fixtures/`, with output captured on a PYNQ-Z2.
 - **Reference**: the authoritative description of the CLI, the generated crate, the
   board scripts and every public runtime crate. Function signatures in the reference

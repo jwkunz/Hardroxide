@@ -30,7 +30,7 @@ crates.io version. `write_to` creates directories as needed and overwrites
 files.
 
 `GenError`: `Bit(BitError)`, `Xsa(hardroxide_hwh::Error)`, `UnsupportedArch { arch, device }` (anything but Zynq-7000),
-`PlatformUnavailable(&str)` (reserved; no platform returns it today), `Io { path, source }`.
+`Io { path, source }`.
 
 ## Updating
 

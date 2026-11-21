@@ -40,6 +40,8 @@ captured on a PYNQ-Z2. See [Choosing a flavor](../guide/workflow.md#choosing-a-f
 | # | Tutorial | You learn |
 |---|---|---|
 | 1 | [Run over JTAG](baremetal/01-jtag.md) | no operating system: `--platform baremetal`, `hardroxide run` |
+| 2 | [A PL interrupt through the GIC](baremetal/02-timer-interrupt.md) | `IrqWait`, handler-free interrupts, a periodic interrupt measured |
+| 3 | [DMA with the caches on](baremetal/03-dma.md) | non-cacheable `.dma` buffers; DMA speed against CPU speed |
 
 **RTOS** ([setup](rtos/index.md))
 

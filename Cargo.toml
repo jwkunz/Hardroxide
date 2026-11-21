@@ -1,8 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
-# Bare-metal programs have their own workspace (they target armv7a-none-eabihf).
-exclude = ["baremetal"]
+# Bare-metal programs have their own workspace (they target armv7a-none-eabihf); `work/` is where the tutorials generate crates.
+exclude = ["baremetal", "work"]
 
 [workspace.package]
 version = "2.0.0"

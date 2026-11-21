@@ -24,12 +24,6 @@ pub enum GenError {
          `hardroxide inspect` still works on this design"
     )]
     UnsupportedArch { arch: String, device: String },
-    /// Reserved for platforms that are declared but not implemented; every current
-    /// platform is available, so `generate` does not return it.
-    #[error(
-        "the `{0}` platform is not available yet (see docs/decisions/0003-bare-metal-and-rtos-platforms.md)"
-    )]
-    PlatformUnavailable(&'static str),
     #[error("I/O error on {path}: {source}")]
     Io {
         path: PathBuf,

@@ -92,6 +92,13 @@ control task (priority 5) that takes the `Design` from a `Shared`, and a reporti
 this flavour, so the bare-metal examples are not generated. On the PYNQ-Z2 the example's control loop reported a worst
 deviation of 1 us from its 10 ms period over 700 releases. `hardroxide update` handles these crates like bare-metal ones.
 
+## Measured
+
+Two hours on a PYNQ-Z2 under load (a never-sleeping low-priority task and a cache-thrashing task): a 10 ms periodic task was released
+at most 10.2 us late (mean 1.06 us) over 726,197 releases with none missed, and a software interrupt reached its waiting
+task within 5.4 us (mean 3.95 us). Details and limits: [Verification gaps](../08-verification-gaps.md); the program is
+`baremetal/rt-jitter`.
+
 ## Not yet
 
 Event flags and task notifications, software timers, task suspend/delete from other tasks, GIC-priority-mask critical

@@ -54,7 +54,7 @@ MicroBlaze subsystems are private to their cores and get no field):
 | Buttons, switches, LEDs | `btns_gpio`, `switches_gpio`, `leds_gpio`, `rgbleds_gpio` (AXI GPIO) | curated driver |
 | Interrupts | `system_interrupts` (AXI INTC) into one PL line | curated driver |
 | HDMI output | `video_axi_vdma`, `video_hdmi_out_frontend_vtc_out` (v_tc), `..._axi_dynclk` (Digilent pixel clock), `video_hdmi_out_color_convert` and `..._pixel_unpack` (HLS) | VDMA, v_tc and dynclk are **raw register windows**; HLS wrappers generated |
-| HDMI input | `video_hdmi_in_*` (v_tc, pixel_pack, color_convert, GPIO), VDMA write channel | same; out of scope until 2.6 |
+| HDMI input | `video_hdmi_in_*` (v_tc, pixel_pack, color_convert, GPIO), VDMA write channel | same; out of scope until 2.7 |
 | Audio | `audio_codec_ctrl_0` (a custom core, AXI-Lite only, I2S pins `bclk`, `lrclk`, `sdata_i/o`) | raw window; **no register map in the HWH** |
 | SD card | PS SDIO 0 on MIO 40 to 45 | none |
 | Ethernet | PS GEM 0 on MIO 16 to 27, RGMII, 1000 Mbps | none |

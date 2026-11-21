@@ -282,6 +282,11 @@ impl<R: Mmio> AxiDynclk<R> {
         self.regs.write32(LOCK_L, r.lock_l)?;
         self.regs.write32(FLTR_LOCK_H, r.fltr_lock_h)?;
         self.regs.write32(CTRL, 0)?;
+        // The vendor sequence waits for the old clock to stop before starting the new one.
+        let t0 = Instant::now();
+        while self.locked()? && t0.elapsed() < Duration::from_millis(10) {
+            sleep(Duration::from_micros(100));
+        }
         self.regs.write32(CTRL, 1)?;
         let t0 = Instant::now();
         while !self.locked()? {

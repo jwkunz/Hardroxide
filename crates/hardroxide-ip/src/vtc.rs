@@ -22,12 +22,16 @@ const CTL_SW: u32 = 1 << 0; // core enable
 const CTL_RU: u32 = 1 << 1; // register update
 const CTL_GE: u32 = 1 << 2; // generator enable
 const CTL_RESET: u32 = 1 << 31;
+/// Every "take this timing value from the generator registers" bit of the control register.
+const CTL_SOURCE_ALL: u32 = 0x03FD_EF00;
 
 const POL_VBP: u32 = 1 << 0;
 const POL_HBP: u32 = 1 << 1;
 const POL_VSP: u32 = 1 << 2;
 const POL_HSP: u32 = 1 << 3;
 const POL_AVP: u32 = 1 << 4;
+const POL_ACP: u32 = 1 << 5;
+const POL_FIP: u32 = 1 << 6;
 
 /// A progressive display mode as horizontal and vertical timings, in pixels and lines.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -82,13 +86,15 @@ impl<R: Mmio> VideoTimingController<R> {
         self.regs.write32(CTL, 0)
     }
 
-    /// Program the generator for `t` and start it. The generator's timing comes from these
-    /// registers (not from the detector), and the new values take effect at the next frame.
+    /// Program the generator for `t` and start it. Every timing value is taken from these
+    /// registers (not from the detector), and the new values take effect at the next frame. The
+    /// register values are those the vendor driver's `XVtc_SetGeneratorTiming` writes.
     pub fn start(&self, t: &Timing) -> Result<(), MmioError> {
         let r = &self.regs;
         let hsync_start = t.h_active + t.h_front_porch;
         let hsync_end = hsync_start + t.h_sync;
-        let vsync_start = t.v_active + t.v_front_porch;
+        // The vertical sync starts one line before the end of the front porch in this core's numbering.
+        let vsync_start = t.v_active + t.v_front_porch - 1;
         let vsync_end = vsync_start + t.v_sync;
         r.write32(GHSIZE, t.h_total())?;
         r.write32(GVSIZE, pack(t.v_total(), t.v_total()))?;
@@ -102,15 +108,16 @@ impl<R: Mmio> VideoTimingController<R> {
         r.write32(GVBHOFF_F1, pack(t.h_active, t.h_active))?;
         r.write32(GVSHOFF, pack(hsync_start, hsync_start))?;
         r.write32(GVSHOFF_F1, pack(hsync_start, hsync_start))?;
-        let mut pol = POL_AVP | POL_HBP | POL_VBP;
+        // Active video, active chroma and field id are active high; each blank follows its sync's polarity.
+        let mut pol = POL_AVP | POL_ACP | POL_FIP;
         if t.h_sync_positive {
-            pol |= POL_HSP;
+            pol |= POL_HSP | POL_HBP;
         }
         if t.v_sync_positive {
-            pol |= POL_VSP;
+            pol |= POL_VSP | POL_VBP;
         }
         r.write32(GPOL, pol)?;
-        r.write32(CTL, CTL_SW | CTL_RU | CTL_GE)
+        r.write32(CTL, CTL_SOURCE_ALL | CTL_SW | CTL_RU | CTL_GE)
     }
 }
 
@@ -149,10 +156,10 @@ mod tests {
         assert_eq!(p(GVSIZE), 750 | 750 << 16);
         assert_eq!(p(GASIZE), 1280 | 720 << 16);
         assert_eq!(p(GHSYNC), 1390 | 1430 << 16);
-        assert_eq!(p(GVSYNC), 725 | 730 << 16);
+        assert_eq!(p(GVSYNC), 724 | 729 << 16);
         assert_eq!(p(GVSHOFF), 1390 | 1390 << 16);
-        assert_eq!(p(GPOL), POL_AVP | POL_HBP | POL_VBP | POL_HSP | POL_VSP);
-        assert_eq!(p(CTL), CTL_SW | CTL_RU | CTL_GE);
+        assert_eq!(p(GPOL), POL_AVP | POL_ACP | POL_FIP | POL_HBP | POL_VBP | POL_HSP | POL_VSP);
+        assert_eq!(p(CTL), CTL_SOURCE_ALL | CTL_SW | CTL_RU | CTL_GE);
     }
 
     #[test]
@@ -172,7 +179,7 @@ mod tests {
             v_sync_positive: false,
         };
         v.start(&vga).unwrap();
-        assert_eq!(be.peek(BASE + GPOL as u64), POL_AVP | POL_HBP | POL_VBP);
+        assert_eq!(be.peek(BASE + GPOL as u64), POL_AVP | POL_ACP | POL_FIP);
         assert_eq!(be.peek(BASE + GHSIZE as u64), 800);
     }
 }

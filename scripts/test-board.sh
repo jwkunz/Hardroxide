@@ -75,5 +75,18 @@ gen base-rtvideo fixtures/board/pynq_base_overlay.xsa rtos apps/base/rtos && {
     && run_check "base/rt_video (60 fps by interrupt)" base-rtvideo rt_video fixtures/board/pynq_base_overlay.xsa 12 "frame interval worst deviation"
 }
 
+# Audio: plays a short tune (headphones optional) and checks the codec comes up; with HRX_AUDIO_LOOPBACK=1 and a cable
+# from HPH OUT to LINE IN it also plays and records a 1 kHz tone.
+gen base-audio fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremetal && {
+  (cd "$WORK/base-audio" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-gfx" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-video" --no-default-features && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-audio" --no-default-features && cp "$OLDPWD/apps/base/data/chime.wav" examples/ && cargo build -q --release --examples 2>&1) && {
+    run_check "base/audio_tone (codec up, no missed samples)" base-audio audio_tone fixtures/board/pynq_base_overlay.xsa 14 "chord: 58593 frames, 0 missed"
+    run_check "base/audio_wav" base-audio audio_wav fixtures/board/pynq_base_overlay.xsa 14 "pass 2: 97661 frames played, 0 missed"
+    if [ "${HRX_AUDIO_LOOPBACK:-0}" = 1 ]; then
+      run_check "base/audio_loopback_test (cable HPH OUT to LINE IN)" base-audio audio_loopback_test fixtures/board/pynq_base_overlay.xsa 12 "LOOPBACK OK"
+      run_check "base/audio_record_test (cable HPH OUT to LINE IN)" base-audio audio_record_test fixtures/board/pynq_base_overlay.xsa 14 "RECORD/PLAYBACK OK"
+    fi
+  }
+}
+
 echo "board regression: $pass passed, $fail failed"
 [ "$fail" = 0 ] || { printf 'failed: %s\n' "${failed[@]}"; exit 1; }

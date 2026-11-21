@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### 2.3 (written, not yet run on a board)
+### 2.3 (board-verified: playback, WAV, line-in loop, recording to memory)
 - `hardroxide-ps7`: the PS I2C controllers (`i2c`, also an `embedded-hal` I2C bus) and `clocks::cpu_1x_hz`.
 - `hardroxide-ip`: `AudioCodecCtrl`, the PYNQ audio codec controller (I2S, one frame each way, no FIFO).
 - `hardroxide-audio`: the ADAU1761 codec over I2C, WAV parsing and writing, tones, resampling, playback, recording and pass-through.

@@ -5,7 +5,7 @@ The scripts in `scripts/board/` are for the **Linux** flavor. Bare-metal and RTO
 which sits next to `test-armv7.sh`, `check-no-std.sh` (the runtime crates build for `armv7a-none-eabihf`) and
 `build-site.sh` (the documentation site into `target/site`), and `test-board.sh`: the board regression, which generates, builds and runs
 the self-checking bare-metal and RTOS programs of the tutorials on a board over JTAG and checks each one's console output
-(`scripts/test-board.sh [filter]`; needs the Vitis tools and the board in JTAG boot mode).
+(`scripts/test-board.sh [filter]`; needs the Vitis tools and the board in JTAG boot mode; set `HRX_AUDIO_LOOPBACK=1` with a cable from HPH OUT to LINE IN for the audio loopback tests).
 
 Helper scripts in `scripts/board/` for working with a PYNQ-Z2. They are plain POSIX
 shell, change only the running system, and are what the

@@ -203,4 +203,4 @@ input clock (`clocks::cpu_1x_hz`, the CPU clock divided by 6 in the 6:2:1 mode) 
 A transfer is at most one FIFO (16 bytes; longer is `I2cError::TooLong`), `write_read` is two transfers with a stop between (not a repeated start), and a
 missing acknowledge is `I2cError::Nack(address)`.
 
-> **Not yet run on a board** (see [Verification gaps](../08-verification-gaps.md)): the register sequence and the divisor search are unit-tested.
+> **Verified on a PYNQ-Z2:** it configured the audio codec over the EMIO-routed I2C 1 (see [Verification gaps](../08-verification-gaps.md)). A bug found there: the `embedded-hal` `transaction` must call the controller's own `write`/`read`, not `self.write` (which resolves to the trait default and recurses).

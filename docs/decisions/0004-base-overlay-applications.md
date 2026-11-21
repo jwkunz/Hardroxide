@@ -267,7 +267,7 @@ this ADR's status table below.
 |---|---|
 | 2.1 | implemented, board-verified including the buttons and LEDs by hand (2026-11-21); released as 2.1.0 |
 | 2.2 | implemented and board-verified (2026-11-21) except 640x480; on branch `v2.2`, not yet merged |
-| 2.3 | written and host-tested (PS I2C driver, I2S controller, `hardroxide-audio`, four bare-metal applications, a tutorial); **not yet run on a board**; RTOS audio (an interrupt-driven sample pump) not started; on branch `v2.3` |
+| 2.3 | implemented and board-verified (2026-11-21) for playback, the line-in loop and recording to memory; `audio_record`/`audio_loopback` with a separate source, the microphone and RTOS audio (an interrupt-driven sample pump) not done; on branch `v2.3`, not yet merged |
 | 2.4 | not started |
 | 2.5 | not started |
 | 2.6 | not started |

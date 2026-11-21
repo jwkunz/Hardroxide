@@ -2,8 +2,8 @@
 
 Audio for the PYNQ base overlay. `no_std`, no allocation.
 
-> **Not yet run on a board.** The register sequences follow PYNQ's audio driver and the controller's VHDL source (Apache-2.0); everything is
-> unit-tested on the host (23 tests) but nothing has played a sound yet. See [Verification gaps](../08-verification-gaps.md).
+> **Verified on a PYNQ-Z2 (2026-11-21):** tones, WAV playback, a full-duplex line-in loop and recording to memory, with no missed samples. The register sequences follow PYNQ's audio driver and the
+> controller's VHDL source (Apache-2.0). Not run: the microphone input and the pass-through with a separate source. See [Verification gaps](../08-verification-gaps.md).
 
 | Module | What it is |
 |---|---|
@@ -71,10 +71,11 @@ playing a 44.1 or 8 kHz file at the codec's 48.828 kHz goes through it.
 pub struct Stats
 pub fn play<R: Mmio>(ctrl: &AudioCodecCtrl<R>, frames: impl Iterator<Item = Frame>) -> Result<Stats, MmioError>
 pub fn record<R: Mmio>(ctrl: &AudioCodecCtrl<R>, out: &mut [Frame]) -> Result<Stats, MmioError>
+pub fn play_record<R: Mmio>(ctrl: &AudioCodecCtrl<R>, frames: impl Iterator<Item = Frame>, out: &mut [Frame]) -> Result<Stats, MmioError>
 pub fn mix(a: Frame, b: Frame) -> Frame
 pub fn scale(f: Frame, gain: u32) -> Frame
 ```
 
 **Moving samples.** `play`, `record` and `pass_through` poll the controller once per sample, so they must run every ~20.5 us: on bare metal a loop that does nothing else,
 under the kernel an interrupt or a dedicated task. `Stats { frames, missed }` reports how many frames moved and how many sample ticks were missed because the loop came back
-too late. A stopped controller (no I2S clock) ends the loop instead of hanging it. `mix` adds two frames saturating at 24 bits; `scale(frame, gain)` multiplies by `gain / 256`.
+too late. `play_record` plays and records in the same loop (the controller is full duplex), which with a cable from the output to the input records what was played. A stopped controller (no I2S clock) ends the loop instead of hanging it. `mix` adds two frames saturating at 24 bits; `scale(frame, gain)` multiplies by `gain / 256`.

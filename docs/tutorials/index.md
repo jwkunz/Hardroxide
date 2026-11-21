@@ -56,5 +56,5 @@ captured on a PYNQ-Z2. See [Choosing a flavor](../guide/workflow.md#choosing-a-f
 | # | Tutorial | You learn |
 |---|---|---|
 | 1 | [Lights and buttons on the base overlay](apps/01-base-lights.md) | the PYNQ base overlay without an OS; interrupts through the controller; `IrqEvent`; a mood light |
-| 2 | [Pixels on the HDMI output](apps/02-hdmi.md) | HDMI output and a graphics library (**not yet run on a board**) |
-| 3 | [Sound](apps/03-audio.md) | codec, WAV playback, synthesis, recording (**not yet run on a board**) |
+| 2 | [Pixels on the HDMI output](apps/02-hdmi.md) | HDMI output and a graphics library |
+| 3 | [Sound](apps/03-audio.md) | codec, WAV playback, synthesis, recording, a loopback self-test |

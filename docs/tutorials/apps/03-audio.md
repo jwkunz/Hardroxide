@@ -2,9 +2,8 @@
 
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Needs:** [Applications 1](01-base-lights.md), headphones in the **HPH OUT** jack and, for the recording programs, a source on **LINE IN**
 
-> **Status: written, not yet run on a board.** Everything below compiles and the register-level code (the codec's I2C sequences, the I2S controller, WAV parsing, the
-> synthesis and resampling) is unit-tested on the host, but nothing has played a sound yet. The page will get real output after the first run
-> ([Verification gaps](../../08-verification-gaps.md)).
+> **Status: run on a PYNQ-Z2 (2026-11-21).** Playing tones and a WAV file, recording, and the full-duplex loop all work, with no missed samples. Two programs need a separate
+> source and headphones and have **not** been run: `audio_record` and `audio_loopback`. The first run found a bug in the I2C driver (section 7).
 
 The base overlay's audio path is the ADAU1761 codec chip, configured over I2C, and a small controller in the fabric that exchanges one stereo sample at a
 time with it over I2S. There is no FIFO and no interrupt: the processor must move a frame every 20.5 microseconds (48.828 kHz), which makes audio the
@@ -31,7 +30,21 @@ $ hardroxide run target/armv7a-none-eabihf/release/examples/audio_tone --xsa ../
 ```
 
 `audio_tone` brings up the I2C clock, the codec (it prints whether the PLL locked), plays a C major scale and then a chord, and prints for each note how many
-frames moved and how many sample ticks it missed. The expected output is `0 missed` throughout: the loop has 20 microseconds per sample and a 650 MHz core.
+frames moved and how many sample ticks it missed:
+
+```console
+== audio_tone ==
+I2C clock 378787 Hz
+codec up (PLL locked)
+note 60: 12207 frames, 0 missed
+note 62: 12207 frames, 0 missed
+...
+note 72: 12207 frames, 0 missed
+chord: 58593 frames, 0 missed
+done
+```
+
+The scale and the chord were heard through headphones in the **HPH OUT** jack. The loop has 20 microseconds per sample and a 650 MHz core, and misses none.
 
 ```rust,ignore
 let i2c = ps7::i2c::I2c::new(be.map(ps7::map::I2C1_BASE as u64, ps7::map::I2C_SIZE).unwrap());
@@ -53,23 +66,60 @@ $ cargo build --release --example audio_wav
 $ hardroxide run target/armv7a-none-eabihf/release/examples/audio_wav --xsa ../../fixtures/board/pynq_base_overlay.xsa --watch 20
 ```
 
-Your own file works the same way as long as it is a PCM WAV with 1 or 2 channels and 8, 16 or 24 bits; put it in `examples/` and change the `include_bytes!`. At 44.1 kHz stereo
+```console
+== audio_wav: 8000 Hz, 1 channel(s), 16 bits, 2000 ms ==
+pass 1: 97661 frames played, 0 missed
+pass 2: 97661 frames played, 0 missed
+done
+```
+
+The arpeggio played cleanly twice, at the right pitch. Your own file works the same way as long as it is a PCM WAV with 1 or 2 channels and 8, 16 or 24 bits; put it in `examples/` and change the `include_bytes!`. At 44.1 kHz stereo
 a minute of audio is 10 MB, so a long file belongs on the SD card (the next version in the series).
 
-## 4. Record and play back, and the pass-through
+## 4. Record and play back: a self-test with one cable
 
-`audio_record.rs` records five seconds from the line input into a 2 MiB buffer in memory, prints the peak level of each channel (a quick way to see that a source is
-connected and not clipping), and plays it back. `audio_loopback.rs` passes the line input to the headphones through the processor for 30 seconds, halving the volume on the way:
-one frame every 20.5 microseconds. Both report missed samples.
+With a cable from the green **HPH OUT** jack to the blue **LINE IN** jack the board can test itself (the pink MIC jack is a differential microphone input and did not hear the tone):
 
-## 5. What to check, and what to tell us
+- `audio_loopback_test.rs` plays a 1 kHz sine while recording the input in the same sample loop (the controller is full duplex), one second of silence and then two seconds of tone:
 
-When you run these for the first time: does the console say the PLL locked? Is there sound, at the right pitch (the controller's rate is 48.828 kHz, the codec's PLL is set for
-49.152 MHz = 1024 x 48 kHz; a pitch error of 0.3 % would be inaudible, a large one would mean the clocks are not what we think)? Are there clicks (missed samples)? Does the line
-input record, and at what level? The answers go into [Verification gaps](../../08-verification-gaps.md) and this page.
+```console
+== audio_loopback_test: HPH OUT cabled to the input ==
+0 samples missed in 146484 frames
+left: silence peak 1.52 %, tone peak 10.7 % rms 7.5 %, 1000 Hz (1500 crossings in 1.50 s)
+right: silence peak 8.95 %, tone peak 11.1 % rms 7.6 %, 1000 Hz (1500 crossings in 1.50 s)
+LOOPBACK OK
+```
+
+- `audio_record_test.rs` records the tone into memory, plays that recording back out while recording again, and checks both recordings for the tone:
+
+```console
+== audio_record_test: HPH OUT cabled to LINE IN ==
+1. tone played and recorded: 97656 frames, 0 missed; recording holds 1000 Hz at 10.7 % peak
+2. recording played back and recorded again: 97656 frames, 0 missed; 999 Hz at 2.4 % peak
+RECORD/PLAYBACK OK
+```
+
+The frequency is counted against the program's own sample clock, so it proves the loop is consistent end to end, not the absolute rate; the absolute pitch was judged by ear (the scale and the chime sounded right).
+
+`audio_record.rs` (record five seconds from the line input, print the peak levels, play it back) and `audio_loopback.rs` (line in to headphones through the processor, 30 seconds) need a separate source and
+headphones and **have not been run**; the loops they use are the ones the self-tests exercise.
+
+## 5. The sample rate
+
+The controller's rate is 100 MHz / 2048 = 48.828 kHz and the codec's PLL is set for 1024 x 48 kHz = 49.152 MHz; the two are not locked to each other by the programs and the I2S link
+works regardless (the converters run from the clocks the controller supplies). Pitch is therefore 0.1 % off a nominal 48 kHz file's, which is inaudible.
 
 ## 6. Under the kernel
 
 Not yet. The controller needs a frame every 20.5 microseconds, and the kernel's tick is a millisecond, so a task cannot pace it. The plan is an interrupt-driven pump: a PS timer
 interrupting at twice the sample rate whose handler moves a frame when the "new sample" flag is up, feeding a ring buffer that ordinary tasks fill. That costs about 15 % of the processor
 and keeps the other tasks' deadlines; it is the next step for audio in the RTOS flavor.
+
+## 7. What the first run taught us
+
+1. **A stack overflow that the host tests could not see.** The first run printed the I2C clock and then took an exception in a loop. The cause (found by reading the CPU's banked registers over JTAG: the
+   system-mode stack pointer had wrapped to `0xFFFEFFF0` and the abort was a push at the entry of `I2c::transaction`) was unbounded recursion: in `impl embedded_hal::i2c::I2c for I2c<R>`, `transaction`
+   called `self.write(..)`, which Rust resolved to the *trait's* default `write` (that calls `transaction`) rather than the controller's own method. The host tests only used the inherent methods. Fixed, with a test that goes through the trait.
+2. **The "missed samples" counter** first reported every frame as missed: the loop checked the ready flag before clearing it. The flag is now cleared when a tick is consumed, so a tick already waiting means the loop was genuinely late.
+3. **The MIC jack** is a differential microphone input; a cable from the headphone output did not register there. The line input did.
+4. After these, the codec came up on the first attempt (PLL locked), which also confirms that the PS I2C 1 controller reaches the codec through the EMIO.

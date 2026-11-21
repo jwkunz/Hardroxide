@@ -58,6 +58,30 @@ pub fn record<R: Mmio>(ctrl: &AudioCodecCtrl<R>, out: &mut [Frame]) -> Result<St
     Ok(st)
 }
 
+/// Play `frames` while recording what comes back in the same sample loop (the controller is full duplex): each
+/// sample tick, the frame received is stored in `out` and the next frame is sent. Stops when `out` is full or
+/// `frames` ends. With a cable from the output to the input this records what was played.
+pub fn play_record<R: Mmio>(
+    ctrl: &AudioCodecCtrl<R>,
+    frames: impl Iterator<Item = Frame>,
+    out: &mut [Frame],
+) -> Result<Stats, MmioError> {
+    let mut st = Stats::default();
+    ctrl.clear_ready()?;
+    for (f, slot) in frames.zip(out.iter_mut()) {
+        if ctrl.ready()? && st.frames > 0 {
+            st.missed += 1;
+        }
+        if !ctrl.wait_sample(SPINS)? {
+            break;
+        }
+        *slot = ctrl.read_frame()?;
+        ctrl.write_frame(f)?;
+        st.frames += 1;
+    }
+    Ok(st)
+}
+
 /// Copy the input to the output for `frames` sample periods, passing each frame through `f`.
 pub fn pass_through<R: Mmio>(
     ctrl: &AudioCodecCtrl<R>,
@@ -150,5 +174,12 @@ mod tests {
         let mut buf = [Frame::default(); 2];
         assert_eq!(record(&a, &mut buf).unwrap().frames, 0);
         assert_eq!(pass_through(&a, 2, |f| f).unwrap().frames, 0);
+        let mut rx = [Frame::default(); 2];
+        assert_eq!(
+            play_record(&a, [Frame::default(); 2].into_iter(), &mut rx)
+                .unwrap()
+                .frames,
+            0
+        );
     }
 }

@@ -5,7 +5,7 @@ ADAU1761 codec with an AXI-Lite register window and **no FIFO and no interrupt**
 frame every sample period (about 20.5 us). The register map and the timing come from the core's VHDL source in the PYNQ repository (Apache-2.0).
 The codec chip itself is configured over I2C by [`hardroxide-audio`](audio.md).
 
-> **Not yet run on a board** (see [Verification gaps](../08-verification-gaps.md)): the register access is unit-tested against the mock backend.
+> **Verified on a PYNQ-Z2** (see [Verification gaps](../08-verification-gaps.md)): playback and record through the controller, full duplex.
 
 ```rust,ignore
 pub const SAMPLE_RATE_HZ: f64

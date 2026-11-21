@@ -1,6 +1,6 @@
-# Tutorial 13: A 10 ms control loop on the kernel
+# RTOS 1: A 10 ms control loop on the kernel
 
-**Design:** `fixtures/board/pynq_z2_gpio.xsa` · **Time:** 20 minutes · **Needs:** tutorial 12
+**Design:** `fixtures/board/pynq_z2_gpio.xsa` · **Time:** 20 minutes · **Needs:** [Bare metal 1](../baremetal/01-jtag.md) (the host setup)
 
 Real-time control wants a loop that runs every 10 ms however busy the rest of the program is. `hardroxide-rt` is a
 small kernel for that: tasks with priorities, where a more urgent task preempts a less urgent one at once.
@@ -71,10 +71,10 @@ control: 600 runs, worst deviation from the 10 ms period 1 us
 
 The reporting task printing to the UART (slow) does not disturb the control loop, because the control task preempts it.
 The measured deviation is from the global timer, so it shows how regular the releases are; interrupt-to-task
-latency and long-run behaviour are listed in [Verification gaps](../08-verification-gaps.md).
+latency and long-run behaviour are listed in [Verification gaps](../../08-verification-gaps.md).
 
 ## 4. What else the kernel has
 
 Semaphores (also given from interrupt handlers), bounded queues, delays and mutexes with priority inheritance: see
-the [kernel reference](../reference/rt.md). A PL interrupt reaches a task by a handler registered with
+the [kernel reference](../../reference/rt.md). A PL interrupt reaches a task by a handler registered with
 `ps7::irq::register` that calls `Semaphore::give_from_isr()`.

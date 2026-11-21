@@ -2,6 +2,8 @@
 
 This page is the map. Each step names the command and the page with the detail;
 [the tutorials](../tutorials/index.md) walk through every step with real output.
+The steps below are for the default **Linux** flavor; the other two flavors differ only in steps 3, 5 and 6, listed
+in [Choosing a flavor](#choosing-a-flavor).
 
 ```text
  Vivado block design
@@ -92,7 +94,29 @@ register, so a mistake shows up there rather than as a frozen board. See
 | Logic only (same IP, addresses, registers, interrupts) | `hardroxide update new.xsa --crate-dir my_design` | only `bitstream/` changes; your code does not |
 | Anything software sees (an address, a register, an IP, an interrupt, or a setting a driver is built with, such as a clock) | the same, then `--regen` | `update` refuses and prints the diff; `--regen` regenerates `src/` and `examples/` |
 
-See [Updating a bitstream](updating.md) and [Tutorial 10](../tutorials/10-update.md).
+See [Updating a bitstream](updating.md) and [Linux 10](../tutorials/linux/10-update.md).
+
+## Choosing a flavor
+
+`hardroxide generate --platform linux|baremetal|rtos` decides what the generated crate runs on. The register layer,
+the typed IP drivers and the `Design` type are shared; the runtime underneath differs
+([ADR 0003](../decisions/0003-bare-metal-and-rtos-platforms.md)).
+
+| | Linux (default) | Bare metal | RTOS |
+|---|---|---|---|
+| Runs as | a process under the stock PYNQ Linux | the only software on core 0 | tasks on the `hardroxide-rt` kernel on core 0 |
+| Who owns the PS peripherals | Linux | your program ([`hardroxide-ps7`](../reference/ps7.md)) | your program, with the kernel's tick |
+| Set up the design with | `Design::load()` (programs the PL through `fpga_manager`) | `Design::init()` (the PL is programmed by `hardroxide run` or the boot image) | `Design::init()` inside a task |
+| Interrupts | UIO devices and the device-tree overlay | the GIC directly | the GIC; handlers give semaphores or queues |
+| Cross-build | `armv7-unknown-linux-gnueabihf`, `gcc-arm-linux-gnueabihf` | `armv7a-none-eabihf`, no linker needed | `armv7a-none-eabihf` |
+| Run on the board | `scripts/board/run.sh` over SSH | `hardroxide run` (JTAG) or `hardroxide package` (SD/QSPI) | the same as bare metal |
+| Host tools | Rust and a cross linker | Rust and the Vitis tools | Rust and the Vitis tools |
+| Timing | whatever Linux gives you | deterministic, single thread | deterministic, 10 ms loops with microsecond jitter |
+| Guide | [Running on hardware](hardware.md) | [Running bare metal](baremetal.md) | [Running bare metal](baremetal.md), [the kernel](../reference/rt.md) |
+| Tutorials | [Linux](../tutorials/linux/index.md) | [Bare metal](../tutorials/baremetal/index.md) | [RTOS](../tutorials/rtos/index.md) |
+
+Both bare-metal flavors need the Vitis tools (they warn and stop if missing) and take over the board: Linux is not
+running while they do. `hardroxide update` works the same way for all three flavors.
 
 ## When something goes wrong
 

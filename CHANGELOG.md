@@ -24,8 +24,12 @@ On a PYNQ-Z2 and under QEMU; see `docs/08-verification-gaps.md`. `hardroxide pac
 BOOT.BIN but it has not yet been booted from SD.
 
 ### Documentation
-- New tutorials (eleven, one per test design) with output captured on a PYNQ-Z2, a
-  page on the end-to-end workflow, and a page on exporting an XSA from Vivado.
+- Tutorials are grouped by flavor: eleven for Linux (one per test design), one for bare metal and one for
+  the RTOS, with output captured on a PYNQ-Z2. New reference pages for `hardroxide-ps7`, `hardroxide-rt` and the
+  bare-metal crate; a "Choosing a flavor" section in the workflow guide; a page on the end-to-end workflow and one
+  on exporting an XSA from Vivado.
+- The documentation site has a landing page, with the book under `/book/` and rustdoc under `/api/` (old book
+  URLs redirect).
 - Stale statements corrected (hardware status, cross-building).
 - Known issue G17 (PS-PL HP port can wedge after many design switches) documented.
 

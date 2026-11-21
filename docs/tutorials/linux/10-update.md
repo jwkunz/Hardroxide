@@ -1,4 +1,4 @@
-# Tutorial 10: Updating a bitstream
+# Linux 10: Updating a bitstream
 
 **Designs:** `fixtures/pynq_z2_peripherals.xsa` and two variants in
 `fixtures/variants/` · **Time:** 15 minutes · **Needs:**
@@ -10,7 +10,7 @@ registers. For those, Hardroxide swaps only the bitstream and leaves your Rust
 code and the generated crate untouched. This tutorial shows the loop and its safety
 rail.
 
-The two variants are rebuilds of the Tutorial 2 design:
+The two variants are rebuilds of the Linux 2 design:
 
 | File | What changed |
 |---|---|
@@ -19,7 +19,7 @@ The two variants are rebuilds of the Tutorial 2 design:
 
 ## 1. Two hashes
 
-Every generated crate records two fingerprints (see [How it works](../guide/concepts.md#two-hashes-interface-and-bitstream)):
+Every generated crate records two fingerprints (see [How it works](../../guide/concepts.md#two-hashes-interface-and-bitstream)):
 an **interface hash** (everything the Rust code depends on) and a **bitstream
 hash**. `inspect` prints the first:
 
@@ -119,11 +119,11 @@ the chip), and the Timer, now built for 50 MHz, still measures a correct 100 ms.
 While developing you can skip even the copy-and-rebuild: enable the crate's
 `dev-bitstream` feature and call `Design::load_with_bitstream("new.xsa", ...)`, which
 loads the bitstream from an XSA at run time (and refuses if the interface differs).
-See [Updating a bitstream](../guide/updating.md). Do not enable it in a release build.
+See [Updating a bitstream](../../guide/updating.md). Do not enable it in a release build.
 
 ## What you did
 
 You rebuilt hardware without touching software, saw `update` replace exactly the
 bitstream, and saw it refuse a change that would have silently broken a driver.
 
-Continue with [Tutorial 11: A design you did not build](11-base-overlay.md).
+Continue with [Linux 11: A design you did not build](11-base-overlay.md).

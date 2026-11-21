@@ -13,24 +13,36 @@
 - [Interrupts](guide/interrupts.md)
 - [Updating a bitstream](guide/updating.md)
 - [Running on hardware](guide/hardware.md)
-- [Running bare metal](guide/baremetal.md)
+- [Running bare metal and RTOS](guide/baremetal.md)
 
 # Tutorials
 
-- [Overview and setup](tutorials/index.md)
-  - [1. LEDs, buttons and switches](tutorials/01-gpio.md)
-  - [2. Timer, SPI and interrupts](tutorials/02-timer-spi-irq.md)
-  - [3. UART and I2C without wires](tutorials/03-uart-iic-loopback.md)
-  - [4. An HLS kernel](tutorials/04-hls-vadd.md)
-  - [5. An HLS kernel that reads memory](tutorials/05-hls-pointers.md)
-  - [6. AXI DMA](tutorials/06-dma.md)
-  - [7. Many interrupts, one controller](tutorials/07-interrupt-controller.md)
-  - [8. Block RAM and UART](tutorials/08-bram-uart.md)
-  - [9. AXI4-Stream FIFO](tutorials/09-stream-fifo.md)
-  - [10. Updating a bitstream](tutorials/10-update.md)
-  - [11. A design you did not build](tutorials/11-base-overlay.md)
-  - [12. Bare metal over JTAG](tutorials/12-baremetal.md)
-  - [13. A 10 ms control loop on the kernel](tutorials/13-rtos-control.md)
+- [Choosing a flavor](tutorials/index.md)
+
+# Linux tutorials
+
+- [Setup](tutorials/linux/index.md)
+  - [1. LEDs, buttons and switches](tutorials/linux/01-gpio.md)
+  - [2. Timer, SPI and interrupts](tutorials/linux/02-timer-spi-irq.md)
+  - [3. UART and I2C without wires](tutorials/linux/03-uart-iic-loopback.md)
+  - [4. An HLS kernel](tutorials/linux/04-hls-vadd.md)
+  - [5. An HLS kernel that reads memory](tutorials/linux/05-hls-pointers.md)
+  - [6. AXI DMA](tutorials/linux/06-dma.md)
+  - [7. Many interrupts, one controller](tutorials/linux/07-interrupt-controller.md)
+  - [8. Block RAM and UART](tutorials/linux/08-bram-uart.md)
+  - [9. AXI4-Stream FIFO](tutorials/linux/09-stream-fifo.md)
+  - [10. Updating a bitstream](tutorials/linux/10-update.md)
+  - [11. A design you did not build](tutorials/linux/11-base-overlay.md)
+
+# Bare-metal tutorials
+
+- [Setup](tutorials/baremetal/index.md)
+  - [1. Run over JTAG](tutorials/baremetal/01-jtag.md)
+
+# RTOS tutorials
+
+- [Setup](tutorials/rtos/index.md)
+  - [1. A 10 ms control loop on the kernel](tutorials/rtos/01-control-loop.md)
 
 # Reference
 

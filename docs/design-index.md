@@ -5,8 +5,9 @@ XSA export, as a Rust alternative to the PYNQ overlay framework.
 
 ## Status
 
-Specification phase. Specs are filled in through interviews; open questions are
-tracked in each document.
+The 00-06 documents record the design interviews for the first (Linux) release and are kept as written, with notes
+where 2.0 changed them. The bare-metal and RTOS platforms are specified in [ADR 0003](decisions/0003-bare-metal-and-rtos-platforms.md). What is built
+and verified is in the [reference](reference/cli.md) and [Verification gaps](08-verification-gaps.md).
 
 ## Documents
 
@@ -16,7 +17,7 @@ tracked in each document.
 | [01-requirements.md](01-requirements.md) | Functional and non-functional requirements |
 | [02-architecture.md](02-architecture.md) | Crates, pipeline, layers |
 | [03-generated-crate.md](03-generated-crate.md) | Shape of the generated HAL crate |
-| [04-runtime.md](04-runtime.md) | Target runtime: Linux on PS, MMIO, DMA, IRQ |
+| [04-runtime.md](04-runtime.md) | Target runtime: Linux on PS, MMIO, DMA, IRQ (bare metal and RTOS: ADR 0003) |
 | [05-roadmap.md](05-roadmap.md) | Policies and milestones (Milestone 1: GPIO end-to-end) |
 | [06-session-handoff.md](06-session-handoff.md) | Context from the original design session, risks, first steps |
 | [07-hwh-findings.md](07-hwh-findings.md) | What a real Vivado 2025.2 HWH contains |

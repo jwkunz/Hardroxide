@@ -1,5 +1,8 @@
 # Running on hardware
 
+This page is for the **Linux** flavor on the stock PYNQ image. For no operating system or the real-time kernel, see
+[Running bare metal and RTOS](baremetal.md).
+
 Most drivers have been run on a PYNQ-Z2 (see the results table in
 [Verification gaps](../08-verification-gaps.md#board-results)); the checks that
 remain are listed there. If you want a guided run through real designs with real output,

@@ -28,7 +28,11 @@ write-bitstream pre-hook and `PCW_FPGA0_PERIPHERAL_FREQMHZ {50}` /
 `PCW_EN_CLK1_PORT {1}` / `PCW_FPGA1_PERIPHERAL_FREQMHZ {142.857}` in the PS7 settings.
 Real designs from other sources are in `fixtures/real/` (see its README).
 
-Each [tutorial](../tutorials/index.md) uses one of these designs and the matching
+`fixtures/board/` holds the same designs rebuilt with the PYNQ-Z2 board preset (DDR, MIO and the PS UART as on the real
+board). The bare-metal and RTOS flavors need these, because `ps7_init` takes the console pins and clocks from the XSA; the
+plain fixtures above leave the PS UART disabled, so a bare-metal program built from them prints nothing.
+
+Each [Linux tutorial](../tutorials/linux/index.md) uses one of these designs and the matching
 programs in `fixtures/board_tests/`; `cargo test -p hardroxide-gen --test board_tests`
 compiles every one of those programs against a freshly generated crate, so the
 tutorial code cannot drift from the API.
@@ -44,5 +48,9 @@ $ vivado -mode batch -source fixtures/scripts/build_pynq_z2_gpio.tcl \
 After rebuilding, refresh the golden snapshots with
 `UPDATE_GOLDEN=1 cargo test -p hardroxide-gen` and review the diff. See
 [HWH findings](../07-hwh-findings.md) for what each export contains.
+
+The bare-metal and RTOS tutorial programs are in `fixtures/board_tests_bm/{baremetal_gpio,rtos_gpio}/`
+(`cargo test -p hardroxide-gen --test baremetal` builds them for the target), and the kernel's own programs in the
+separate `baremetal/` workspace (`ps7-smoke`, `rt-smoke` for QEMU and the board, `rt-jitter` for the long timing run).
 
 `fixtures/board_tests/` holds the on-board test programs (see its README); `board_tests/loopback/{uart_pair,iic_pair}.rs` test the loopback fixture (generate its crate, copy them into `examples/`, build for the board). The UART pair exchanges 256 bytes each way; the IIC pair makes core 1 a target at `0x2A` (its `ADR` register, offset `0x110`), writes five bytes from core 0, and scans the bus.

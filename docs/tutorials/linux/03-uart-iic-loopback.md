@@ -1,4 +1,4 @@
-# Tutorial 3: UART and I2C without wires
+# Linux 3: UART and I2C without wires
 
 **Design:** `fixtures/pynq_z2_loopback.xsa` · **Time:** 15 minutes · **Needs:**
 [setup](index.md#before-you-start-once); the interrupt overlay for step 5
@@ -40,7 +40,7 @@ their first argument and default to the first one.
 ## 1. UART: 256 bytes each way
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/loopback/uart_pair.rs}}
+{{#include ../../../fixtures/board_tests/loopback/uart_pair.rs}}
 ```
 
 The UART Lite has a 16-byte FIFO, so the program sends 8 bytes, then reads 8 back,
@@ -59,7 +59,7 @@ the time matches the baud rate shows the data really went through the UART logic
 ## 2. I2C: a controller talking to a target
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/loopback/iic_pair.rs}}
+{{#include ../../../fixtures/board_tests/loopback/iic_pair.rs}}
 ```
 
 Core 1 is made a target by writing its address (`0x2A << 1`) into its `ADR` register
@@ -81,7 +81,7 @@ program queues the controller's bytes first and then drains the target's FIFO.
 
 ## 3. Interrupts
 
-Apply this design's overlay as in [Tutorial 2](02-timer-spi-irq.md#4-apply-the-overlay), then
+Apply this design's overlay as in [Linux 2](02-timer-spi-irq.md#4-apply-the-overlay), then
 run the interrupt programs. Their output on a real board:
 
 ```console
@@ -109,7 +109,7 @@ interrupt line of `IRQ_F2P[0]`** for its own PL design as level-triggered, so
 `axi_uartlite_1`. If you design your own system, put edge-triggered cores on
 higher `IRQ_F2P` bits. The same applies to switching between this and the other
 designs: reboot between designs whose overlays need different trigger types on one
-line ([Interrupts](../guide/interrupts.md)).
+line ([Interrupts](../../guide/interrupts.md)).
 
 ## What you did
 
@@ -117,4 +117,4 @@ You exercised two UARTs and two I2C cores with real data, checked timing against
 baud rate, and used interrupts, all without a single wire. This design is also how
 Hardroxide's own UART and IIC drivers were validated.
 
-Continue with [Tutorial 4: An HLS kernel](04-hls-vadd.md).
+Continue with [Linux 4: An HLS kernel](04-hls-vadd.md).

@@ -24,6 +24,8 @@ pub enum GenError {
          `hardroxide inspect` still works on this design"
     )]
     UnsupportedArch { arch: String, device: String },
+    /// Reserved for platforms that are declared but not implemented; every current
+    /// platform is available, so `generate` does not return it.
     #[error(
         "the `{0}` platform is not available yet (see docs/decisions/0003-bare-metal-and-rtos-platforms.md)"
     )]
@@ -45,7 +47,8 @@ pub enum Platform {
     Linux,
     /// A `no_std` program for core 0 with no operating system, built on `hardroxide-ps7`.
     BareMetal,
-    /// Bare metal plus a FreeRTOS-style real-time kernel (not available yet).
+    /// Bare metal plus the `hardroxide-rt` real-time kernel: the bare-metal crate with the
+    /// kernel as a dependency and a kernel example.
     Rtos,
 }
 

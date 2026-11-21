@@ -1,5 +1,10 @@
 # Board scripts
 
+The scripts in `scripts/board/` are for the **Linux** flavor. Bare-metal and RTOS programs are run with
+`hardroxide run` and `hardroxide package` ([CLI](cli.md)) instead, and tested with `scripts/test-qemu.sh` (QEMU),
+which sits next to `test-armv7.sh`, `check-no-std.sh` (the runtime crates build for `armv7a-none-eabihf`) and
+`build-site.sh` (the documentation site into `target/site`).
+
 Helper scripts in `scripts/board/` for working with a PYNQ-Z2. They are plain POSIX
 shell, change only the running system, and are what the
 [tutorials](../tutorials/index.md) use.

@@ -56,11 +56,24 @@ binaries under `qemu-arm`. The first release is prepared (see
   designs (D5); SPI against a real device; an automated on-board regression
   script around `fixtures/board_tests/`.
 
+## 2.0: bare metal and RTOS
+
+Done and verified on a PYNQ-Z2 and under QEMU ([ADR 0003](decisions/0003-bare-metal-and-rtos-platforms.md), results in
+[08](08-verification-gaps.md)): `--platform baremetal|rtos`, `hardroxide-ps7` (startup, GIC, timers, UART, MMU, caches),
+`hardroxide-rt` (tasks, semaphores, mutexes with priority inheritance, queues), `hardroxide run`/`package`/`doctor`.
+What remains:
+
+- A multi-hour jitter measurement of the 10 ms loop (`baremetal/rt-jitter`), booting a `hardroxide package` image from SD,
+  cached DMA buffers with explicit cache maintenance against a PL master.
+- Kernel features listed under [Not yet](reference/rt.md#not-yet): event flags, software timers, GIC-priority-mask critical
+  sections, tickless idle, a blocking `IrqWait` integration.
+- Both cores (SMP), UltraScale+, and more bare-metal tutorials (timers and interrupts, DMA).
+
 ## Documentation site
 
 The mdBook (`book.toml`, `src = "docs"`) is the authoritative documentation
-and is deployed to GitHub Pages by `.github/workflows/pages.yml` together with
-`cargo doc` under `api/`. Guard tests keep it honest:
+and is deployed to GitHub Pages by `.github/workflows/pages.yml` (via `scripts/build-site.sh`) with a landing page, the book under `/book/` and
+`cargo doc` under `/api/`. Guard tests keep it honest:
 `crates/hardroxide-cli/tests/book.rs` checks reference signatures against the
 source, CLI help blocks against the real output, and relative links;
 `crates/hardroxide-gen/tests/guide.rs` compiles every guide example tagged

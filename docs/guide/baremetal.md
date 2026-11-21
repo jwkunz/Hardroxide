@@ -1,8 +1,10 @@
-# Running bare metal
+# Running bare metal and RTOS
 
 A bare-metal program runs on core 0 of the Zynq with no operating system
 ([ADR 0003](../decisions/0003-bare-metal-and-rtos-platforms.md)). This page is the host setup and the
-workflow; the crate itself is described in [Bare-metal crate](../reference/baremetal.md).
+workflow; the crate itself is described in [Bare-metal crate](../reference/baremetal.md). Everything here applies to the
+RTOS flavor too (see [Using the kernel](#using-the-kernel)). Guided walk-throughs: the
+[bare-metal](../tutorials/baremetal/index.md) and [RTOS](../tutorials/rtos/index.md) tutorials.
 
 ## Host setup (once)
 
@@ -65,6 +67,14 @@ built without a board preset has UART0 disabled and prints nothing; the fixture 
 Always run `board_check` first: it touches no IP register, and `Design::init()` refuses with
 `PlNotConfigured` instead of letting a register access on an unconfigured PL hang the CPU.
 
+## Using the kernel
+
+`hardroxide generate design.xsa --platform rtos` writes the same crate with the [`hardroxide-rt`](../reference/rt.md) kernel as a
+dependency and an `rt_control` example. Build and run it exactly as above. Your `main` spawns tasks with priorities and
+starts the kernel; a more urgent task preempts a less urgent one, and a `Periodic` release gives a drift-free 10 ms loop.
+Share the `Design` between tasks with `Shared`. See [RTOS 1](../tutorials/rtos/01-control-loop.md) and the
+[kernel reference](../reference/rt.md).
+
 ## Booting on its own
 
 `hardroxide run` needs the JTAG cable and a host. To make the board start a program by itself:
@@ -78,3 +88,6 @@ power-cycle. The boot ROM runs the first-stage loader the command built from you
 and the PL and then starts the program; the console appears on the same UART as under `run`. The same file
 can be written to QSPI flash with the Vitis `program_flash`. The first-stage loader is the vendor's
 (built on your machine from your Vitis install; nothing of it is redistributed by Hardroxide).
+
+This image has been built but **not yet booted from an SD card on hardware**; every other flow on this page is verified
+(see [Verification gaps](../08-verification-gaps.md)).

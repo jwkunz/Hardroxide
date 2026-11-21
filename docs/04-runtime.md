@@ -1,14 +1,14 @@
 # 04 - Runtime
 
-Status: draft, updated through interview round 3.
+Status: draft, updated through interview round 3. This page is the Linux runtime; the bare-metal and RTOS runtimes are in [ADR 0003](decisions/0003-bare-metal-and-rtos-platforms.md), [`hardroxide-ps7`](reference/ps7.md) and [`hardroxide-rt`](reference/rt.md).
 
 ## Decisions
 
 | Topic | Decision |
 |---|---|
 | Target OS (first) | Stock PYNQ-Z2 Ubuntu-based image. Document the minimum kernel features needed (fpga_manager, UIO, udmabuf/dma-heap) so other images can follow. |
-| MMIO | Pluggable backend trait (map, read32, write32 and related). Backends: `/dev/mem` (default on PYNQ), UIO (required for interrupts), and a mock backend for tests. A bare-metal backend is possible later. |
-| DMA memory | `DmaBuffer` trait. Default backend: uncached, physically contiguous buffers (udmabuf / dma-heap), so no explicit cache maintenance in v1. A cached + explicit-sync backend is an opt-in performance feature added later. ACP/HP coherency is not assumed. |
+| MMIO | Pluggable backend trait (map, read32, write32 and related). Backends: `/dev/mem` (default on PYNQ), UIO (required for interrupts), and a mock backend for tests. The bare-metal backend (`physmem`) shipped in 2.0. |
+| DMA memory | `DmaBuffer` trait. Default backend: uncached, physically contiguous buffers (udmabuf / dma-heap), so no explicit cache maintenance in v1. A cached + explicit-sync backend is an opt-in performance feature added later (bare metal has the cache-maintenance helpers in `hardroxide-ps7`, but the DMA buffers it generates stay non-cacheable). ACP/HP coherency is not assumed. |
 
 ## Rationale
 

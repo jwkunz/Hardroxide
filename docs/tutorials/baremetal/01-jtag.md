@@ -1,10 +1,10 @@
-# Tutorial 12: Bare metal over JTAG
+# Bare metal 1: Run over JTAG
 
 **Design:** `fixtures/board/pynq_z2_gpio.xsa` · **Time:** 20 minutes · **Needs:** the
-[bare-metal host setup](../guide/baremetal.md) (Vitis 2025.2, the JTAG udev rule, the board in
+[bare-metal host setup](index.md#host-setup) (Vitis 2025.2, the JTAG udev rule, the board in
 JTAG boot mode)
 
-Tutorials 1 to 11 run under Linux. Here the same GPIO design runs with **no operating system**: your
+The [Linux tutorials](../linux/index.md) run under Linux. Here the same GPIO design runs with **no operating system**: your
 program is the only software on the processor, started over JTAG by `hardroxide run`. The design is
 the board-accurate variant in `fixtures/board/` (the plain fixtures leave the PS UART disabled, so a
 bare-metal program built from them could not print).
@@ -82,7 +82,7 @@ buttons 0000, switches 00
 
 Press buttons while it runs and each change is printed, with the LEDs following. A program is `ps7::entry!(main);
 fn main() -> ! { ... }`: it never returns, and `halt()` parks the core. The driver calls are exactly those of
-tutorial 1; only the setup (`Design::init()` instead of `Design::load()`) and `no_std` differ.
+[Linux tutorial 1](../linux/01-gpio.md); only the setup (`Design::init()` instead of `Design::load()`) and `no_std` differ.
 
 ## 5. Interrupts and DMA
 
@@ -102,4 +102,4 @@ DMA loopback OK: 4096 bytes
 $ hardroxide package target/armv7a-none-eabihf/release/examples/leds --xsa fixtures/board/pynq_z2_gpio.xsa -o BOOT.BIN
 ```
 
-builds a `BOOT.BIN` (see [Booting on its own](../guide/baremetal.md#booting-on-its-own)).
+builds a `BOOT.BIN` (see [Booting on its own](../../guide/baremetal.md#booting-on-its-own)).

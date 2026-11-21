@@ -11,8 +11,10 @@ this page gets the tool and the toolchain ready. When you are, the
 - An `.xsa` exported from Vivado. Hardroxide itself does **not** need Vivado
   installed; the repository has ready-made ones in `fixtures/`. To make your own,
   see [Exporting an XSA from Vivado](vivado.md).
-- To run on hardware: a PYNQ-Z2 on the network (the stock PYNQ image, root
-  access), and a cross linker for 32-bit ARM Linux.
+- To run on hardware, depending on the [flavor](workflow.md#choosing-a-flavor):
+  - **Linux:** a PYNQ-Z2 on the network (the stock PYNQ image, root access), and a cross linker for 32-bit ARM Linux.
+  - **Bare metal / RTOS:** the AMD Vitis tools and a USB (JTAG) cable; no cross linker. See
+    [Running bare metal](baremetal.md).
 
 ## Build the tool
 
@@ -59,7 +61,7 @@ $ cd my_design && cargo build
 builds on your workstation, where it can be tested against a mock backend
 ([Using a generated crate](using.md)); it can only reach hardware on the board.
 
-## Build for the board
+## Build for the board (Linux flavor)
 
 The PYNQ-Z2's ARM cores run 32-bit Linux, so binaries for it use the
 `armv7-unknown-linux-gnueabihf` target. Either build **on the board** (install Rust
@@ -112,7 +114,8 @@ You can run the runtime crates' own tests as armv7 binaries without a board, und
 
 ## Next
 
-- **Learn by doing:** [Tutorial 1: LEDs, buttons and switches](../tutorials/01-gpio.md).
+- **Learn by doing:** [Linux 1: LEDs, buttons and switches](../tutorials/linux/01-gpio.md), or for the other
+  flavors [Bare metal 1](../tutorials/baremetal/01-jtag.md) and [RTOS 1](../tutorials/rtos/01-control-loop.md).
 - **The whole picture:** [The workflow](workflow.md), then
   [How it works](concepts.md).
 - **Your own design:** [Exporting an XSA from Vivado](vivado.md).

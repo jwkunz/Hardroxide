@@ -1,4 +1,4 @@
-# Tutorial 1: LEDs, buttons and switches
+# Linux 1: LEDs, buttons and switches
 
 **Design:** `fixtures/pynq_z2_gpio.xsa` · **Time:** 15 minutes · **Needs:** the
 [setup](index.md#before-you-start-once) done once
@@ -125,7 +125,7 @@ change of the buttons and switches. Read it; the driver calls are the whole
 API you need for a GPIO.
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/gpio/gpio_interactive.rs}}
+{{#include ../../../fixtures/board_tests/gpio/gpio_interactive.rs}}
 ```
 
 - `Design::load()` programs the FPGA, sets the clocks and maps the registers; it
@@ -179,7 +179,7 @@ assert_eq!(d.axi_gpio_0.read(Channel::Two)?, 0b10_0101);
 
 The mock does not simulate hardware behaviour (it just stores values), so it
 tests *your* code, not the FPGA. See
-[Using a generated crate](../guide/using.md) for what it can and cannot do.
+[Using a generated crate](../../guide/using.md) for what it can and cannot do.
 
 ## What you did
 
@@ -190,4 +190,4 @@ against a mock. The next tutorials only change *which design* and *which IP*.
 **Try next:** make the LEDs follow the buttons; or read `pac.rs` and find the
 direction register of channel 2.
 
-Continue with [Tutorial 2: Timer, SPI and interrupts](02-timer-spi-irq.md).
+Continue with [Linux 2: Timer, SPI and interrupts](02-timer-spi-irq.md).

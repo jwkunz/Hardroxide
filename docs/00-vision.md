@@ -6,11 +6,15 @@ Hardroxide is a code generator and runtime library that turns a Vivado XSA
 (bitstream + hardware handoff) into a typed Rust HAL crate. It is a Rust
 counterpart to the PYNQ overlay framework.
 
+> **Updated for 2.0.** The "Runtime" row below is the 1.0 decision. 2.0 added two more flavors of generated
+> crate (bare metal and an RTOS, `--platform baremetal|rtos`); see
+> [ADR 0003](decisions/0003-bare-metal-and-rtos-platforms.md).
+
 ## Decisions from interview (round 1)
 
 | Topic | Decision |
 |---|---|
-| Runtime | Linux on the Processing System (userspace Rust binary). Bare-metal `no_std` is a possible later backend, so keep the generator backend-agnostic where cheap. |
+| Runtime | Linux on the Processing System (userspace Rust binary). Bare-metal `no_std` was a possible later backend, so the generator stayed backend-agnostic: it shipped in 2.0 (bare metal and a real-time kernel). |
 | User experience | Both equally: library-first for embedded app development, with a thin REPL/CLI on top for PYNQ-style exploration. |
 | Register source | HWH data where present, plus a curated IP driver library keyed by VLNV. Unknown IP falls back to raw register access. |
 | Scope | Open source, aimed at general AMD devices (Zynq-7000 and UltraScale+), not just one board. |

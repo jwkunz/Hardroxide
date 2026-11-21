@@ -1,4 +1,4 @@
-# Tutorial 9: AXI4-Stream FIFO
+# Linux 9: AXI4-Stream FIFO
 
 **Design:** `fixtures/pynq_z2_fifo.xsa` · **Time:** 10 minutes · **Needs:**
 [setup](index.md#before-you-start-once); the interrupt overlay for step 3
@@ -37,7 +37,7 @@ length, carry it in the payload.
 ## 2. The edge cases
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/fifo/fifo_edge.rs}}
+{{#include ../../../fixtures/board_tests/fifo/fifo_edge.rs}}
 ```
 
 ```console
@@ -85,4 +85,4 @@ Things to notice:
 You moved packets through a stream port from ordinary register accesses, learned
 the word-granularity rule, and used the receive interrupt.
 
-Continue with [Tutorial 10: Updating a bitstream](10-update.md).
+Continue with [Linux 10: Updating a bitstream](10-update.md).

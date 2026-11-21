@@ -3,7 +3,8 @@
 Context from the original design session (machine without Vivado), written so a
 new Claude session on the Vivado machine can resume without the chat history.
 
-> **Historical.** This records the starting point. Several open questions below
+> **Historical.** This records the starting point of the Linux release (1.0); the bare-metal and RTOS platforms added in 2.0 are in
+> [ADR 0003](decisions/0003-bare-metal-and-rtos-platforms.md). Several open questions below
 > have since been answered: HWH content is documented in
 > [07 - HWH findings](07-hwh-findings.md) (catalog IP *does* carry full
 > register maps in 2025.2), and the current state and next steps are in

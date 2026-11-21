@@ -42,6 +42,12 @@ for HLS kernels, or a raw register window for anything else (see
 Generation is deterministic: the same XSA always gives byte-identical output,
 so the generated crate can be committed and diffed.
 
+The table is the **Linux** crate. With `--platform baremetal` or `rtos` the register layer (`pac`), the drivers and
+the `Design` fields are the same, but nothing is embedded: there is no `bitstream/` and no device-tree overlay, the
+crate gets a linker script and start-up from [`hardroxide-ps7`](../reference/ps7.md), `Design::init()` replaces
+`load()`, and the PL is programmed by `hardroxide run` or the boot image. See
+[Choosing a flavor](workflow.md#choosing-a-flavor).
+
 ## Two hashes: interface and bitstream
 
 The crate records two fingerprints:

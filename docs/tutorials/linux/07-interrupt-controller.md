@@ -1,4 +1,4 @@
-# Tutorial 7: Many interrupts, one controller
+# Linux 7: Many interrupts, one controller
 
 **Design:** `fixtures/pynq_z2_intc.xsa` · **Time:** 10 minutes · **Needs:**
 [setup](index.md#before-you-start-once); the interrupt overlay
@@ -59,7 +59,7 @@ controller's own); the Timer still works as usual.
 ## 2. Wait on the controller
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/intc/intc_timer.rs}}
+{{#include ../../../fixtures/board_tests/intc/intc_timer.rs}}
 ```
 
 The sequence for any source behind a controller is:
@@ -94,4 +94,4 @@ input bit, enable it, wait on the controller, then acknowledge at the source and
 the controller. With several devices, the returned bit mask tells you which one
 fired.
 
-Continue with [Tutorial 8: Block RAM and UART](08-bram-uart.md).
+Continue with [Linux 8: Block RAM and UART](08-bram-uart.md).

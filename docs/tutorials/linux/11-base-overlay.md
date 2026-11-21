@@ -1,4 +1,4 @@
-# Tutorial 11: A design you did not build
+# Linux 11: A design you did not build
 
 **Design:** `fixtures/real/pynq_base_overlay.xsa` · **Time:** 15 minutes ·
 **Needs:** [setup](index.md#before-you-start-once)
@@ -140,7 +140,7 @@ processor loads a MicroBlaze program.
 ## 4. A program of your own
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/base/base_tour.rs}}
+{{#include ../../../fixtures/board_tests/base/base_tour.rs}}
 ```
 
 ```console
@@ -169,5 +169,5 @@ processor can reach, which interrupts go where) explained by `inspect` before yo
 generated anything.
 
 That is the end of the tutorials. To use Hardroxide on your own design, start with
-[Exporting an XSA from Vivado](../guide/vivado.md) and follow
-[The workflow](../guide/workflow.md).
+[Exporting an XSA from Vivado](../../guide/vivado.md) and follow
+[The workflow](../../guide/workflow.md).

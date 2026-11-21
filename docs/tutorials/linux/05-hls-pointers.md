@@ -1,4 +1,4 @@
-# Tutorial 5: An HLS kernel that reads memory
+# Linux 5: An HLS kernel that reads memory
 
 **Design:** `fixtures/pynq_z2_hls_scale.xsa` · **Time:** 15 minutes · **Needs:**
 [setup](index.md#before-you-start-once) and the `u-dma-buf` module
@@ -7,7 +7,7 @@ Real kernels work on arrays in memory. This one multiplies every element of an i
 array by a constant and writes an output array:
 
 ```cpp
-{{#include ../../fixtures/hls_scale/scale.cpp}}
+{{#include ../../../fixtures/hls_scale/scale.cpp}}
 ```
 
 The pointer arguments `in` and `out` become **64-bit address registers** and the kernel
@@ -20,7 +20,7 @@ flush a cache.
 ## 1. Get `u-dma-buf`
 
 The stock image does not include it. Build it once for your kernel
-([Building u-dma-buf](../guide/hardware.md#building-u-dma-buf)), copy the `.ko` to the
+([Building u-dma-buf](../../guide/hardware.md#building-u-dma-buf)), copy the `.ko` to the
 board, and load two 1 MiB buffers:
 
 ```console
@@ -60,7 +60,7 @@ idle=true ready=false done=false
 ## 4. Run it
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/hls_scale/scale_run.rs}}
+{{#include ../../../fixtures/board_tests/hls_scale/scale_run.rs}}
 ```
 
 The program fills the input buffer with `i - 100`, fills the output buffer with `0xEE` so a
@@ -89,7 +89,7 @@ arguments.
 > **If results suddenly look wrong** (the last 16 words of a write missing, a
 > `Timeout` that was not there before) right after switching between designs that use
 > memory, see the known issue
-> [G17](../08-verification-gaps.md#g17-the-ps-pl-hp-port-can-wedge-after-many-design-switches):
+> [G17](../../08-verification-gaps.md#g17-the-ps-pl-hp-port-can-wedge-after-many-design-switches):
 > power-cycle the board.
 
-Continue with [Tutorial 6: AXI DMA](06-dma.md).
+Continue with [Linux 6: AXI DMA](06-dma.md).

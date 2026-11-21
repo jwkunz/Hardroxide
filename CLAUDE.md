@@ -14,7 +14,7 @@ decision changes.
 ## Key decisions (summary)
 
 - First board: PYNQ-Z2 (XC7Z020, armv7), Vivado 2025.2, stock PYNQ Linux image.
-- Runtime: Linux userspace on the PS. PL only; Linux owns PS peripherals.
+- Runtime: Linux userspace on the PS (PL only; Linux owns PS peripherals), or, since 2.0, bare metal or the `hardroxide-rt` kernel on core 0.
 - Generated crate embeds the bitstream (raw `.bin`) and keeps an interface hash
   and a bitstream hash so `hardroxide update` can swap the bitstream without
   regenerating code when the interface is unchanged.
@@ -22,7 +22,7 @@ decision changes.
   contiguous buffers behind a `DmaBuffer` trait.
 - Sync core with a feature-gated async API. Typed errors via `thiserror`.
 - Rust latest stable, edition 2024. License `MIT OR Apache-2.0`.
-- Out of scope for v1: partial reconfiguration, Python bindings.
+- Out of scope (1.0 and 2.0): partial reconfiguration, Python bindings.
 
 ## Platforms (2.0)
 
@@ -30,7 +30,7 @@ decision changes.
 Bare-metal/RTOS crates run on core 0 with no OS (`crates/hardroxide-ps7`, `crates/hardroxide-rt`, no third-party
 dependencies); `hardroxide run`/`package`/`doctor` drive the board with the Vitis tools (JTAG boot mode for `run`).
 Their tests: `scripts/test-qemu.sh`, `cargo test -p hardroxide-gen --test baremetal`, programs in `baremetal/`
-(own workspace). Work happens on branch `v2`.
+(own workspace). `main` carries 2.0.
 
 ## Current state and next step
 
@@ -43,16 +43,16 @@ FIFO), gen, cli. On-board test programs are in `fixtures/board_tests/`; real
 third-party designs (PYNQ overlays) are in `fixtures/real/`.
 
 **The mdBook (`docs/`, deployed by `.github/workflows/pages.yml`) is the
-authoritative documentation**, including thirteen tutorials (`docs/tutorials/`) whose code lives in `fixtures/board_tests/` (compiled by `cargo test -p hardroxide-gen --test board_tests`) and whose outputs were captured on a board; board helper scripts are in `scripts/board/`. When you change a public API or the CLI, update
+authoritative documentation**, including thirteen tutorials (`docs/tutorials/`, grouped by flavor: `linux/`, `baremetal/`, `rtos/`) whose code lives in `fixtures/board_tests/` (Linux) and `fixtures/board_tests_bm/` (bare metal, RTOS; compiled by `cargo test -p hardroxide-gen --test board_tests` and `--test baremetal`) and whose outputs were captured on a board; board helper scripts are in `scripts/board/`. When you change a public API or the CLI, update
 `docs/reference/` in the same change; `cargo test -p hardroxide-cli --test book`
 fails if signatures, help text or links drift. Guide examples are compile-tested
 (`cargo test -p hardroxide-gen --test guide`; tag blocks
 `rust,ignore,fixture=<name>`, `# ` lines are hidden setup).
 
-**Next step:** the first release (`docs/release.md`: dry run is clean, crate names
-are unclaimed, publishing needs the maintainer's crates.io token). After that see
-`docs/05-roadmap.md` (UltraScale+, HLS stream ports, scatter-gather, an automated
-board regression script).
+**Next step:** the 2.0.0 release (`docs/release.md`; publishing needs the maintainer's
+crates.io token) once the multi-hour `baremetal/rt-jitter` run is recorded in
+`docs/08-verification-gaps.md`. After that see `docs/05-roadmap.md` (SD boot check, SMP,
+UltraScale+, HLS stream ports, scatter-gather, an automated board regression script).
 
 On a board: stop anything using the PL before the first `load()` (it refuses if a
 driver is bound to a PL address; reprogramming under one froze the CPU), and

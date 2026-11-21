@@ -33,6 +33,9 @@ Note: this is a broad MVP. Suggested internal ordering: GPIO, then HLS/custom
 - FR-5: Embed a hash of bitstream + HWH; mismatch is detected at load time.
 - FR-6: Blocking and (feature-gated) async interrupt waiting.
 - FR-7: Safe DMA buffer type that tracks hardware ownership.
+- FR-8 (2.0): the same XSA can produce a bare-metal or RTOS crate (`--platform`), sharing the register layer and drivers
+  ([ADR 0003](decisions/0003-bare-metal-and-rtos-platforms.md)); FR-3 then reads: `Design::init()` checks that the PL is
+  configured and maps all IP (the loader or `hardroxide run` programs it).
 
 ## Non-functional requirements (draft)
 

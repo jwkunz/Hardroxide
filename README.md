@@ -14,8 +14,8 @@ hardroxide generate design.xsa -o my_design
 Documentation: <https://jwkunz.github.io/Hardroxide/> (book at `/book/`, API reference at `/api/`), or build it locally with
 `scripts/build-site.sh` (output in `target/site`).
 
-- **New here?** Start with the [tutorials](https://jwkunz.github.io/Hardroxide/book/tutorials/index.html):
-  thirteen step-by-step walk-throughs, one per test design in `fixtures/`, with real
+- **New here?** Start with the [tutorials](https://jwkunz.github.io/Hardroxide/book/tutorials/index.html),
+  grouped by flavor (Linux, bare metal, RTOS): thirteen step-by-step walk-throughs with real
   output from a PYNQ-Z2. No Vivado needed.
 - **Your own design?** [The workflow](https://jwkunz.github.io/Hardroxide/book/guide/workflow.html)
   and [Exporting an XSA from Vivado](https://jwkunz.github.io/Hardroxide/book/guide/vivado.html).
@@ -28,6 +28,11 @@ Documentation: <https://jwkunz.github.io/Hardroxide/> (book at `/book/`, API ref
   design and generates a Cargo crate: the bitstream embedded and ready to load,
   one typed field per IP instance the processor can reach, interrupt wiring as a
   device-tree overlay, and smoke-test examples.
+- Three flavors, chosen with `--platform`: **linux** (a userspace program on the PYNQ image),
+  **baremetal** (no operating system: startup, interrupts, timers, UART, MMU and caches from
+  `hardroxide-ps7`) and **rtos** (bare metal plus the `hardroxide-rt` kernel with prioritised tasks,
+  semaphores, mutexes and queues). `hardroxide run` and `hardroxide package` start bare-metal programs
+  over JTAG or from SD with the Vitis tools.
 - Curated drivers for AXI GPIO, DMA, Timer, IIC, Quad SPI, UART Lite, BRAM
   controller, interrupt controller and AXI4-Stream FIFO (with `embedded-hal` 1.0
   where it fits), generated wrappers for Vitis HLS kernels (including pointer
@@ -38,15 +43,16 @@ Documentation: <https://jwkunz.github.io/Hardroxide/> (book at `/book/`, API ref
 
 ## Status
 
-Version 1.0. Validated on a **PYNQ-Z2** (PYNQ 3.1, kernel 6.6): bitstream
+Version 2.0. Validated on a **PYNQ-Z2** (PYNQ 3.1, kernel 6.6): bitstream
 loading, PL clocks, GPIO, HLS (scalar and pointer arguments), DMA, Timer, IIC,
 SPI (internal loopback), UART, BRAM, FIFO, interrupts (including through an AXI
 interrupt controller), and a crate generated from the PYNQ base overlay. The
-results, and what is still unchecked, are in
+bare-metal and RTOS flavors (PS support, kernel, MMU and caches, DMA, a 10 ms control loop) on the same board and under
+QEMU. The results, and what is still unchecked, are in
 [`docs/08-verification-gaps.md`](docs/08-verification-gaps.md).
 
 Limits: Zynq-7000 only (UltraScale+ designs are refused with a clear error),
-Linux userspace on the PS, direct-register-mode DMA only, one register block per
+bare metal and RTOS on core 0 only (no SMP), direct-register-mode DMA only, one register block per
 IP instance, and Vivado 2025.2 is the version actually exercised on hardware.
 
 ## Quick start
@@ -59,7 +65,9 @@ hardroxide generate design.xsa -o my_design
 
 then follow the [user guide](https://jwkunz.github.io/Hardroxide/book/guide/getting-started.html)
 to cross-build for the board (`armv7-unknown-linux-gnueabihf`) and run
-`board_check` first.
+`board_check` first. For no operating system or the real-time kernel, generate with
+`--platform baremetal` or `--platform rtos` and see
+[Running bare metal](https://jwkunz.github.io/Hardroxide/book/guide/baremetal.html).
 
 Before reprogramming the PL, stop anything on the board that uses it (a base
 overlay's HDMI or GPIO drivers, for example): reprogramming under a live driver

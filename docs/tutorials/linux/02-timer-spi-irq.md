@@ -1,4 +1,4 @@
-# Tutorial 2: Timer, SPI and interrupts
+# Linux 2: Timer, SPI and interrupts
 
 **Design:** `fixtures/pynq_z2_peripherals.xsa` · **Time:** 15 minutes · **Needs:**
 [setup](index.md#before-you-start-once); the interrupt overlay (step 4)
@@ -101,7 +101,7 @@ all checks passed; next run the per-IP examples
 > Also, an interrupt line keeps the trigger type (level or edge) of the first
 > overlay that used it until the board reboots; if a later design needs the other
 > type on the same line, its UIO device returns `EIO` and you must reboot. See
-> [Interrupts](../guide/interrupts.md).
+> [Interrupts](../../guide/interrupts.md).
 
 ## 5. Wait for the interrupt
 
@@ -109,7 +109,7 @@ This program starts the timer as a one-shot with its interrupt enabled, then
 blocks on the timer's UIO device. Compare it with `timer_delay`, which spins:
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/peripherals/timer_irq.rs}}
+{{#include ../../../fixtures/board_tests/peripherals/timer_irq.rs}}
 ```
 
 - `IRQ_INTERRUPT.open()` is a constant the generator wrote into `pac`; it finds
@@ -140,4 +140,4 @@ its `/dev/uioN` instead of `/dev/mem`; `lifecycle.rs`, which loads the design
 repeatedly; and `async_bench.rs`, which waits asynchronously (it needs the `async`
 feature of `hardroxide-irq`). All are in `fixtures/board_tests/peripherals/`.
 
-Continue with [Tutorial 3: UART and I2C without wires](03-uart-iic-loopback.md).
+Continue with [Linux 3: UART and I2C without wires](03-uart-iic-loopback.md).

@@ -11,7 +11,7 @@ Status: draft, updated through interview round 4.
 | Crate prefix | `hardroxide-*` |
 | Repo layout | Single Cargo workspace monorepo: parser, generator, runtime, IP drivers, CLI, examples, and test fixtures together. |
 | Generated crate | One crate per design: embedded bitstream, PAC-style register layer, and a typed `Design` struct. It depends on the shared runtime and IP driver crates rather than vendoring them. |
-| PS scope | PL only. Linux owns PS peripherals. Hardroxide touches the PS only for PL clocks/resets and the FPGA manager. |
+| PS scope | Linux flavor: PL only; Linux owns PS peripherals, and Hardroxide touches the PS only for PL clocks/resets and the FPGA manager. Bare-metal and RTOS flavors (2.0): the program owns core 0 and the PS peripherals it uses, through `hardroxide-ps7`. |
 
 ## Planned workspace crates (working names)
 
@@ -23,9 +23,13 @@ Status: draft, updated through interview round 4.
 | `hardroxide-dma` | `DmaBuffer` trait and uncached contiguous backend |
 | `hardroxide-irq` | Blocking and async (feature-gated) interrupt waiting |
 | `hardroxide-fpga` | Bitstream loading, PL clock/reset control |
+| `hardroxide-ps7` | (2.0) Zynq-7000 bare-metal support: startup, GIC, timers, UART, MMU and caches |
+| `hardroxide-rt` | (2.0) Real-time kernel for the Cortex-A9 |
 | `hardroxide-ip` | Curated drivers keyed by VLNV (GPIO, DMA, Timer, IIC, SPI, HLS) |
 | `hardroxide-cli` | The `hardroxide` binary and `cargo-hardroxide` shim |
 | `examples/`, `fixtures/` | Sample designs, golden XSAs |
+
+> The table lists the crates planned in the design interviews; the current set is on the [introduction](introduction.md#crates).
 
 ## Pipeline
 

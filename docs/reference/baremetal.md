@@ -9,7 +9,7 @@ the platform glue differs.
 ```text
 Cargo.toml  .cargo/config.toml  build.rs  link.ld  interface.txt  interface.sha256
 src/lib.rs  src/pac.rs  src/ips.rs (HLS only)
-examples/   board_check  gpio_smoke  timer_delay  timer_irq  bram_test  hls_smoke  (per IP present)
+examples/   board_check  gpio_smoke  timer_delay  timer_irq  bram_test  hls_smoke  dma_loopback  (per IP present)
 ```
 
 No bitstream is embedded: the PS and the PL must already be configured, by the loader or an

@@ -1,4 +1,4 @@
-# Tutorial 8: Block RAM and UART
+# Linux 8: Block RAM and UART
 
 **Design:** `fixtures/pynq_z2_mem_uart.xsa` · **Time:** 10 minutes · **Needs:**
 [setup](index.md#before-you-start-once)
@@ -38,7 +38,7 @@ then reads all of it back and counts mismatches.
 you. The rules are simple and the program shows them:
 
 ```rust,ignore
-{{#include ../../fixtures/board_tests/mem_uart/bram_bytes.rs}}
+{{#include ../../../fixtures/board_tests/mem_uart/bram_bytes.rs}}
 ```
 
 ```console
@@ -67,7 +67,7 @@ errors: RxErrors { overrun: false, frame: false, parity: false }
 `uart_hello` sends a greeting and prints whatever arrives within a second. With
 nothing wired to the UART it receives nothing, which is what this shows; with
 TX connected to RX it would print the greeting back. (UART and its interrupts
-are exercised properly in [Tutorial 3](03-uart-iic-loopback.md), where two UARTs
+are exercised properly in [Linux 3](03-uart-iic-loopback.md), where two UARTs
 are connected inside the FPGA.) The `errors:` line is the receiver's overrun,
 frame and parity flags, all clear.
 
@@ -77,4 +77,4 @@ You used FPGA block RAM as a plain byte buffer, with the driver taking care of t
 word-sized access, and saw how a design with more IP than you need simply
 generates a field for each.
 
-Continue with [Tutorial 9: AXI4-Stream FIFO](09-stream-fifo.md).
+Continue with [Linux 9: AXI4-Stream FIFO](09-stream-fifo.md).

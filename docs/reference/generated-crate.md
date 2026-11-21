@@ -1,5 +1,9 @@
 # Generated crate
 
+This is the layout of the default **Linux** crate (`--platform linux`). The bare-metal and RTOS flavors share `pac`,
+`ips` and the `Design` field layout but have their own files: see [Bare-metal crate](baremetal.md) and
+[Generated RTOS crates](rt.md#generated-rtos-crates).
+
 ## Layout
 
 ```text

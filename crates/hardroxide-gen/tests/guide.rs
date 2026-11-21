@@ -19,11 +19,21 @@ fn root() -> PathBuf {
 /// (fixture, source) for every tagged block in the guide.
 fn guide_blocks() -> Vec<(String, String)> {
     let mut out = Vec::new();
-    let mut files: Vec<PathBuf> = ["docs/guide", "docs/tutorials"]
-        .iter()
-        .flat_map(|d| std::fs::read_dir(root().join(d)).unwrap())
-        .map(|e| e.unwrap().path())
-        .collect();
+    // Every page under docs/guide and docs/tutorials, including the per-flavor subfolders.
+    fn collect(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+        for e in std::fs::read_dir(dir).unwrap() {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                collect(&p, out);
+            } else {
+                out.push(p);
+            }
+        }
+    }
+    let mut files: Vec<PathBuf> = Vec::new();
+    for d in ["docs/guide", "docs/tutorials"] {
+        collect(&root().join(d), &mut files);
+    }
     files.sort();
     for f in files {
         let md = std::fs::read_to_string(&f).unwrap();

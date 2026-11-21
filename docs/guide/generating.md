@@ -1,8 +1,15 @@
 # Generating a crate
 
 ```console
-$ hardroxide generate <design.xsa> [-o DIR] [--name NAME] [--hardroxide-path ROOT]
+$ hardroxide generate <design.xsa> [-o DIR] [--name NAME] [--platform linux|baremetal|rtos] [--hardroxide-path ROOT]
 ```
+
+`--platform` chooses what the crate runs on ([choosing a flavor](workflow.md#choosing-a-flavor)): `linux`
+(default) is a userspace crate for the stock PYNQ image, `baremetal` runs with no operating system on
+[`hardroxide-ps7`](../reference/ps7.md), and `rtos` is the bare-metal crate plus the
+[`hardroxide-rt`](../reference/rt.md) kernel. The interface (`pac`, the typed drivers, the interface hash) is the
+same for all three. Layouts: [Generated crate](../reference/generated-crate.md) (Linux),
+[Bare-metal crate](../reference/baremetal.md) and [Generated RTOS crates](../reference/rt.md#generated-rtos-crates).
 
 The output directory defaults to the block design (or `--name`) in the current
 directory. Generation is **deterministic**: the same XSA and options always

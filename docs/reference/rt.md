@@ -72,6 +72,17 @@ release. `MutexGuard` unlocks on drop and is not recursive. The `*_from_isr` cal
 happens as the interrupt returns, if a more urgent task became ready. Interrupt handlers are the plain functions of
 [`hardroxide_ps7::irq`](ps7.md#interrupt-handlers) (they run on the IRQ stack).
 
+## Sharing resources between tasks
+
+```rust,ignore
+pub struct Shared<T>
+pub fn set(&self, v: T)
+pub fn lock(&self, timeout: u64) -> Option<SharedGuard<'_, T>>
+```
+
+`Shared<T>` is a value behind a priority-inheriting mutex: a `static Shared<Design<PhysMem>>`, filled with `set` in `main`
+before `start`, lets several tasks use the generated `Design`; `lock` returns a guard that derefs to `&mut T` and unlocks on drop.
+
 ## Not yet
 
 Event flags and task notifications, software timers, task suspend/delete from other tasks, GIC-priority-mask critical

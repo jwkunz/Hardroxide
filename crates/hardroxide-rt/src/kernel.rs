@@ -475,5 +475,81 @@ impl<T: Copy, const N: usize> Default for Queue<T, N> {
     }
 }
 
+/// A value shared between tasks behind a [`Mutex`] (with priority inheritance): the way to
+/// let several tasks use one generated `Design`, or any other resource.
+///
+/// ```ignore
+/// static DESIGN: Shared<Design<PhysMem>> = Shared::new();
+/// // in main, before `start`:
+/// DESIGN.set(design);
+/// // in a task:
+/// let d = DESIGN.lock(WAIT_FOREVER).unwrap();   // &mut Design while the guard lives
+/// ```
+pub struct Shared<T> {
+    lock: Mutex,
+    value: UnsafeCell<Option<T>>,
+}
+
+// SAFETY: the value is only reachable through `lock`, which grants one task at a time (or, in
+// `set`, runs before the kernel starts with interrupts masked).
+unsafe impl<T: Send> Sync for Shared<T> {}
+
+pub struct SharedGuard<'a, T> {
+    shared: &'a Shared<T>,
+    _guard: MutexGuard<'a>,
+}
+
+impl<T> Shared<T> {
+    pub const fn new() -> Self {
+        Shared {
+            lock: Mutex::new(),
+            value: UnsafeCell::new(None),
+        }
+    }
+
+    /// Store the value. Call this before [`start`] (it does not take the lock).
+    pub fn set(&self, v: T) {
+        cp15::without_irq(|| {
+            // SAFETY: before the kernel runs nothing else can access the value.
+            unsafe { *self.value.get() = Some(v) };
+        });
+    }
+
+    /// Lock and borrow the value, waiting up to `timeout` ticks. `None` on timeout or if
+    /// [`set`](Self::set) was never called.
+    pub fn lock(&self, timeout: u64) -> Option<SharedGuard<'_, T>> {
+        let g = self.lock.lock(timeout)?;
+        // SAFETY: the lock is held.
+        if unsafe { (*self.value.get()).is_none() } {
+            return None;
+        }
+        Some(SharedGuard {
+            shared: self,
+            _guard: g,
+        })
+    }
+}
+
+impl<T> Default for Shared<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> core::ops::Deref for SharedGuard<'_, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        // SAFETY: the lock is held and the value is `Some` (checked in `lock`).
+        unsafe { (*self.shared.value.get()).as_ref().unwrap_unchecked() }
+    }
+}
+
+impl<T> core::ops::DerefMut for SharedGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        // SAFETY: as in `deref`, and the guard is the only borrower.
+        unsafe { (*self.shared.value.get()).as_mut().unwrap_unchecked() }
+    }
+}
+
 /// Wait for ever.
 pub const WAIT_FOREVER: u64 = FOREVER;

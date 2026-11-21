@@ -3,7 +3,9 @@
 The scripts in `scripts/board/` are for the **Linux** flavor. Bare-metal and RTOS programs are run with
 `hardroxide run` and `hardroxide package` ([CLI](cli.md)) instead, and tested with `scripts/test-qemu.sh` (QEMU),
 which sits next to `test-armv7.sh`, `check-no-std.sh` (the runtime crates build for `armv7a-none-eabihf`) and
-`build-site.sh` (the documentation site into `target/site`).
+`build-site.sh` (the documentation site into `target/site`), and `test-board.sh`: the board regression, which generates, builds and runs
+the self-checking bare-metal and RTOS programs of the tutorials on a board over JTAG and checks each one's console output
+(`scripts/test-board.sh [filter]`; needs the Vitis tools and the board in JTAG boot mode).
 
 Helper scripts in `scripts/board/` for working with a PYNQ-Z2. They are plain POSIX
 shell, change only the running system, and are what the

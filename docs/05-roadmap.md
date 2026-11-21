@@ -65,7 +65,7 @@ What remains:
 
 - Booting a `hardroxide package` image from SD, cached DMA buffers with explicit cache maintenance against a PL master.
 - Kernel features listed under [Not yet](reference/rt.md#not-yet): event flags, software timers, GIC-priority-mask critical
-  sections, tickless idle, a blocking `IrqWait` integration.
+  sections, tickless idle.
 - Both cores (SMP), UltraScale+, and more bare-metal tutorials (timers and interrupts, DMA).
 
 ## 2.1 to 2.7: applications on the base overlay

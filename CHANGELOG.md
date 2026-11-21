@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 2.1.0
+
+The PYNQ base overlay on bare metal and under the kernel ([ADR 0004](docs/decisions/0004-base-overlay-applications.md)).
+
+### New
+- `fixtures/board/pynq_base_overlay.xsa`: the PYNQ base overlay with a `ps7_init` (built from the PYNQ-Z2 board preset by
+  `fixtures/scripts/build_pynq_base_ps7.tcl` and `package_base_overlay.py`), so `hardroxide run` starts it.
+- `hardroxide-rt`: `IrqEvent`, a task sleeps on a hardware interrupt (`new`, `for_line`, `wait`, `rearm`); the kernel's
+  interrupt path wakes it, with no handler to write.
+- `hardroxide-ip`: AXI GPIO interrupt registers (`enable_interrupt`, `disable_interrupt`, `interrupt_pending`, `clear_interrupt`);
+  AXI interrupt controller simulation mode (`start_simulation`, `simulate`).
+- `apps/base/`: four programs for the base overlay: a self-test, buttons through the interrupt controller, an RTOS mood light
+  with PWM and an interrupt-to-task latency benchmark (4.2 us mean, 6.2 us worst over 2000 interrupts under load).
+- `scripts/test-board.sh`: a board regression that generates, builds and runs the self-checking programs over JTAG.
+- Application tutorials: a new group, with "Lights and buttons on the base overlay"; a reference page for the base overlay.
+
+### Fixed
+- Tests: each generated bare-metal crate builds in its own target directory (same-named crates collided in a shared one).
+
 ## 2.0.0
 
 Bare-metal and RTOS platforms ([ADR 0003](docs/decisions/0003-bare-metal-and-rtos-platforms.md)).

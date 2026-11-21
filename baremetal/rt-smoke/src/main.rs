@@ -20,7 +20,7 @@ const PS_CLK_HZ: u64 = if cfg!(feature = "qemu") {
 } else {
     50_000_000
 };
-const SCENARIOS: u32 = 5;
+const SCENARIOS: u32 = 6;
 
 static DONE: Semaphore = Semaphore::new(0, 16);
 static QUEUE: Queue<u32, 4> = Queue::new();
@@ -184,6 +184,40 @@ fn pi_high() {
     DONE.give();
 }
 
+// ---- scenario 6: a task sleeps on a hardware interrupt (IrqEvent, software interrupt 2) ----
+fn event_waiter() {
+    delay_ms(1000);
+    let ev = hardroxide_rt::IrqEvent::new(2).unwrap();
+    ev.rearm();
+    let t0 = ticks();
+    let first = ev.wait(200);
+    let first_after = ticks() - t0;
+    ev.rearm();
+    let second = ev.wait(200);
+    let none = ev.wait(30);
+    println!(
+        "[6] irq event: first {first} after {first_after} ticks, second (after rearm) {second}, nothing pending {}",
+        !none
+    );
+    DONE.give();
+}
+fn event_trigger() {
+    delay_ms(1040);
+    send_sgi(2);
+    delay_ms(60);
+    send_sgi(2);
+}
+fn send_sgi(n: u32) {
+    // SAFETY: the distributor window is used here only to raise one software interrupt.
+    let be = unsafe { PhysMem::new() };
+    let gic = Gic::new(
+        be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)
+            .unwrap(),
+        be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE).unwrap(),
+    );
+    gic.send_sgi(n, 1).unwrap();
+}
+
 fn coordinator() {
     for _ in 0..SCENARIOS {
         DONE.take(WAIT_FOREVER);
@@ -217,6 +251,7 @@ fn main() -> ! {
     assert!(irq::register(1, sgi_handler));
     gic.set_priority(1, 0x40).unwrap();
     gic.enable(1).unwrap();
+    gic.set_priority(2, 0x40).unwrap();
 
     macro_rules! task {
         ($name:literal, $prio:expr, $f:expr) => {
@@ -234,5 +269,7 @@ fn main() -> ! {
     task!("pi_low", 1, pi_low);
     task!("pi_medium", 3, pi_medium);
     task!("pi_high", 5, pi_high);
+    task!("event_waiter", 4, event_waiter);
+    task!("event_trigger", 6, event_trigger);
     start(periph, 1000)
 }

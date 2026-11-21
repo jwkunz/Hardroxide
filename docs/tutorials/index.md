@@ -10,6 +10,8 @@ matches how you will deploy; all three start from the same `.xsa` and the same g
 | [**Bare metal**](baremetal/index.md) | `baremetal` | the only software on core 0: startup, interrupts, timers, UART and caches come from `hardroxide-ps7`; started over JTAG or from SD | [Bare metal 1: Run over JTAG](baremetal/01-jtag.md) |
 | [**RTOS**](rtos/index.md) | `rtos` | bare metal plus the `hardroxide-rt` kernel: prioritised tasks, semaphores, mutexes, queues, 10 ms control loops | [RTOS 1: A 10 ms control loop](rtos/01-control-loop.md) |
 
+**Applications** ([setup](apps/index.md)) are programs that do something worth showing on the PYNQ base overlay, built with the bare-metal and RTOS flavors.
+
 Not sure which? Use Linux when you want the operating system's file system, network and tools next to your
 FPGA design. Use bare metal for the smallest and most direct software on the processor. Use the RTOS when
 several activities with deadlines must share the processor.
@@ -48,3 +50,9 @@ captured on a PYNQ-Z2. See [Choosing a flavor](../guide/workflow.md#choosing-a-f
 | # | Tutorial | You learn |
 |---|---|---|
 | 1 | [A 10 ms control loop on the kernel](rtos/01-control-loop.md) | tasks, priorities and a periodic release with `--platform rtos` |
+
+**Applications** ([setup](apps/index.md))
+
+| # | Tutorial | You learn |
+|---|---|---|
+| 1 | [Lights and buttons on the base overlay](apps/01-base-lights.md) | the PYNQ base overlay without an OS; interrupts through the controller; `IrqEvent`; a mood light |

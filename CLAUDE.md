@@ -29,8 +29,9 @@ decision changes.
 `hardroxide generate --platform linux|baremetal|rtos` ([ADR 0003](docs/decisions/0003-bare-metal-and-rtos-platforms.md)).
 Bare-metal/RTOS crates run on core 0 with no OS (`crates/hardroxide-ps7`, `crates/hardroxide-rt`, no third-party
 dependencies); `hardroxide run`/`package`/`doctor` drive the board with the Vitis tools (JTAG boot mode for `run`).
-Their tests: `scripts/test-qemu.sh`, `cargo test -p hardroxide-gen --test baremetal`, programs in `baremetal/`
-(own workspace). `main` carries 2.0.
+Their tests: `scripts/test-qemu.sh`, `cargo test -p hardroxide-gen --test baremetal` and `--test apps`, the board
+regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and applications in `apps/` (built by the
+`apps` test against the generated crate; plan in ADR 0004, versions 2.1 to 2.7). `main` carries 2.0.
 
 ## Current state and next step
 
@@ -43,7 +44,7 @@ FIFO), gen, cli. On-board test programs are in `fixtures/board_tests/`; real
 third-party designs (PYNQ overlays) are in `fixtures/real/`.
 
 **The mdBook (`docs/`, deployed by `.github/workflows/pages.yml`) is the
-authoritative documentation**, including fifteen tutorials (`docs/tutorials/`, grouped by flavor: `linux/`, `baremetal/`, `rtos/`) whose code lives in `fixtures/board_tests/` (Linux) and `fixtures/board_tests_bm/` (bare metal, RTOS; compiled by `cargo test -p hardroxide-gen --test board_tests` and `--test baremetal`) and whose outputs were captured on a board; board helper scripts are in `scripts/board/`. When you change a public API or the CLI, update
+authoritative documentation**, including sixteen tutorials (`docs/tutorials/`, grouped by flavor: `linux/`, `baremetal/`, `rtos/`, and `apps/` for applications) whose code lives in `fixtures/board_tests/` (Linux) and `fixtures/board_tests_bm/` (bare metal, RTOS; compiled by `cargo test -p hardroxide-gen --test board_tests` and `--test baremetal`) and whose outputs were captured on a board; board helper scripts are in `scripts/board/`. When you change a public API or the CLI, update
 `docs/reference/` in the same change; `cargo test -p hardroxide-cli --test book`
 fails if signatures, help text or links drift. Guide examples are compile-tested
 (`cargo test -p hardroxide-gen --test guide`; tag blocks

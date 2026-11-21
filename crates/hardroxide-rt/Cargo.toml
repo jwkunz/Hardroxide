@@ -16,3 +16,4 @@ categories.workspace = true
 # are turned off: this crate provides its own, scheduler-aware ones.
 hardroxide-ps7 = { workspace = true, default-features = false }
 hardroxide-mmio = { workspace = true, features = ["physmem"] }
+hardroxide-irq.workspace = true

@@ -58,6 +58,24 @@ impl<R: Mmio> AxiIntc<R> {
         Ok(())
     }
 
+    /// Simulation mode: clear everything and turn the `irq` output on with **hardware inputs
+    /// ignored** (`MER.ME` only), so [`AxiIntc::simulate`] can raise interrupts from software. Used to test the
+    /// path from the controller to the processor with no device involved. The hardware-enable bit
+    /// (`MER.HIE`) cannot be cleared once set, so only a reset (reprogramming the PL) leaves
+    /// [`AxiIntc::init`]'s mode for this one.
+    pub fn start_simulation(&self) -> Result<(), IntcError> {
+        self.regs.write32(IER, 0)?;
+        self.regs.write32(IAR, 0xFFFF_FFFF)?;
+        self.regs.write32(MER, MER_ME)?;
+        Ok(())
+    }
+
+    /// Raise the inputs in `mask` from software (writes `ISR`). Only has an effect in simulation
+    /// mode ([`AxiIntc::start_simulation`]); acknowledge with [`AxiIntc::ack`] as usual.
+    pub fn simulate(&self, mask: u32) -> Result<(), IntcError> {
+        Ok(self.regs.write32(ISR, mask)?)
+    }
+
     /// Enable the inputs set in `mask` (bit n = input `In<n>`).
     pub fn enable(&self, mask: u32) -> Result<(), IntcError> {
         Ok(self.regs.write32(SIE, mask)?)
@@ -171,6 +189,15 @@ mod tests {
         assert_eq!(be.peek(BASE + CIE as u64), 0b001);
         ic.ack(0b100).unwrap();
         assert_eq!(be.peek(BASE + IAR as u64), 0b100);
+    }
+
+    #[test]
+    fn simulation_mode_ignores_hardware_and_raises_from_software() {
+        let (be, ic) = intc();
+        ic.start_simulation().unwrap();
+        assert_eq!(be.peek(BASE + MER as u64), MER_ME);
+        ic.simulate(1 << 12).unwrap();
+        assert_eq!(be.peek(BASE + ISR as u64), 1 << 12);
     }
 
     #[test]

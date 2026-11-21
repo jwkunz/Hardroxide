@@ -179,12 +179,103 @@ extern "C" fn hrx_rt_irq(sp: usize) -> usize {
                 let _ = PrivateTimer::new(t).clear_interrupt();
             }
             tick_switch = cs(|s| s.tick());
-        } else if irq::dispatch(id) != irq::Dispatched::Handler {
-            let _ = gic.disable(id);
+        } else {
+            match irq::dispatch(id) {
+                irq::Dispatched::Handler => {}
+                irq::Dispatched::Event => {
+                    irq_event_fired(id);
+                    let _ = gic.disable(id);
+                }
+                irq::Dispatched::Unhandled => {
+                    let _ = gic.disable(id);
+                }
+            }
         }
         let _ = gic.end_of_interrupt(id);
     }
     switch(sp, tick_switch)
+}
+
+const IRQ_EVENTS: usize = 8;
+const FREE: u32 = u32::MAX;
+static EVENT_IDS: [AtomicU32; IRQ_EVENTS] = [const { AtomicU32::new(FREE) }; IRQ_EVENTS];
+static EVENT_SEMS: [Semaphore; IRQ_EVENTS] = [const { Semaphore::new(0, 1) }; IRQ_EVENTS];
+
+/// Called from the IRQ path when an interrupt in event mode fired: wake whoever waits on it.
+fn irq_event_fired(id: u32) {
+    for (slot, owner) in EVENT_IDS.iter().enumerate() {
+        if owner.load(Ordering::Acquire) == id {
+            EVENT_SEMS[slot].give_from_isr();
+        }
+    }
+}
+
+/// A hardware interrupt a task can sleep on: the kernel's version of waiting for a PL
+/// interrupt. [`IrqEvent::new`] puts a GIC interrupt in event mode; when it fires, the interrupt
+/// path masks it in the GIC and wakes the task blocked in [`IrqEvent::wait`] (a more urgent
+/// task runs as soon as the interrupt returns). The task then clears the interrupt's source in
+/// the device and calls [`IrqEvent::rearm`] to unmask the line for the next one. At most eight
+/// events exist; an event that fires while nobody waits is remembered (once).
+#[derive(Debug)]
+pub struct IrqEvent {
+    slot: usize,
+    id: u32,
+}
+
+impl IrqEvent {
+    /// Bind GIC interrupt `id` (for a PL interrupt see `ps7::map::f2p_irq`). `None` if `id` is
+    /// out of range or all eight events are in use. The line stays masked until [`IrqEvent::rearm`].
+    pub fn new(id: u32) -> Option<IrqEvent> {
+        if !irq::register_event(id) {
+            return None;
+        }
+        for (slot, owner) in EVENT_IDS.iter().enumerate() {
+            if owner
+                .compare_exchange(FREE, id, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                return Some(IrqEvent { slot, id });
+            }
+        }
+        None
+    }
+
+    /// Bind a generated interrupt line. `None` if it does not reach the PS directly (it feeds an
+    /// interrupt controller, or could not be traced), or as for [`IrqEvent::new`].
+    pub fn for_line(line: &hardroxide_irq::IrqLine) -> Option<IrqEvent> {
+        IrqEvent::new(map::SPI_BASE + line.gic_spi?)
+    }
+
+    /// Sleep until the interrupt fires, for at most `timeout` ticks ([`WAIT_FOREVER`] for ever, 0
+    /// to poll). `true` if it fired.
+    pub fn wait(&self, timeout: u64) -> bool {
+        EVENT_SEMS[self.slot].take(timeout)
+    }
+
+    /// Unmask the interrupt in the GIC. Call it after the device's own interrupt flag has been
+    /// cleared, or a level-triggered line fires again at once. Also the call that first enables it.
+    pub fn rearm(&self) {
+        // SAFETY: the GIC windows are only used by the interrupt layer.
+        let be = unsafe { PhysMem::new() };
+        if let (Ok(d), Ok(c)) = (
+            be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE),
+            be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE),
+        ) {
+            let _ = Gic::new(d, c).enable(self.id);
+        }
+    }
+
+    /// The GIC interrupt ID.
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+}
+
+impl Drop for IrqEvent {
+    fn drop(&mut self) {
+        EVENT_IDS[self.slot].store(FREE, Ordering::Release);
+        irq::unregister(self.id);
+    }
 }
 
 /// Give up the processor to an equally urgent ready task (or keep it if there is none).

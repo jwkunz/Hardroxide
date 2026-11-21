@@ -46,11 +46,17 @@
 - [Setup](tutorials/rtos/index.md)
   - [1. A 10 ms control loop on the kernel](tutorials/rtos/01-control-loop.md)
 
+# Application tutorials
+
+- [Setup](tutorials/apps/index.md)
+  - [1. Lights and buttons on the base overlay](tutorials/apps/01-base-lights.md)
+
 # Reference
 
 - [CLI](reference/cli.md)
 - [Generated crate](reference/generated-crate.md)
 - [Bare-metal crate](reference/baremetal.md)
+- [PYNQ base overlay](reference/base-overlay.md)
 - [hardroxide-hwh](reference/hwh.md)
 - [hardroxide-gen](reference/gen.md)
 - [hardroxide-mmio](reference/mmio.md)

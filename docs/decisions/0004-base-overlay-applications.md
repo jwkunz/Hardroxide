@@ -84,17 +84,22 @@ Facts that shape the plan:
 
 The work that every later version stands on.
 
-- **Bring-up path for the base overlay:** a Vivado script that builds a hardware-only XSA from the PS configuration in the
-  base HWH (so `ps7_init.tcl` matches exactly), and `hardroxide run --ps7-init <file>` (or an XSA that carries it) to run
-  the repackaged base XSA with it. The result is committed under `fixtures/real/` with its script.
+- **Bring-up path for the base overlay:** a Vivado script builds a PS-only XSA from the board preset and the base overlay's
+  PS-to-PL settings, and a packaging script adds its `ps7_init` to the overlay's own bitstream and handoff, giving
+  `fixtures/board/pynq_base_overlay.xsa` (done: the overlay's own DDR settings failed a memory test on the board, so the preset's
+  stock-part DDR settings are used).
 - `hardroxide generate --platform baremetal|rtos` on the base overlay builds, `board_check` passes, and a regression
   test generates and builds it for both platforms.
 - Examples (bare metal and RTOS): buttons to LEDs, the RGB LEDs as a mood light, switches choosing a pattern, all
   through `system_interrupts` (buttons wake a task instead of being polled).
-- `hardroxide-ps7`: nothing new expected; this version finds what is missing.
+- Found missing and added: the kernel's `IrqEvent` (a task sleeps on a hardware interrupt), the GPIO driver's interrupt
+  registers, and the interrupt controller's simulation mode (the way to test the interrupt path with no device and no
+  button press).
 - Docs: a new "Applications" tutorial group with the first tutorial; reference page for the base overlay.
+- A start on the board regression: `scripts/test-board.sh`.
 - **Acceptance:** from a clean checkout, `hardroxide run` starts the RTOS mood-light application on the base overlay;
-  button presses reach a task through the interrupt controller with measured latency.
+  interrupts reach a task through the interrupt controller with measured latency (done: 4.2 us mean, 6.2 us worst over 2000
+  interrupts under load; button presses by hand still to be exercised by the maintainer).
 
 ### 2.2: Pixels (HDMI output, a graphics library)
 
@@ -260,7 +265,7 @@ this ADR's status table below.
 
 | Version | State |
 |---|---|
-| 2.1 | not started |
+| 2.1 | implemented and board-verified except the visual and button checks (2026-11-21) |
 | 2.2 | not started |
 | 2.3 | not started |
 | 2.4 | not started |

@@ -20,6 +20,8 @@ pub struct AxiIntc<R: Mmio>
 pub fn new(regs: R) -> Self
 pub fn regs(&self) -> &R
 pub fn init(&self) -> Result<(), IntcError>
+pub fn start_simulation(&self) -> Result<(), IntcError>
+pub fn simulate(&self, mask: u32) -> Result<(), IntcError>
 pub fn enable(&self, mask: u32) -> Result<(), IntcError>
 pub fn disable(&self, mask: u32) -> Result<(), IntcError>
 pub fn enabled(&self) -> Result<u32, IntcError>
@@ -35,6 +37,9 @@ that feeds it.
 
 - `init` disables and clears all inputs and sets `MER.ME | MER.HIE` so the
   `irq` output is live.
+- `start_simulation` clears everything and sets `MER.ME` only: **hardware inputs are ignored** and `simulate(mask)`
+  (a write to `ISR`) raises interrupts from software, the way to test the controller-to-processor path with no device
+  involved. `MER.HIE` cannot be cleared once set, so only reprogramming the PL returns from `init`'s mode to this one.
 - `enable`/`disable` use the atomic `SIE`/`CIE` registers.
 - `pending` is `IPR` (latched **and** enabled). `highest_pending` reads `IVR`
   (the lowest-numbered pending input, `None` when the register reads

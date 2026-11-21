@@ -72,6 +72,26 @@ release. `MutexGuard` unlocks on drop and is not recursive. The `*_from_isr` cal
 happens as the interrupt returns, if a more urgent task became ready. Interrupt handlers are the plain functions of
 [`hardroxide_ps7::irq`](ps7.md#interrupt-handlers) (they run on the IRQ stack).
 
+## Sleeping on a hardware interrupt
+
+```rust,ignore
+pub struct IrqEvent
+pub fn new(id: u32) -> Option<IrqEvent>
+pub fn for_line(line: &hardroxide_irq::IrqLine) -> Option<IrqEvent>
+pub fn wait(&self, timeout: u64) -> bool
+pub fn rearm(&self)
+pub fn id(&self) -> u32
+```
+
+`IrqEvent` binds a GIC interrupt to a task: the task sleeps in `wait` and the kernel's interrupt path wakes it, with no handler to write
+(a more urgent task runs as soon as the interrupt returns). When the interrupt fires the line is **masked in the GIC**, so a level-triggered source
+cannot storm; the task clears the interrupt in the device (the GPIO's flag, the interrupt controller's acknowledge) and then calls `rearm`, which unmasks the
+line again (and is also the call that first enables it, after the GIC and the device are set up). `for_line` takes a generated `IrqLine` that reaches the PS directly
+(for example `pac::system_interrupts::IRQ_IRQ`, the output of an AXI interrupt controller); `new(id)` takes any GIC interrupt ID. At most eight events exist;
+an event that fires while the task is not waiting is remembered once. Dropping the `IrqEvent` frees its slot. On the PYNQ-Z2 a
+simulated interrupt at the AXI interrupt controller reached a priority-6 task in 4.2 us on average and 6.2 us at worst over 2000 events with a
+processor hog and a cache-thrashing task running ([Verification gaps](../08-verification-gaps.md)).
+
 ## Sharing resources between tasks
 
 ```rust,ignore
@@ -102,5 +122,4 @@ task within 5.4 us (mean 3.95 us). Details and limits: [Verification gaps](../08
 ## Not yet
 
 Event flags and task notifications, software timers, task suspend/delete from other tasks, GIC-priority-mask critical
-sections (so urgent interrupts are never delayed by the kernel), a tickless idle, and a blocking `IrqWait` integration (today an
-interrupt is turned into a semaphore give by a handler).
+sections (so urgent interrupts are never delayed by the kernel), and a tickless idle.

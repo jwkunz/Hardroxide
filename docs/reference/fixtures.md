@@ -28,6 +28,8 @@ write-bitstream pre-hook and `PCW_FPGA0_PERIPHERAL_FREQMHZ {50}` /
 `PCW_EN_CLK1_PORT {1}` / `PCW_FPGA1_PERIPHERAL_FREQMHZ {142.857}` in the PS7 settings.
 Real designs from other sources are in `fixtures/real/` (see its README).
 
+`fixtures/board/pynq_base_overlay.xsa` is the PYNQ base overlay with a `ps7_init` ([PYNQ base overlay](base-overlay.md)); the programs for it are in `apps/base/`.
+
 `fixtures/board/` holds the same designs rebuilt with the PYNQ-Z2 board preset (DDR, MIO and the PS UART as on the real
 board). The bare-metal and RTOS flavors need these, because `ps7_init` takes the console pins and clocks from the XSA; the
 plain fixtures above leave the PS UART disabled, so a bare-metal program built from them prints nothing.

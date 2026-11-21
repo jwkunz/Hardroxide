@@ -88,12 +88,27 @@ intc.ack(BTNS_BIT)?;                            // ...then the controller
 ```
 
 Run it and press the buttons (it stops after 60 s): button 0 counts up on the LEDs, 1 counts down, 2 clears, 3 lights both RGB LEDs in
-the colour the switches choose (00 off, 01 red, 10 green, 11 blue).
+the colour the switches choose (00 off, 01 red, 10 green, 11 blue). Output from a real run (a press of each button, switches at 00 and then 01, then button 0 four times):
 
 ```console
 $ cargo build --release --example lights
 $ hardroxide run target/armv7a-none-eabihf/release/examples/lights --xsa ../../fixtures/board/pynq_base_overlay.xsa --watch 65
+running; console below (70 s) ...
+
+== lights: press the buttons (60 s) ==
+buttons 1000 pressed: LEDs 0000, switches 00
+buttons 0100 pressed: LEDs 0000, switches 00
+buttons 0010 pressed: LEDs 1111, switches 00
+buttons 0001 pressed: LEDs 0000, switches 00
+...
+buttons 0001 pressed: LEDs 0001, switches 01
+buttons 0001 pressed: LEDs 0010, switches 01
+buttons 0001 pressed: LEDs 0011, switches 01
+buttons 0001 pressed: LEDs 0100, switches 01
+done
 ```
+
+The first line of each pair is the pressed button's bit: `0010` is button 1, which counts down from 0 to `1111`.
 
 The GPIO's interrupt registers are `AxiGpio::enable_interrupt`, `interrupt_pending` and `clear_interrupt` (the status register toggles on a
 write of 1, which `clear_interrupt` accounts for).
@@ -114,6 +129,14 @@ mood light: mode 0, brightness 8/8, 0 button presses, pwm task worst lateness 1 
 mood light: mode 0, brightness 8/8, 0 button presses, pwm task worst lateness 1 us
 ```
 
+With buttons pressed during a minute (the status line every five seconds):
+
+```console
+mood light: mode 1, brightness 7/8, 5 button presses, pwm task worst lateness 7 us
+mood light: mode 2, brightness 6/8, 8 button presses, pwm task worst lateness 7 us
+mood light: mode 0, brightness 4/8, 16 button presses, pwm task worst lateness 7 us
+```
+
 Four tasks, each with a deadline of its own:
 
 | Task | Priority | Job |
@@ -124,7 +147,7 @@ Four tasks, each with a deadline of its own:
 | `report` | 2 | prints a status line every 5 seconds |
 
 The RGB LEDs fade through a rainbow. Press button 0 for the next pattern, 1 and 2 for brightness, 3 to switch off and on. The
-`pwm` task reports its worst lateness against the 1 ms grid: 1 µs.
+`pwm` task reports its worst lateness against the 1 ms grid: 1 µs idle, 7 µs while buttons are being pressed.
 
 The key lines are the `IrqEvent`: the task sleeps, the kernel wakes it, and there is no handler to write:
 

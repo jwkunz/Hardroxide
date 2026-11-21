@@ -265,7 +265,7 @@ this ADR's status table below.
 
 | Version | State |
 |---|---|
-| 2.1 | implemented and board-verified except the visual and button checks (2026-11-21) |
+| 2.1 | implemented, board-verified including the buttons and LEDs by hand (2026-11-21); released as 2.1.0 |
 | 2.2 | not started |
 | 2.3 | not started |
 | 2.4 | not started |

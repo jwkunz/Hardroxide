@@ -15,7 +15,7 @@ Documentation: <https://jwkunz.github.io/Hardroxide/>, or build it locally with
 `mdbook build` (output in `target/book`).
 
 - **New here?** Start with the [tutorials](https://jwkunz.github.io/Hardroxide/tutorials/index.html):
-  eleven step-by-step walk-throughs, one per test design in `fixtures/`, with real
+  thirteen step-by-step walk-throughs, one per test design in `fixtures/`, with real
   output from a PYNQ-Z2. No Vivado needed.
 - **Your own design?** [The workflow](https://jwkunz.github.io/Hardroxide/guide/workflow.html)
   and [Exporting an XSA from Vivado](https://jwkunz.github.io/Hardroxide/guide/vivado.html).

@@ -200,3 +200,62 @@ fn update_understands_baremetal_crates() {
     assert!(dir.join("examples/timer_delay.rs").exists());
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// The programs the bare-metal and RTOS tutorials show (`fixtures/board_tests_bm/`) build
+/// against a freshly generated crate of the platform their directory is named after.
+#[test]
+fn tutorial_programs_build() {
+    let installed = Command::new("rustup")
+        .args(["target", "list", "--installed"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains("armv7a-none-eabihf"))
+        .unwrap_or(false);
+    if !installed {
+        eprintln!("skipping: `rustup target add armv7a-none-eabihf` to run this test");
+        return;
+    }
+    for (dir, platform, xsa) in [
+        ("baremetal_gpio", Platform::BareMetal, "pynq_z2_gpio"),
+        ("rtos_gpio", Platform::Rtos, "pynq_z2_gpio"),
+    ] {
+        let tmp = std::env::temp_dir().join(format!("hrx-tut-{dir}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let o = Options {
+            platform,
+            crate_name: Some("design_1".into()),
+            ..opts(root().to_str().unwrap())
+        };
+        generate(&fixture(xsa), &o).unwrap().write_to(&tmp).unwrap();
+        let src = root().join("fixtures/board_tests_bm").join(dir);
+        for e in std::fs::read_dir(&src).unwrap() {
+            let p = e.unwrap().path();
+            if p.extension().is_some_and(|x| x == "rs") {
+                std::fs::copy(&p, tmp.join("examples").join(p.file_name().unwrap())).unwrap();
+            }
+        }
+        let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
+        manifest.push_str("\n[workspace]\n");
+        std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();
+        let out = Command::new(env!("CARGO"))
+            .args([
+                "build",
+                "--release",
+                "--examples",
+                "--target",
+                "armv7a-none-eabihf",
+                "--manifest-path",
+            ])
+            .arg(tmp.join("Cargo.toml"))
+            .env("CARGO_TARGET_DIR", root().join("target/gen-test-baremetal"))
+            .output()
+            .unwrap();
+        let text = format!(
+            "{}\n{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert!(out.status.success(), "{dir}:\n{text}");
+        assert!(!text.contains("warning"), "{dir}: warnings:\n{text}");
+        std::fs::remove_dir_all(tmp).unwrap();
+    }
+}

@@ -29,6 +29,8 @@
   - [9. AXI4-Stream FIFO](tutorials/09-stream-fifo.md)
   - [10. Updating a bitstream](tutorials/10-update.md)
   - [11. A design you did not build](tutorials/11-base-overlay.md)
+  - [12. Bare metal over JTAG](tutorials/12-baremetal.md)
+  - [13. A 10 ms control loop on the kernel](tutorials/13-rtos-control.md)
 
 # Reference
 

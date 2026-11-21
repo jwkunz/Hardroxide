@@ -48,7 +48,7 @@ manages the PL only.
 
 - **User Guide**: install, generate, use and update a crate; the workflow, and how
   to prepare a board.
-- **Tutorials**: eleven hands-on walk-throughs, each on one of the test designs in
+- **Tutorials**: thirteen hands-on walk-throughs, each on one of the test designs in
   `fixtures/`, with output captured on a PYNQ-Z2.
 - **Reference**: the authoritative description of the CLI, the generated crate, the
   board scripts and every public runtime crate. Function signatures in the reference

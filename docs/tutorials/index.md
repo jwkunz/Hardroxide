@@ -26,6 +26,8 @@ have.
 | 9 | [AXI4-Stream FIFO](09-stream-fifo.md) | `pynq_z2_fifo.xsa` | packets, and why lengths round up |
 | 10 | [Updating a bitstream](10-update.md) | `variants/` | swapping a rebuilt design without touching code |
 | 11 | [A design you did not build](11-base-overlay.md) | `real/pynq_base_overlay.xsa` | the PYNQ base overlay: 70 IP, one command |
+| 12 | [Bare metal over JTAG](12-baremetal.md) | `board/pynq_z2_gpio.xsa` | no operating system: `--platform baremetal`, `hardroxide run` |
+| 13 | [A 10 ms control loop on the kernel](13-rtos-control.md) | `board/pynq_z2_gpio.xsa` | tasks, priorities and a periodic release with `--platform rtos` |
 
 ## Before you start (once)
 

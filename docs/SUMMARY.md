@@ -13,6 +13,7 @@
 - [Interrupts](guide/interrupts.md)
 - [Updating a bitstream](guide/updating.md)
 - [Running on hardware](guide/hardware.md)
+- [Running bare metal](guide/baremetal.md)
 
 # Tutorials
 

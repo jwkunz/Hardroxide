@@ -20,3 +20,4 @@ hardroxide-hwh.workspace = true
 hardroxide-gen.workspace = true
 clap.workspace = true
 anyhow.workspace = true
+zip.workspace = true

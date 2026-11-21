@@ -13,6 +13,8 @@ Commands:
   generate  Generate a HAL crate from an XSA
   update    Refresh an existing generated crate from a new XSA
   inspect   Print a summary of an XSA: instances, addresses, clocks, hashes
+  run       Run a bare-metal program on a board over JTAG (needs the Vitis tools)
+  doctor    Check that the host can drive a board: Vitis tools, JTAG cable access, console port
   help      Print this message or the help of the given subcommand(s)
 
 Options:
@@ -111,3 +113,63 @@ raw register window), its VLNV and each connected interrupt with where it goes
 It ends with a count by kind and the instances that get no field because they
 are private to another master (a MicroBlaze, for example). It uses the same
 model as `generate`, so what it lists is what `generate` produces.
+
+## `run`
+
+```text
+$ hardroxide run --help
+Run a bare-metal program on a board over JTAG (needs the Vitis tools).
+
+Resets the board, runs the XSA's own ps7_init, programs the PL, loads the ELF, starts it and shows the UART console. The board must be in JTAG boot mode.
+
+Usage: hardroxide run [OPTIONS] --xsa <XSA> <ELF>
+
+Arguments:
+  <ELF>
+          The program (an ELF built for armv7a-none-eabihf)
+
+Options:
+      --xsa <XSA>
+          The XSA of the design it runs on (supplies ps7_init and the bitstream)
+
+      --tty <TTY>
+          Console serial port
+          
+          [default: /dev/ttyUSB1]
+
+      --watch <WATCH>
+          Seconds to show the console after the program starts
+          
+          [default: 10]
+
+      --no-pl
+          Do not program the PL (the design has none, or it is already configured)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+Runs a bare-metal program on a board over JTAG, with the vendor's tools. It resets the
+board, runs the XSA's own `ps7_init.tcl` (read from the XSA at run time), programs the PL
+from the XSA's bitstream, loads the ELF, starts it and shows the UART console for `--watch`
+seconds; the program keeps running afterwards. The board must be in JTAG boot mode, and the
+XSA must come from a design with a board-accurate PS configuration, or the console prints
+nothing. `hw_server` is started if it is not running. If the Vitis tools are not found
+(`HRX_VITIS`, `XILINX_ROOT`, `PATH`, or a standard install location) the command prints what
+to do and stops. See [Running bare metal](../guide/baremetal.md).
+
+## `doctor`
+
+```text
+$ hardroxide doctor --help
+Check that the host can drive a board: Vitis tools, JTAG cable access, console port
+
+Usage: hardroxide doctor [OPTIONS]
+
+Options:
+      --tty <TTY>  Console serial port [default: /dev/ttyUSB1]
+  -h, --help       Print help
+```
+
+Checks the Vitis tools, access to the JTAG cable (the FT2232, `0403:6010`), the console port
+and `hw_server`, one line each, and exits non-zero if something is missing, with what to do.

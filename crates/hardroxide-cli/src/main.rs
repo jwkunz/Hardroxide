@@ -1,3 +1,5 @@
+mod host;
+
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use hardroxide_gen::{Options, Platform, generate};
@@ -48,6 +50,32 @@ enum Cmd {
     },
     /// Print a summary of an XSA: instances, addresses, clocks, hashes.
     Inspect { xsa: PathBuf },
+    /// Run a bare-metal program on a board over JTAG (needs the Vitis tools).
+    ///
+    /// Resets the board, runs the XSA's own ps7_init, programs the PL, loads the ELF, starts
+    /// it and shows the UART console. The board must be in JTAG boot mode.
+    Run {
+        /// The program (an ELF built for armv7a-none-eabihf).
+        elf: PathBuf,
+        /// The XSA of the design it runs on (supplies ps7_init and the bitstream).
+        #[arg(long)]
+        xsa: PathBuf,
+        /// Console serial port.
+        #[arg(long, default_value = "/dev/ttyUSB1")]
+        tty: PathBuf,
+        /// Seconds to show the console after the program starts.
+        #[arg(long, default_value_t = 10)]
+        watch: u64,
+        /// Do not program the PL (the design has none, or it is already configured).
+        #[arg(long)]
+        no_pl: bool,
+    },
+    /// Check that the host can drive a board: Vitis tools, JTAG cable access, console port.
+    Doctor {
+        /// Console serial port.
+        #[arg(long, default_value = "/dev/ttyUSB1")]
+        tty: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -102,6 +130,35 @@ fn main() -> Result<()> {
                     diff.iter().for_each(|l| eprintln!("{l}"));
                     anyhow::bail!("rerun with --regen to regenerate the crate sources");
                 }
+            }
+        }
+        Cmd::Run {
+            elf,
+            xsa,
+            tty,
+            watch,
+            no_pl,
+        } => host::run(&host::RunOptions {
+            elf: &elf,
+            xsa: &xsa,
+            tty: &tty,
+            watch_secs: watch,
+            program_pl: !no_pl,
+        })?,
+        Cmd::Doctor { tty } => {
+            let checks = host::doctor(&tty);
+            let mut bad = 0;
+            for c in &checks {
+                println!(
+                    "[{}] {}: {}",
+                    if c.ok { " ok " } else { "FAIL" },
+                    c.what,
+                    c.detail
+                );
+                bad += usize::from(!c.ok);
+            }
+            if bad > 0 {
+                anyhow::bail!("{bad} check(s) failed");
             }
         }
         Cmd::Inspect { xsa } => {

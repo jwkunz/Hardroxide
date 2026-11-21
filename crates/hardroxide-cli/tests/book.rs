@@ -120,8 +120,8 @@ fn cli_help_blocks_match_real_output() {
         n += 1;
     }
     assert_eq!(
-        n, 4,
-        "expected help blocks for the CLI and its three commands"
+        n, 6,
+        "expected help blocks for the CLI and its five commands"
     );
 }
 

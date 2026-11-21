@@ -339,6 +339,7 @@ dependencies = [
  "embedded-hal",
  "hardroxide-irq",
  "hardroxide-mmio",
+ "hardroxide-net",
  "thiserror",
 ]
 

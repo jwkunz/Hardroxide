@@ -599,3 +599,48 @@ fn garbage_and_corrupted_frames_never_panic() {
     }
     assert!(victim.stats().rx_frames >= 30_000);
 }
+
+#[test]
+fn a_busy_server_stays_silent_to_extra_syns_and_serves_them_on_retry() {
+    let (pa, pb) = wire(0);
+    let mut client: S = Stack::new(pa, cfg(A), 0);
+    let mut board: S = Stack::new(pb, cfg(B), 0);
+    // One listener on port 80; the first client holds it, the second is not refused but waits.
+    board.tcp(0).listen(80);
+    client.tcp_connect(0, 41000, B, 80);
+    client.tcp_connect(1, 41001, B, 80);
+    for t in 0..200 {
+        client.poll(t);
+        board.poll(t);
+    }
+    let states = [client.tcp(0).state(), client.tcp(1).state()];
+    assert!(
+        states.contains(&State::Established) && states.contains(&State::SynSent),
+        "{states:?}"
+    );
+    assert_eq!(board.stats().tcp_resets_sent, 0, "no reset for a busy port");
+    // The first connection finishes and the board listens again: the second connects on a retransmitted SYN.
+    let (done, waiting) = if states[0] == State::Established {
+        (0, 1)
+    } else {
+        (1, 0)
+    };
+    client.tcp(done).close();
+    for t in 200..8000 {
+        client.poll(t);
+        board.poll(t);
+        if board.tcp(0).peer_closed() {
+            board.tcp(0).close();
+        }
+        if board.tcp(0).is_closed() && client.tcp(waiting).state() == State::SynSent {
+            board.tcp(0).listen(80);
+        }
+        if client.tcp(waiting).is_established() {
+            return;
+        }
+    }
+    panic!(
+        "the waiting client never connected: {:?}",
+        client.tcp(waiting).state()
+    );
+}

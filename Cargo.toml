@@ -29,6 +29,7 @@ hardroxide-gen = { path = "crates/hardroxide-gen", version = "2.4.0" }
 hardroxide-dma = { path = "crates/hardroxide-dma", version = "2.4.0", default-features = false }
 hardroxide-irq = { path = "crates/hardroxide-irq", version = "2.4.0", default-features = false }
 hardroxide-ip = { path = "crates/hardroxide-ip", version = "2.4.0", default-features = false }
+hardroxide-net = { path = "crates/hardroxide-net", version = "2.4.0" }
 hardroxide-audio = { path = "crates/hardroxide-audio", version = "2.4.0", default-features = false }
 hardroxide-ps7 = { path = "crates/hardroxide-ps7", version = "2.4.0", default-features = false }
 hardroxide-rt = { path = "crates/hardroxide-rt", version = "2.4.0" }

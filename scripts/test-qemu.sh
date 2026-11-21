@@ -93,3 +93,99 @@ else
   echo "(fsck.fat not installed; skipping the file system check)"
 fi
 [ "$fail" = 0 ] && echo "qemu SD test: ok" || { echo "qemu SD test: FAILED" >&2; exit 1; }
+
+# ---- the Ethernet MAC driver and the network stack (baremetal/net-smoke) ----
+# QEMU's Zynq machine has the Cadence GEM and user-mode networking (a virtual router that answers DHCP and forwards host ports to the
+# guest). The program gets an address over DHCP and serves HTTP (80), a TCP echo (9) and a UDP echo (7); the host talks to it with curl
+# and Python sockets, so the stack is checked against independent implementations of the protocols.
+cd "$ROOT/baremetal/net-smoke"
+cargo build --release --features qemu
+OUT4=$(mktemp)
+trap 'rm -f "$OUT" "$OUT2" "$OUT3" "$OUT4" "$IMG" "$IMG.part"' EXIT
+"${RUN[@]}" -M xilinx-zynq-a9 -m 512 -display none -serial stdio -serial null -monitor none \
+  -nic "user,model=cadence_gem,mac=02:48:52:58:00:01,hostfwd=tcp:127.0.0.1:18080-:80,hostfwd=tcp:127.0.0.1:18009-:9,hostfwd=udp:127.0.0.1:18007-:7" \
+  -kernel target/armv7a-none-eabihf/release/net-smoke >"$OUT4" 2>&1 &
+QPID=$!
+fail=0
+for _ in $(seq 1 100); do grep -q "NET READY" "$OUT4" && break; sleep 0.1; done
+cat "$OUT4"
+grep -q "NET READY ip=10.0.2.15 dhcp=true" "$OUT4" || { echo "MISSING: an address from DHCP" >&2; fail=1; }
+if [ "$fail" = 0 ]; then
+python3 - <<'PY' || fail=1
+import hashlib, socket, subprocess, sys, time, urllib.request
+
+def expected(n, arg=5):
+    return bytes((((i * 2654435761 + arg) & 0xFFFFFFFF) << 7 | ((i * 2654435761 + arg) & 0xFFFFFFFF) >> 25) & 0xFF for i in range(n))
+
+ok = True
+def check(name, cond, detail=""):
+    global ok
+    print(("PASS  " if cond else "FAIL  ") + name + (" " + detail if detail and not cond else ""))
+    ok = ok and cond
+
+# A page, with curl.
+page = subprocess.run(["curl", "-s", "-m", "10", "-i", "http://127.0.0.1:18080/"], capture_output=True, text=True).stdout
+check("GET / with curl", page.startswith("HTTP/1.1 200 OK") and "hello from the board" in page, page[:80])
+# Not found.
+code = subprocess.run(["curl", "-s", "-m", "10", "-o", "/dev/null", "-w", "%{http_code}", "http://127.0.0.1:18080/nothing"], capture_output=True, text=True).stdout
+check("404 for an unknown path", code == "404", code)
+# A 300 kB download, byte for byte.
+t0 = time.time()
+body = subprocess.run(["curl", "-s", "-m", "60", "http://127.0.0.1:18080/big"], capture_output=True).stdout
+dt = time.time() - t0
+check("300000 byte download is exact", body == expected(300000), "got %d bytes, sha %s" % (len(body), hashlib.sha256(body).hexdigest()[:12]))
+print("      %.1f s for 300 kB (QEMU, emulated CPU)" % dt)
+# A POST echoed back.
+payload = bytes(range(256)) * 2
+echo = subprocess.run(["curl", "-s", "-m", "10", "--data-binary", "@-", "-H", "Content-Type: application/octet-stream", "http://127.0.0.1:18080/echo"], input=payload, capture_output=True).stdout
+check("POST body echoed", echo == payload, "got %d bytes" % len(echo))
+# Many requests in a row (sockets are reused).
+bad = 0
+for i in range(40):
+    r = subprocess.run(["curl", "-s", "-m", "10", "-o", "/dev/null", "-w", "%{http_code}", "http://127.0.0.1:18080/"], capture_output=True, text=True).stdout
+    bad += r != "200"
+check("40 requests in a row", bad == 0, "%d failed" % bad)
+# Several at once.
+ps = [subprocess.Popen(["curl", "-s", "-m", "30", "-o", "/dev/null", "-w", "%{http_code}", "http://127.0.0.1:18080/"], stdout=subprocess.PIPE, text=True) for _ in range(6)]
+codes = [p.communicate()[0] for p in ps]
+check("6 concurrent requests", all(c == "200" for c in codes), str(codes))
+# UDP echo.
+u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+u.settimeout(5)
+good = 0
+for n in (1, 100, 512):
+    msg = bytes([n % 251]) * n
+    u.sendto(msg, ("127.0.0.1", 18007))
+    try:
+        good += u.recvfrom(2048)[0] == msg
+    except socket.timeout:
+        pass
+check("UDP echo of 1, 100 and 512 bytes", good == 3, "%d of 3" % good)
+# TCP echo (a raw stream, 100000 bytes both ways).
+s = socket.create_connection(("127.0.0.1", 18009), timeout=20)
+data = bytes((i * 7) & 0xFF for i in range(100000))
+s.setblocking(True)
+got = b""
+sent = 0
+s.settimeout(0.05)
+t0 = time.time()
+while len(got) < len(data) and time.time() - t0 < 60:
+    if sent < len(data):
+        try:
+            sent += s.send(data[sent:sent + 4096])
+        except socket.timeout:
+            pass
+    try:
+        chunk = s.recv(65536)
+        if not chunk:
+            break
+        got += chunk
+    except socket.timeout:
+        pass
+s.close()
+check("TCP echo of 100000 bytes", got == data, "got %d bytes" % len(got))
+sys.exit(0 if ok else 1)
+PY
+fi
+kill "$QPID" 2>/dev/null; wait "$QPID" 2>/dev/null || true
+[ "$fail" = 0 ] && echo "qemu network test: ok" || { echo "qemu network test: FAILED" >&2; exit 1; }

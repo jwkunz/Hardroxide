@@ -1,0 +1,28 @@
+[package]
+name = "net-smoke"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# A standalone workspace: this builds for the bare-metal target, not the host.
+[workspace]
+
+[features]
+# Run under QEMU's xilinx-zynq-a9 machine (does the PLL/UART-clock setup ps7_init would).
+qemu = []
+
+[dependencies]
+hardroxide-ps7 = { path = "../../crates/hardroxide-ps7", features = ["panic-handler", "net"] }
+hardroxide-mmio = { path = "../../crates/hardroxide-mmio", default-features = false, features = ["physmem"] }
+hardroxide-net = { path = "../../crates/hardroxide-net" }
+
+[build-dependencies]
+hardroxide-ps7 = { path = "../../crates/hardroxide-ps7" }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+debug = true
+
+[profile.dev]
+panic = "abort"

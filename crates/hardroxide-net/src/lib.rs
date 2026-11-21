@@ -493,6 +493,12 @@ impl<D: Device, const T: usize, const U: usize, const BUF: usize> Inner<D, T, U,
             });
         match idx {
             Some(i) => self.tcp[i].on_segment(now, ip.src, t, iss),
+            // A SYN for a port we serve but have no free socket for: stay silent, so the client retries (a reset would make it give up).
+            None if t.flags & TCP_SYN != 0
+                && self
+                    .tcp
+                    .iter()
+                    .any(|s| s.state() != State::Closed && s.local_port() == t.dst_port) => {}
             None if t.flags & TCP_RST == 0 => {
                 // Nobody here: refuse (RFC 793: the reset takes its numbers from the segment).
                 let (seq, ack, flags) = if t.flags & TCP_ACK != 0 {

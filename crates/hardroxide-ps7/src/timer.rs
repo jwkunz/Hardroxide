@@ -68,19 +68,21 @@ impl<R: Mmio> PrivateTimer<R> {
     }
 
     /// Count down from `ticks`, reloading it each time it reaches zero, with the interrupt
-    /// enabled. The first expiry comes `ticks` clocks after this call.
+    /// enabled. The first expiry comes `ticks` clocks after this call and the period is
+    /// exactly `ticks` clocks (the counter runs from the load value to zero inclusive, so
+    /// the load register gets `ticks - 1`).
     pub fn start_periodic(&self, ticks: u32) -> Result<()> {
         self.regs.write32(PT_CTRL, 0)?;
         self.regs.write32(PT_ISR, 1)?;
-        self.regs.write32(PT_LOAD, ticks)?;
+        self.regs.write32(PT_LOAD, ticks.saturating_sub(1))?;
         self.regs.write32(PT_CTRL, 0b111) // enable | auto-reload | interrupt enable
     }
 
-    /// Count down once from `ticks`, interrupt at zero.
+    /// Count down once; the interrupt comes `ticks` clocks after this call.
     pub fn start_one_shot(&self, ticks: u32) -> Result<()> {
         self.regs.write32(PT_CTRL, 0)?;
         self.regs.write32(PT_ISR, 1)?;
-        self.regs.write32(PT_LOAD, ticks)?;
+        self.regs.write32(PT_LOAD, ticks.saturating_sub(1))?;
         self.regs.write32(PT_CTRL, 0b101) // enable | interrupt enable
     }
 
@@ -143,7 +145,11 @@ mod tests {
         let be = MockBackend::new();
         let t = PrivateTimer::new(be.map(0xF8F0_0600, 0x20).unwrap());
         t.start_periodic(325_000).unwrap();
-        assert_eq!(be.peek(0xF8F0_0600), 325_000);
+        assert_eq!(
+            be.peek(0xF8F0_0600),
+            324_999,
+            "the counter runs load..=0, so the load is one less"
+        );
         assert_eq!(be.peek(0xF8F0_0608), 0b111);
         t.start_one_shot(5).unwrap();
         assert_eq!(be.peek(0xF8F0_0608), 0b101);

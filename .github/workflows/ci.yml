@@ -18,6 +18,7 @@ jobs:
       - run: cargo fmt --all --check
       - run: cd baremetal/ps7-smoke && cargo fmt --check
       - run: cd baremetal/rt-smoke && cargo fmt --check
+      - run: cd baremetal/rt-jitter && cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - uses: taiki-e/install-action@v2

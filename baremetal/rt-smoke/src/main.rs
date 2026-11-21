@@ -196,6 +196,8 @@ fn coordinator() {
 
 fn main() -> ! {
     platform_init();
+    // SAFETY: early in start-up, running from DDR at its physical address.
+    unsafe { hardroxide_ps7::mem::enable(512 << 20) };
     // SAFETY: SLCR is only read here; the console UART is used by nothing else.
     let be = unsafe { PhysMem::new() };
     let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE).unwrap();

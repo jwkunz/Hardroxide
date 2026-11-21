@@ -21,6 +21,8 @@ pub mod gic;
 pub mod irq;
 pub mod map;
 #[cfg(target_arch = "arm")]
+pub mod mem;
+#[cfg(target_arch = "arm")]
 pub mod time;
 pub mod timer;
 pub mod uart;

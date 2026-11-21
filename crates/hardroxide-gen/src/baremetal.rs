@@ -201,6 +201,8 @@ pub const FCLKS: &[(u8, u64)] = &[//FCLKS//];
 pub const CONSOLE_UART: Option<usize> = //CONSOLE//;
 /// The console's baud rate (the design's setting).
 pub const CONSOLE_BAUD: u32 = //BAUD//;
+/// The DDR size the memory map assumes (the PYNQ-Z2's 512 MiB).
+pub const DDR_BYTES: usize = 512 << 20;
 /// The PL interrupts that reach the processor directly (not through an interrupt
 /// controller IP), as the GIC will see them.
 pub const IRQ_LINES: &[hardroxide_irq::IrqLine] = &[//IRQS//];
@@ -284,6 +286,10 @@ impl Design<hardroxide_mmio::PhysMem> {
 
     fn init_inner() -> Result<Self, Error> {
         use ps7::map;
+        // MMU and caches on: DDR cacheable, the `.dma` section (static_dma_buffer!) and
+        // everything else not. See `hardroxide_ps7::mem`.
+        // SAFETY: first thing the program does, running from DDR at its physical address.
+        unsafe { ps7::mem::enable(DDR_BYTES) };
         // SAFETY: this crate owns the PS windows it maps for the life of the program.
         let be = unsafe { hardroxide_mmio::PhysMem::new() };
         let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE)?;
@@ -558,4 +564,22 @@ pub fn rt_example(crate_name: &str) -> String {
     format!(
         "{HEADER}//! The kernel in use: a 10 ms control task (priority 5) that takes the design from a\n//! `Shared` each iteration and measures its own release jitter, and a reporting task\n//! (priority 2) that prints the result. Replace the body of `control` with your loop.\n\n#![no_std]\n#![no_main]\n\nuse core::sync::atomic::{{AtomicU32, Ordering::Relaxed}};\nuse hardroxide_mmio::{{PhysMem, time::Instant}};\nuse {lib}::rt::{{Periodic, Shared, WAIT_FOREVER, delay_ms, spawn, start, task_stack}};\nuse {lib}::{{Design, halt, ps7}};\nuse ps7::println;\n\nps7::entry!(main);\n\nstatic DESIGN: Shared<Design<PhysMem>> = Shared::new();\nstatic WORST_US: AtomicU32 = AtomicU32::new(0);\nstatic RELEASES: AtomicU32 = AtomicU32::new(0);\n\nfn control() {{\n    let mut every = Periodic::every_ms(10);\n    let mut last = Instant::now();\n    loop {{\n        every.wait_next();\n        let now = Instant::now();\n        let period_us = now.duration_since(last).as_micros() as u32;\n        last = now;\n        if RELEASES.fetch_add(1, Relaxed) > 0 {{\n            WORST_US.fetch_max(period_us.abs_diff(10_000), Relaxed);\n        }}\n        // The design is shared between tasks behind a priority-inheriting lock.\n        let _design = DESIGN.lock(WAIT_FOREVER).unwrap();\n        // ... drive the IP here ...\n    }}\n}}\n\nfn report() {{\n    loop {{\n        delay_ms(1000);\n        println!(\"control loop: {{}} releases, worst deviation from 10 ms: {{}} us\", RELEASES.load(Relaxed), WORST_US.load(Relaxed));\n    }}\n}}\n\nfn main() -> ! {{\n    let design = match Design::init() {{\n        Ok(d) => d,\n        Err(e) => {{\n            println!(\"Design::init failed: {{e}}\");\n            halt()\n        }}\n    }};\n    println!(\"\\n== {lib}: RTOS example ==\");\n    DESIGN.set(design);\n    spawn(\"control\", 5, task_stack!(8192).unwrap(), control).unwrap();\n    spawn(\"report\", 2, task_stack!(8192).unwrap(), report).unwrap();\n    start({lib}::periph_hz().unwrap(), 1000)\n}}\n"
     )
+}
+
+/// MM2S to S2MM through a loopback, with the buffers in the non-cacheable `.dma` section.
+pub fn dma_example(m: &Model, crate_name: &str) -> Option<String> {
+    let i = first_with(m, "::AxiDma")?;
+    let mut s = example_header(
+        &format!(
+            "Hardware smoke test for `{}`: sends a pattern through MM2S and expects it back on\n//! S2MM (the stream ports must be wired as a loopback). The buffers are in the `.dma`\n//! section, which the MMU maps non-cacheable, so the CPU and the DMA see the same memory.",
+            i.inst.name
+        ),
+        crate_name,
+    );
+    let _ = write!(
+        s,
+        "use core::time::Duration;\nuse hardroxide_dma::{{DmaBuffer, static_dma_buffer}};\nuse hardroxide_ip::dma::Direction;\n\nfn main() -> ! {{\n{INIT}    let dma = &d.{};\n    dma.reset().unwrap();\n    let mut tx = static_dma_buffer!(4096).unwrap();\n    let rx = static_dma_buffer!(4096).unwrap();\n    let n = 4096;\n    for (i, b) in tx.as_mut_slice().iter_mut().enumerate() {{\n        *b = (i * 7 + 1) as u8;\n    }}\n    // Arm the receiver first, then send.\n    let rx_t = dma.start(Direction::StreamToMem, rx, n).map_err(|e| e.error).unwrap();\n    let tx_t = dma.start(Direction::MemToStream, tx, n).map_err(|e| e.error).unwrap();\n    let tx = tx_t.wait(Duration::from_secs(1)).unwrap();\n    let rx = rx_t.wait(Duration::from_secs(1)).unwrap();\n    if tx.as_slice() == rx.as_slice() {{\n        println!(\"DMA loopback OK: {{n}} bytes\");\n    }} else {{\n        println!(\"DMA loopback data MISMATCH\");\n    }}\n    halt()\n}}\n",
+        i.ident
+    );
+    Some(s)
 }

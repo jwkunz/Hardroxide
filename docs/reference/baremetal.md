@@ -22,7 +22,7 @@ another memory layout. `hardroxide update` leaves a same-interface crate unchang
 
 ## `Design`
 
-`Design<B>` has one field per IP, as in the Linux crate. `Design::init()` (ARM only) starts the
+`Design<B>` has one field per IP, as in the Linux crate. `Design::init()` (ARM only) turns on the MMU and caches ([`ps7::mem`](ps7.md#memory-mmu-caches-l2-mem); `DDR_BYTES` is the DDR size it assumes), starts the
 time source the drivers' timeouts use, sets up the console on the PS UART the design enables
 (`CONSOLE_UART`; none if the design disables both), programs the GIC with each PL interrupt's
 trigger type, and maps every IP. It fails with `PlNotConfigured` rather than let a later register
@@ -33,7 +33,7 @@ re-exported).
 
 A program is `ps7::entry!(main); fn main() -> ! { ... }`, using `ps7::println!` for output. Wait for
 a PL interrupt with `ps7::wait::IrqWait::for_line(&pac::<ip>::IRQ_...)` (the `IrqWaiter` the
-drivers expect). DMA buffers: `hardroxide_dma::static_dma_buffer!(size)`.
+drivers expect). DMA buffers: `hardroxide_dma::static_dma_buffer!(size)` (non-cacheable; the `dma_loopback` example uses two).
 
 The console needs the PS UART's pins and clocks, which `ps7_init` sets from the design's PS
 configuration: a design built without a board preset has UART0 disabled and prints nothing. The

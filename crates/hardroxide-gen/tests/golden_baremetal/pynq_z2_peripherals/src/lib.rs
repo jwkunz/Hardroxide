@@ -24,6 +24,8 @@ pub const FCLKS: &[(u8, u64)] = &[(0, 100000000)];
 pub const CONSOLE_UART: Option<usize> = None;
 /// The console's baud rate (the design's setting).
 pub const CONSOLE_BAUD: u32 = 115200;
+/// The DDR size the memory map assumes (the PYNQ-Z2's 512 MiB).
+pub const DDR_BYTES: usize = 512 << 20;
 /// The PL interrupts that reach the processor directly (not through an interrupt
 /// controller IP), as the GIC will see them.
 pub const IRQ_LINES: &[hardroxide_irq::IrqLine] = &[pac::axi_iic_0::IRQ_IIC2INTC_IRPT, pac::axi_quad_spi_0::IRQ_IP2INTC_IRPT, pac::axi_timer_0::IRQ_INTERRUPT];
@@ -110,6 +112,10 @@ impl Design<hardroxide_mmio::PhysMem> {
 
     fn init_inner() -> Result<Self, Error> {
         use ps7::map;
+        // MMU and caches on: DDR cacheable, the `.dma` section (static_dma_buffer!) and
+        // everything else not. See `hardroxide_ps7::mem`.
+        // SAFETY: first thing the program does, running from DDR at its physical address.
+        unsafe { ps7::mem::enable(DDR_BYTES) };
         // SAFETY: this crate owns the PS windows it maps for the life of the program.
         let be = unsafe { hardroxide_mmio::PhysMem::new() };
         let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE)?;

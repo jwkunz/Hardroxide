@@ -13,6 +13,7 @@ qemu = []
 
 [dependencies]
 hardroxide-ps7 = { path = "../../crates/hardroxide-ps7", features = ["panic-handler"] }
+hardroxide-dma = { path = "../../crates/hardroxide-dma", default-features = false }
 hardroxide-mmio = { path = "../../crates/hardroxide-mmio", default-features = false, features = ["physmem"] }
 
 [build-dependencies]

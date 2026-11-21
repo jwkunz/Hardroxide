@@ -29,12 +29,13 @@ SECTIONS
         __bss_end = .;
     } > RAM
 
-    /* DMA buffers: placed together so the MMU can give them their own attributes. */
-    .dma (NOLOAD) : ALIGN(4096)
+    /* DMA buffers: placed together, on whole 1 MiB sections, so the MMU can make them
+       non-cacheable (see hardroxide_ps7::mem). */
+    .dma (NOLOAD) : ALIGN(0x100000)
     {
         __dma_start = .;
         *(.dma .dma.*)
-        . = ALIGN(4096);
+        . = ALIGN(0x100000);
         __dma_end = .;
     } > RAM
 

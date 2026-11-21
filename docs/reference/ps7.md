@@ -155,3 +155,23 @@ $ scripts/test-qemu.sh        # builds baremetal/ps7-smoke, runs it on QEMU, che
 Needs a QEMU with the `xilinx-zynq-a9` machine (the one bundled with Vitis, or
 `qemu-system-arm`). On a board, the same program loads over JTAG after `ps7_init`
 ([Running on hardware](../guide/hardware.md)).
+
+## Memory: MMU, caches, L2 (`mem`)
+
+```rust,ignore
+pub unsafe fn enable(ddr_bytes: usize)
+pub fn is_enabled() -> bool
+pub fn clean_range(addr: usize, len: usize)
+pub fn invalidate_range(addr: usize, len: usize)
+pub fn flush_range(addr: usize, len: usize)
+pub const SECTION: usize
+```
+
+`enable` installs a flat (virtual = physical) table of 1 MiB sections and turns on the MMU, the L1 instruction and data caches,
+branch prediction and the PL310 L2 cache (the generated `Design::init` calls it first). DDR is normal write-back cacheable; the
+`.dma` section (what `hardroxide_dma::static_dma_buffer!` uses; the linker template aligns it to 1 MiB) is **normal non-cacheable**, so
+the CPU and a PL master see the same memory with no maintenance; everything else (PL, PS peripherals, OCM) is strongly ordered.
+Single core: memory is non-shareable and the SCU and `ACTLR.SMP` stay off. For memory a PL master touches outside `.dma`, call
+`clean_range` before the PL reads it and `invalidate_range` before the CPU reads what the PL wrote (32-byte-aligned ranges);
+`flush_range` does both. On the PYNQ-Z2 a loop over 64 KiB ran 23 times faster with the caches on (100.7 ms against 4.4 ms for 20 passes), and a DMA loopback over
+`.dma` buffers passes with them on.

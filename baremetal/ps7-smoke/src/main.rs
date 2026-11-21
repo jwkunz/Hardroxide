@@ -91,6 +91,34 @@ fn main() -> ! {
     let took = t0.elapsed();
     println!("sleep(100 ms) took {} us", took.as_micros());
 
+    // Caches: the same memory-bound loop with the caches off, then on. A buffer in `.dma`
+    // stays non-cacheable and 1 MiB aligned.
+    static mut WORK: [u32; 16384] = [1; 16384];
+    let sum = |rounds: u32| {
+        let t = Instant::now();
+        let mut acc = 0u32;
+        for _ in 0..rounds {
+            // SAFETY: single-threaded here; WORK is only used by this closure.
+            let w = unsafe { &*core::ptr::addr_of!(WORK) };
+            for v in w.iter() {
+                acc = acc.wrapping_add(core::hint::black_box(*v));
+            }
+        }
+        (acc, t.elapsed().as_micros())
+    };
+    let (a0, off_us) = sum(20);
+    // SAFETY: early in start-up, running from DDR at its physical address.
+    unsafe { hardroxide_ps7::mem::enable(512 << 20) };
+    let (a1, on_us) = sum(20);
+    let dma = hardroxide_dma::static_dma_buffer!(4096).unwrap();
+    let dma_addr = hardroxide_dma::DmaBuffer::phys_addr(&dma);
+    println!(
+        "caches: SCTLR {:#010x}; 20 passes over 64 KiB: {off_us} us off, {on_us} us on; checksums {}; dma buffer at {dma_addr:#010x}, 1 MiB aligned: {}",
+        cp15::sctlr(),
+        if a0 == a1 { "match" } else { "DIFFER" },
+        dma_addr % (1 << 20) == 0
+    );
+
     // Interrupts: a 10 ms periodic private-timer tick, counted by the handler.
     let d = be
         .map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)

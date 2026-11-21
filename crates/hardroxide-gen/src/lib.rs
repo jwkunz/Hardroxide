@@ -265,6 +265,7 @@ fn generate_baremetal(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenEr
         ),
         ("bram_test", baremetal::bram_example(&model, &crate_name)),
         ("hls_smoke", baremetal::hls_example(&model, &crate_name)),
+        ("dma_loopback", baremetal::dma_example(&model, &crate_name)),
     ] {
         if let Some(ex) = ex {
             put(&format!("examples/{name}.rs"), ex);

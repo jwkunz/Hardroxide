@@ -3,6 +3,9 @@
 //! Safety: it **refuses to run on a card that holds anything**. The first megabyte of the card must be
 //! all zeros (a new card) or hold a file system this program formatted before (an "HRXFAT" boot sector at
 //! sector 2048). A card with someone else's partition table or data is left alone and the program says why.
+//! The owner of a card that does hold data can say it may be erased by naming its serial number (the one
+//! the program prints, and Linux shows in `/sys/block/mmcblk0/device/serial`) when building:
+//! `HRX_ERASE_SERIAL=0x2df43e3b cargo build --release --example sd_erase_and_test`. Only that one card is accepted.
 //!
 //! Formats the card (an MBR with one FAT32 partition), writes and reads back directories, long names and
 //! files of several sizes with a check on every byte, and reports the speeds of programmed I/O at 25 MHz on a
@@ -21,6 +24,13 @@ ps7::entry!(main);
 
 fn byte(seed: u32, i: usize) -> u8 {
     (i as u32).wrapping_mul(2_654_435_761).wrapping_add(seed).rotate_left(7) as u8
+}
+
+/// The serial number of the one card the owner confirmed may be erased (see the header), if any.
+fn confirmed_serial() -> Option<u32> {
+    let text = option_env!("HRX_ERASE_SERIAL")?.trim();
+    let digits = text.strip_prefix("0x").unwrap_or(text);
+    u32::from_str_radix(digits, 16).ok()
 }
 
 fn fail(msg: &str) -> ! {
@@ -46,7 +56,7 @@ fn main() -> ! {
         println!("card initialisation failed: {e}");
         halt()
     });
-    println!("card: {} MiB, {}, bus {} Hz", info.blocks / 2048, if info.high_capacity { "SDHC/SDXC" } else { "standard capacity" }, info.clock_hz);
+    println!("card: {} MiB, {}, bus {} Hz, serial {:#010x}", info.blocks / 2048, if info.high_capacity { "SDHC/SDXC" } else { "standard capacity" }, info.clock_hz, info.serial);
 
     // The safeguard: only an empty card, or one this program formatted before.
     {
@@ -62,12 +72,13 @@ fn main() -> ! {
         let mut sector = [0u8; 512];
         sd.read_blocks(2048, &mut sector).unwrap_or_else(|e| fail_e("reading the card", &e));
         let ours = &sector[3..11] == b"HRXFAT  ";
-        if !empty && !ours {
+        let confirmed = confirmed_serial() == Some(info.serial);
+        if !empty && !ours && !confirmed {
             println!("REFUSING: this card is not empty and was not formatted by this program, so it is left untouched.");
-            println!("Use a new or blank card (all zeros in its first megabyte).");
+            println!("Use a new or blank card (all zeros in its first megabyte), or confirm this card by its serial number (see the file header).");
             halt()
         }
-        println!("{}", if empty { "the card is empty: proceeding" } else { "the card carries a file system this program formatted: proceeding" });
+        println!("{}", if empty { "the card is empty: proceeding" } else if ours { "the card carries a file system this program formatted: proceeding" } else { "the card's serial number was confirmed by its owner as erasable: proceeding" });
     }
 
     // Raw blocks at the end of the card, in three sizes (one block, a multi-block run, a long run).

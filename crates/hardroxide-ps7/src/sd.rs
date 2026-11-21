@@ -361,15 +361,9 @@ impl<R: Mmio> SdHost<R> {
         let info = CardInfo {
             blocks: csd_blocks(&csd),
             high_capacity,
-            manufacturer: (cid[3] >> 16) as u8,
-            product: [
-                cid[3] as u8,
-                (cid[2] >> 24) as u8,
-                (cid[2] >> 16) as u8,
-                (cid[2] >> 8) as u8,
-                cid[2] as u8,
-            ],
-            serial: (cid[1] << 8) | (cid[0] >> 24),
+            manufacturer: cid_manufacturer(&cid),
+            product: cid_product(&cid),
+            serial: cid_serial(&cid),
             rca,
             clock_hz,
         };
@@ -519,9 +513,41 @@ impl<R: Mmio> BlockDevice for SdHost<R> {
     }
 }
 
+// The CID as the controller presents it: register bits 127:8 (the CRC byte is dropped), most significant word
+// first in `cid[3]`. Fields (bit positions in the presented value): manufacturer 119:112, OEM 111:96,
+// product name 95:56 (five characters), revision 55:48, serial number 47:16.
+fn cid_manufacturer(cid: &[u32; 4]) -> u8 {
+    (cid[3] >> 16) as u8
+}
+
+fn cid_product(cid: &[u32; 4]) -> [u8; 5] {
+    [(cid[2] >> 24) as u8, (cid[2] >> 16) as u8, (cid[2] >> 8) as u8, cid[2] as u8, (cid[1] >> 24) as u8]
+}
+
+fn cid_serial(cid: &[u32; 4]) -> u32 {
+    (cid[1] << 16) | (cid[0] >> 16)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_cid_fields_are_decoded_from_the_right_bits() {
+        // A real card (read on a Linux host from /sys/block/mmcblk0/device): manufacturer 0x02, OEM "TM"
+        // (0x544d), product "SA32G", revision 0x11, serial 0x2df43e3b. Build the presented words from the
+        // layout, with the month/year field in the low bits of word 0.
+        let (mid, oem, name, prv, psn) = (0x02u32, 0x544du32, *b"SA32G", 0x11u32, 0x2df4_3e3bu32);
+        let cid = [
+            (psn << 16) | 0x0cc1, // serial bits 15:0, then the manufacturing date
+            (u32::from(name[4]) << 24) | (prv << 16) | (psn >> 16),
+            u32::from_be_bytes([name[0], name[1], name[2], name[3]]),
+            (mid << 16) | oem,
+        ];
+        assert_eq!(cid_manufacturer(&cid), 0x02);
+        assert_eq!(&cid_product(&cid), b"SA32G");
+        assert_eq!(cid_serial(&cid), 0x2df4_3e3b);
+    }
 
     #[test]
     fn the_clock_divisor_is_a_power_of_two() {

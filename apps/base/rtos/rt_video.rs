@@ -13,7 +13,6 @@
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
 use design_1::rt::{IrqEvent, Periodic, Shared, WAIT_FOREVER, delay_ms, spawn, start, task_stack};
 use design_1::{Design, halt, ps7};
-use hardroxide_dma::{DmaBuffer, static_dma_buffer};
 use hardroxide_gfx::{Color, Surface};
 use hardroxide_mmio::{PhysMem, time::Instant};
 use hardroxide_video::{Display, HD_1280X720_60 as MODE, as_pixels};
@@ -23,6 +22,23 @@ ps7::entry!(main);
 
 static DESIGN: Shared<Design<PhysMem>> = Shared::new();
 const FRAME_BYTES: usize = 1280 * 720 * 4;
+/// The frame buffers live in the window of DDR that this overlay's video DMA can reach
+/// (0x1000_0000 to 0x1FFF_FFFF), made non-cacheable so the processor's drawing and the DMA's reads agree.
+const FB_BASE: usize = 0x1000_0000;
+/// 4 MiB per frame: a 1280x720 frame is 3.5 MiB, rounded up to whole 1 MiB sections.
+const FB_STRIDE: usize = 4 << 20;
+
+fn frame_buffers() -> (&'static mut [u8], &'static mut [u8]) {
+    // SAFETY: nothing else in the program uses this DDR window (the program, its data and stacks are low in
+    // DDR), and `Design::init` has already turned the MMU on.
+    unsafe {
+        ps7::mem::set_non_cacheable(FB_BASE, 2 * FB_STRIDE);
+        (
+            core::slice::from_raw_parts_mut(FB_BASE as *mut u8, FRAME_BYTES),
+            core::slice::from_raw_parts_mut((FB_BASE + FB_STRIDE) as *mut u8, FRAME_BYTES),
+        )
+    }
+}
 /// Input of `system_interrupts` fed by the VDMA's read-channel interrupt.
 const VDMA_BIT: u32 = 1 << 1;
 
@@ -31,14 +47,13 @@ static DRAW_WORST_US: AtomicU32 = AtomicU32::new(0);
 static GAP_WORST_US: AtomicU32 = AtomicU32::new(0);
 
 fn render() {
-    let mut front = static_dma_buffer!(FRAME_BYTES).unwrap();
-    let mut back = static_dma_buffer!(FRAME_BYTES).unwrap();
-    let frames = [front.phys_addr() as u32, back.phys_addr() as u32];
+    let (front, back) = frame_buffers();
+    let frames = [FB_BASE as u32, (FB_BASE + FB_STRIDE) as u32];
     let ev = IrqEvent::for_line(&design_1::pac::system_interrupts::IRQ_IRQ).unwrap();
     {
         let d = DESIGN.lock(WAIT_FOREVER).unwrap();
-        for b in [&mut front, &mut back] {
-            let mut s = Surface::new(as_pixels(b.as_mut_slice()).unwrap(), 1280, 720);
+        for b in [&mut *front, &mut *back] {
+            let mut s = Surface::new(as_pixels(b).unwrap(), 1280, 720);
             s.clear(Color::rgb(8, 8, 32));
         }
         let display = Display {
@@ -76,8 +91,8 @@ fn render() {
         }
         // Draw the next frame into the hidden buffer.
         let t0 = Instant::now();
-        let hidden = if showing == 0 { &mut back } else { &mut front };
-        let mut s = Surface::new(as_pixels(hidden.as_mut_slice()).unwrap(), 1280, 720);
+        let hidden = if showing == 0 { &mut *back } else { &mut *front };
+        let mut s = Surface::new(as_pixels(hidden).unwrap(), 1280, 720);
         tick += 1;
         s.clear(Color::rgb(8, 8, 32));
         for i in 0..8 {

@@ -204,6 +204,35 @@ fn lines(addr: usize, len: usize) -> impl Iterator<Item = usize> {
     (start..end).step_by(LINE)
 }
 
+/// Make the DDR sections covering `base..base+len` **non-cacheable** (normal memory, no caching), after
+/// writing back and discarding anything cached there. For a buffer that a PL master reads or writes at a
+/// fixed address outside the `.dma` section, such as a frame buffer in the window a video DMA can reach.
+/// `base` and `len` are rounded out to whole 1 MiB sections.
+///
+/// # Safety
+/// The range must be DDR that nothing else in the program uses as ordinary cached memory (code, data and
+/// stacks included), and [`enable`] must have run.
+pub unsafe fn set_non_cacheable(base: usize, len: usize) {
+    let first = base / SECTION;
+    let last = (base + len).div_ceil(SECTION);
+    flush_range(first * SECTION, (last - first) * SECTION);
+    for i in first..last {
+        // SAFETY: single core; the table is only written here and in `enable`.
+        unsafe { (*core::ptr::addr_of_mut!(TABLE)).0[i] = ((i << 20) as u32) | NORMAL_NC };
+    }
+    // SAFETY: make the table writes visible, drop stale translations, and synchronise.
+    unsafe {
+        asm!(
+            "dsb",
+            "mcr p15, 0, {z}, c8, c7, 0", // TLBIALL
+            "dsb",
+            "isb",
+            z = in(reg) 0u32,
+            options(nostack)
+        );
+    }
+}
+
 /// Write cached data in `addr..addr+len` back to memory (L1 then L2): call before a PL
 /// master reads a buffer outside `.dma`.
 pub fn clean_range(addr: usize, len: usize) {

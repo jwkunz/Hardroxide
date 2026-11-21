@@ -14,7 +14,6 @@ const MM2S_CR: usize = 0x00;
 const MM2S_SR: usize = 0x04;
 const PARK_PTR: usize = 0x28;
 const VERSION: usize = 0x2C;
-const MM2S_FRMSTORE: usize = 0x18;
 const MM2S_VSIZE: usize = 0x50;
 const MM2S_HSIZE: usize = 0x54;
 const MM2S_STRIDE: usize = 0x58;
@@ -22,7 +21,6 @@ const MM2S_START_ADDR: usize = 0x5C;
 
 const CR_RUN: u32 = 1 << 0;
 const CR_RESET: u32 = 1 << 2;
-const CR_FRMCNT_EN: u32 = 1 << 4;
 const CR_FRMCNT_SHIFT: u32 = 16;
 const CR_IRQ_FRMCNT: u32 = 1 << 12;
 const CR_IRQ_ERROR: u32 = 1 << 14;
@@ -35,6 +33,8 @@ const PARK_READ_CURRENT_SHIFT: u32 = 16;
 
 /// Most frame buffers the core can hold addresses for in this driver.
 pub const MAX_FRAMES: usize = 16;
+/// Start-address slots always written (the base overlay's core has four).
+const MIN_SLOTS: usize = 4;
 
 #[derive(Debug, thiserror::Error)]
 pub enum VdmaError {
@@ -109,14 +109,14 @@ impl<R: Mmio> AxiVdma<R> {
     /// which cannot clear the self-clearing reset bit, can test it).
     fn configure_read(&self, frames: &[u32], g: &Geometry) -> Result<(), VdmaError> {
         let r = &self.regs;
-        // Park mode (circular bit clear), frame-count interrupts counted per frame.
-        r.write32(MM2S_CR, CR_FRMCNT_EN | 1 << CR_FRMCNT_SHIFT)?;
+        // Park mode (circular bit clear). The core's start-address slots are all written, the given
+        // frames repeating, as the Linux driver does; the frame-store register is left alone.
+        r.write32(MM2S_CR, 1 << CR_FRMCNT_SHIFT)?;
         r.write32(PARK_PTR, 0)?;
-        r.write32(MM2S_FRMSTORE, frames.len() as u32)?;
-        for (i, a) in frames.iter().enumerate() {
-            r.write32(MM2S_START_ADDR + 4 * i, *a)?;
+        for i in 0..frames.len().max(MIN_SLOTS) {
+            r.write32(MM2S_START_ADDR + 4 * i, frames[i % frames.len()])?;
         }
-        r.write32(MM2S_CR, r.read32(MM2S_CR)? | CR_RUN)?;
+        r.write32(MM2S_CR, 1 << CR_FRMCNT_SHIFT | CR_RUN)?;
         r.write32(MM2S_STRIDE, g.stride)?;
         r.write32(MM2S_HSIZE, g.hsize)?;
         // Writing the vertical size starts the transfer.
@@ -217,7 +217,9 @@ mod tests {
         let p = |off: usize| be.peek(BASE + off as u64);
         assert_eq!(p(MM2S_START_ADDR), 0x1000_0000);
         assert_eq!(p(MM2S_START_ADDR + 4), 0x1040_0000);
-        assert_eq!(p(MM2S_FRMSTORE), 2);
+        // Four slots, the two frames repeating.
+        assert_eq!(p(MM2S_START_ADDR + 8), 0x1000_0000);
+        assert_eq!(p(MM2S_START_ADDR + 12), 0x1040_0000);
         assert_eq!(p(MM2S_HSIZE), 5120);
         assert_eq!(p(MM2S_STRIDE), 5120);
         assert_eq!(p(MM2S_VSIZE), 720);

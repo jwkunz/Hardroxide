@@ -51,6 +51,7 @@
 - [Setup](tutorials/apps/index.md)
   - [1. Lights and buttons on the base overlay](tutorials/apps/01-base-lights.md)
   - [2. Pixels on the HDMI output](tutorials/apps/02-hdmi.md)
+  - [3. Sound](tutorials/apps/03-audio.md)
 
 # Reference
 
@@ -68,6 +69,7 @@
 - [hardroxide-rt](reference/rt.md)
 - [hardroxide-video](reference/video.md)
 - [hardroxide-gfx](reference/gfx.md)
+- [hardroxide-audio](reference/audio.md)
 - [hardroxide-ip](reference/ip.md)
   - [AXI GPIO](reference/ip-gpio.md)
   - [HLS IP](reference/ip-hls.md)
@@ -78,6 +80,7 @@
   - [AXI UART Lite](reference/ip-uart.md)
   - [AXI4-Stream FIFO](reference/ip-fifo.md)
   - [AXI IIC](reference/ip-iic.md)
+  - [Audio codec controller](reference/ip-audio.md)
   - [AXI VDMA](reference/ip-vdma.md)
   - [Video Timing Controller](reference/ip-vtc.md)
   - [Dynamic clock generator](reference/ip-dynclk.md)

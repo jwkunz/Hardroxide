@@ -16,6 +16,7 @@ Drivers do not touch the FPGA or clocks; they only drive registers.
 | [`intc`](ip-intc.md) | AXI Interrupt Controller (fan-in) | no |
 | [`iic`](ip-iic.md) | AXI IIC | `i2c::I2c` |
 | [`spi`](ip-spi.md) | AXI Quad SPI, standard mode | `spi::SpiBus`, `spi::SpiDevice` |
+| [`audio`](ip-audio.md) | PYNQ audio codec controller (I2S) | no |
 | [`vdma`](ip-vdma.md) | AXI VDMA, read channel (display) | no |
 | [`vtc`](ip-vtc.md) | Video Timing Controller, generator | no |
 | [`dynclk`](ip-dynclk.md) | Digilent dynamic clock generator | no |

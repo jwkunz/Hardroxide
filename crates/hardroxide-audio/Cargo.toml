@@ -1,0 +1,22 @@
+[package]
+name = "hardroxide-audio"
+description = "Audio for the PYNQ base overlay: the ADAU1761 codec over I2C, WAV files, tone synthesis, resampling and sample-by-sample playback and recording"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = ["std"]
+std = ["hardroxide-ip/std", "hardroxide-mmio/std", "thiserror/std"]
+
+[dependencies]
+hardroxide-ip = { workspace = true, default-features = false }
+hardroxide-mmio.workspace = true
+embedded-hal.workspace = true
+thiserror.workspace = true

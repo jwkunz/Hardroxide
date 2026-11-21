@@ -36,6 +36,7 @@ fn driver_for(vlnv: &str) -> Option<&'static str> {
         "xilinx.com:ip:axi_fifo_mm_s" => Some("hardroxide_ip::fifo::AxiFifo"),
         "xilinx.com:ip:axi_uartlite" => Some("hardroxide_ip::uart::AxiUart"),
         "xilinx.com:ip:axi_intc" => Some("hardroxide_ip::intc::AxiIntc"),
+        "xilinx.com:user:audio_codec_ctrl" => Some("hardroxide_ip::audio::AudioCodecCtrl"),
         "xilinx.com:ip:axi_vdma" => Some("hardroxide_ip::vdma::AxiVdma"),
         "xilinx.com:ip:v_tc" => Some("hardroxide_ip::vtc::VideoTimingController"),
         "digilentinc.com:ip:axi_dynclk" => Some("hardroxide_ip::dynclk::AxiDynclk"),

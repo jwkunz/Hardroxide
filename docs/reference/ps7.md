@@ -178,3 +178,29 @@ Single core: memory is non-shareable and the SCU and `ACTLR.SMP` stay off. For m
 discarding anything cached there; the range is rounded out to 1 MiB sections), for a buffer a PL master uses at a fixed address outside `.dma`, such as a frame buffer in the
 window a video DMA can reach. On the PYNQ-Z2 a loop over 64 KiB ran 23 times faster with the caches on (100.7 ms against 4.4 ms for 20 passes), and a DMA loopback over
 `.dma` buffers passes with them on.
+
+## I2C controllers
+
+```rust,ignore
+pub const FIFO_DEPTH: usize = 16;
+pub enum I2cError
+pub fn clock_divisors(input_hz: u32, scl_hz: u32) -> Option<(u32, u32, u32)>
+pub struct I2c<R: Mmio>
+pub fn new(regs: R) -> Self
+pub fn regs(&self) -> &R
+pub fn set_clock(&self, input_hz: u32, scl_hz: u32) -> Result<u32, I2cError>
+pub fn write(&self, addr: u8, data: &[u8]) -> Result<(), I2cError>
+pub fn read(&self, addr: u8, buf: &mut [u8]) -> Result<(), I2cError>
+pub fn write_read(&self, addr: u8, out: &[u8], buf: &mut [u8]) -> Result<(), I2cError>
+pub fn cpu_1x_hz(slcr: &impl Mmio, ps_clk_hz: u64) -> Result<u64>
+```
+
+`hardroxide_ps7::i2c`: the Cadence I2C controllers `I2C0` (`map::I2C0_BASE`, `0xE000_4000`) and `I2C1` (`0xE000_5000`), master mode, polled,
+7-bit addresses, as the vendor driver's polled master functions drive them. `I2c` also implements `embedded_hal::i2c::I2c`. On the PYNQ-Z2's base
+overlay `I2C1` is routed through the EMIO to the audio codec's control pins. `set_clock(input_hz, scl_hz)` sets the bus clock from the controller's
+input clock (`clocks::cpu_1x_hz`, the CPU clock divided by 6 in the 6:2:1 mode) using the vendor's divisor search
+(`f = input / (22 * (div_a + 1) * (div_b + 1))`, 100 kHz targets lowered to 90 kHz, above 384.6 kHz limited) and returns the clock produced.
+A transfer is at most one FIFO (16 bytes; longer is `I2cError::TooLong`), `write_read` is two transfers with a stop between (not a repeated start), and a
+missing acknowledge is `I2cError::Nack(address)`.
+
+> **Not yet run on a board** (see [Verification gaps](../08-verification-gaps.md)): the register sequence and the divisor search are unit-tested.

@@ -24,6 +24,8 @@ default-svc-entry = []
 [dependencies]
 hardroxide-mmio = { workspace = true, features = ["physmem"] }
 hardroxide-irq.workspace = true
+embedded-hal.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 hardroxide-mmio = { workspace = true, features = ["std"] }

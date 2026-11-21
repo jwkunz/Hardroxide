@@ -4,7 +4,7 @@
 # with default features off: any use of `std` fails to compile.
 set -euo pipefail
 rustup target add armv7a-none-eabihf >/dev/null
-CRATES="-p hardroxide-mmio -p hardroxide-fpga -p hardroxide-dma -p hardroxide-irq -p hardroxide-ip -p hardroxide-gfx -p hardroxide-video"
+CRATES="-p hardroxide-mmio -p hardroxide-fpga -p hardroxide-dma -p hardroxide-irq -p hardroxide-ip -p hardroxide-gfx -p hardroxide-video -p hardroxide-audio"
 cargo build --release --target armv7a-none-eabihf --no-default-features $CRATES "$@"
 # The PS support crate (ARM only parts included).
 cargo build --release --target armv7a-none-eabihf -p hardroxide-ps7 --features panic-handler "$@"

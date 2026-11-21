@@ -94,6 +94,7 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 | [`hardroxide-rt`](reference/rt.md) | Real-time kernel for the Cortex-A9 |
 | [`hardroxide-video`](reference/video.md) | HDMI output for the PYNQ base overlay: modes and bring-up |
 | [`hardroxide-gfx`](reference/gfx.md) | A small 2D graphics library over a pixel buffer |
+| [`hardroxide-audio`](reference/audio.md) | Audio for the base overlay: the ADAU1761 codec, WAV, tones, playback and recording |
 | [`hardroxide-ip`](reference/ip.md) | Drivers: GPIO, HLS, DMA, Timer, IIC, SPI, interrupt controller, BRAM, UART Lite, AXI4-Stream FIFO |
 | `hardroxide-cli` | The `hardroxide` binary ([CLI](reference/cli.md)) |
 

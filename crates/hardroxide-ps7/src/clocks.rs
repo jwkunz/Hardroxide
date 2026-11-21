@@ -12,6 +12,8 @@ const ARM_PLL_CTRL: usize = 0x100;
 const DDR_PLL_CTRL: usize = 0x104;
 const IO_PLL_CTRL: usize = 0x108;
 const ARM_CLK_CTRL: usize = 0x120;
+/// SLCR `CLK_621_TRUE`: bit 0 set when the CPU clock ratio is 6:2:1 (clear: 4:2:1).
+const CLK_621_TRUE: usize = 0x1C4;
 const UART_CLK_CTRL: usize = 0x154;
 
 /// Which PLL feeds a clock.
@@ -52,6 +54,13 @@ pub fn cpu_hz(slcr: &impl Mmio, ps_clk_hz: u64) -> Result<u64> {
 /// half the CPU clock (`CPU_3x2x`).
 pub fn periph_hz(slcr: &impl Mmio, ps_clk_hz: u64) -> Result<u64> {
     Ok(cpu_hz(slcr, ps_clk_hz)? / 2)
+}
+
+/// The clock of the CPU's 1x domain (`CPU_1x`), which clocks the PS I2C, SPI, CAN and GPIO controllers: the CPU clock divided by
+/// 6 in the 6:2:1 ratio mode the vendor setup uses, by 4 in 4:2:1.
+pub fn cpu_1x_hz(slcr: &impl Mmio, ps_clk_hz: u64) -> Result<u64> {
+    let ratio_621 = slcr.read32(CLK_621_TRUE)? & 1 != 0;
+    Ok(cpu_hz(slcr, ps_clk_hz)? / if ratio_621 { 6 } else { 4 })
 }
 
 /// The UART reference clock: the selected PLL divided by `UART_CLK_CTRL.DIVISOR`.

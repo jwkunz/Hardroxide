@@ -60,12 +60,22 @@ fn applications_build() {
             }
         }
         assert!(n > 0, "no applications in {}", src.display());
+        // Data the applications include (`include_bytes!("chime.wav")`) sits next to them.
+        let data = root().join("apps").join(set).join("data");
+        if let Ok(rd) = std::fs::read_dir(&data) {
+            for e in rd.flatten() {
+                if e.path().extension().is_some_and(|x| x == "wav") {
+                    std::fs::copy(e.path(), tmp.join("examples").join(e.file_name())).unwrap();
+                }
+            }
+        }
         let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
         // The applications use the library crates beyond what a generated crate depends on.
         manifest.push_str(&format!(
-            "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\n\n[workspace]\n",
+            "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\nhardroxide-audio = {{ path = {:?}, default-features = false }}\n\n[workspace]\n",
             root().join("crates/hardroxide-gfx"),
-            root().join("crates/hardroxide-video")
+            root().join("crates/hardroxide-video"),
+            root().join("crates/hardroxide-audio")
         ));
         std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();
         let out = Command::new(env!("CARGO"))

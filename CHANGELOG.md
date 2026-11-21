@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 2.3 (written, not yet run on a board)
+- `hardroxide-ps7`: the PS I2C controllers (`i2c`, also an `embedded-hal` I2C bus) and `clocks::cpu_1x_hz`.
+- `hardroxide-ip`: `AudioCodecCtrl`, the PYNQ audio codec controller (I2S, one frame each way, no FIFO).
+- `hardroxide-audio`: the ADAU1761 codec over I2C, WAV parsing and writing, tones, resampling, playback, recording and pass-through.
+- `apps/base`: `audio_tone`, `audio_wav`, `audio_record`, `audio_loopback` and a generated `chime.wav`.
+
 ### 2.2 (board-verified at 800x600 to 1920x1080; 640x480 is an open item)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
   reconfigurable pixel clock); the generator uses them for the base overlay's video cores.

@@ -228,6 +228,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-audio"
+version = "2.1.0"
+dependencies = [
+ "embedded-hal",
+ "hardroxide-ip",
+ "hardroxide-mmio",
+ "thiserror",
+]
+
+[[package]]
 name = "hardroxide-cli"
 version = "2.1.0"
 dependencies = [
@@ -311,8 +321,10 @@ dependencies = [
 name = "hardroxide-ps7"
 version = "2.1.0"
 dependencies = [
+ "embedded-hal",
  "hardroxide-irq",
  "hardroxide-mmio",
+ "thiserror",
 ]
 
 [[package]]

@@ -18,6 +18,7 @@ pub mod console;
 pub mod cp15;
 pub mod devcfg;
 pub mod gic;
+pub mod i2c;
 pub mod irq;
 pub mod map;
 #[cfg(target_arch = "arm")]

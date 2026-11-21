@@ -8,6 +8,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+pub mod audio;
 pub mod bram;
 pub mod dma;
 pub mod dynclk;

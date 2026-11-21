@@ -28,10 +28,10 @@ fn vitis_candidates() -> Vec<PathBuf> {
     if let Some(path) = std::env::var_os("PATH") {
         for d in std::env::split_paths(&path) {
             // .../Vitis/bin/xsdb -> .../Vitis
-            if d.join("xsdb").exists() {
-                if let Some(p) = d.parent() {
-                    v.push(p.to_path_buf());
-                }
+            if d.join("xsdb").exists()
+                && let Some(p) = d.parent()
+            {
+                v.push(p.to_path_buf());
             }
         }
     }

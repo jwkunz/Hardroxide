@@ -138,7 +138,10 @@ fn build_all(platform: Platform) {
             .unwrap()
             .write_to(&tmp)
             .unwrap();
-        // Standalone package, not part of this workspace.
+        // Standalone package, not part of this workspace. Every crate is named `design_1` and
+        // lives at the root of its own workspace, so cargo gives them the same artifact hash:
+        // each build gets its own target directory so that concurrent tests and successive
+        // fixtures cannot pick up each other's library.
         let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
         manifest.push_str("\n[workspace]\n");
         std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();
@@ -152,7 +155,10 @@ fn build_all(platform: Platform) {
                 "--manifest-path",
             ])
             .arg(tmp.join("Cargo.toml"))
-            .env("CARGO_TARGET_DIR", root().join("target/gen-test-baremetal"))
+            .env(
+                "CARGO_TARGET_DIR",
+                root().join(format!("target/gen-test-baremetal/{platform:?}-{name}")),
+            )
             .output()
             .unwrap();
         let text = format!(
@@ -252,7 +258,10 @@ fn tutorial_programs_build() {
                 "--manifest-path",
             ])
             .arg(tmp.join("Cargo.toml"))
-            .env("CARGO_TARGET_DIR", root().join("target/gen-test-baremetal"))
+            .env(
+                "CARGO_TARGET_DIR",
+                root().join(format!("target/gen-test-baremetal/tutorial-{dir}")),
+            )
             .output()
             .unwrap();
         let text = format!(

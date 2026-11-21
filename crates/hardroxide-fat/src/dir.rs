@@ -2,7 +2,10 @@
 
 use crate::Error;
 use crate::bpb::{Timestamp, put16, put32, u16le, u32le};
-use crate::name::{NameBuf, classify, eq_ignore_case, from_utf16, lfn_checksum, short_to_name, to_utf16, valid_name};
+use crate::name::{
+    NameBuf, classify, eq_ignore_case, from_utf16, lfn_checksum, short_to_name, to_utf16,
+    valid_name,
+};
 use crate::volume::{EOC, META, Res, Volume};
 use hardroxide_mmio::block::{BLOCK_SIZE, BlockDevice};
 
@@ -56,7 +59,11 @@ impl<D: BlockDevice> Volume<D> {
     }
 
     pub(crate) fn cursor(&self, first: u32) -> Cursor {
-        Cursor { cluster: first, index: 0, end: false }
+        Cursor {
+            cluster: first,
+            index: 0,
+            end: false,
+        }
     }
 
     /// The next raw 32-byte entry (every entry, free ones included) until the end of the chain.
@@ -66,7 +73,7 @@ impl<D: BlockDevice> Volume<D> {
         }
         let epc = self.entries_per_cluster();
         let idx = cur.index;
-        if idx > 0 && idx % epc == 0 {
+        if idx > 0 && idx.is_multiple_of(epc) {
             match self.next_cluster(cur.cluster)? {
                 Some(c) => cur.cluster = c,
                 None => {
@@ -88,7 +95,8 @@ impl<D: BlockDevice> Volume<D> {
     pub(crate) fn scan(&mut self, first: u32, mut f: impl FnMut(&Found) -> bool) -> Res<(), D> {
         let mut cur = self.cursor(first);
         let mut units = [0xFFFFu16; MAX_LFN_ENTRIES * 13];
-        let (mut valid, mut expect, mut count, mut sum, mut lfn_first) = (false, 0usize, 0usize, 0u8, 0u32);
+        let (mut valid, mut expect, mut count, mut sum, mut lfn_first) =
+            (false, 0usize, 0usize, 0u8, 0u32);
         while let Some((idx, e)) = self.next_raw(&mut cur)? {
             if e[0] == 0x00 {
                 break;
@@ -100,7 +108,7 @@ impl<D: BlockDevice> Volume<D> {
             if e[11] & 0x3F == ATTR_LFN {
                 let seq = usize::from(e[0] & 0x3F);
                 if e[0] & 0x40 != 0 {
-                    valid = seq >= 1 && seq <= MAX_LFN_ENTRIES;
+                    valid = (1..=MAX_LFN_ENTRIES).contains(&seq);
                     count = seq;
                     expect = seq;
                     sum = e[13];
@@ -156,9 +164,15 @@ impl<D: BlockDevice> Volume<D> {
     pub(crate) fn lookup(&mut self, first: u32, name: &str) -> Res<Option<Found>, D> {
         let mut out = None;
         self.scan(first, |f| {
-            let hit = eq_ignore_case(f.entry.name.as_str(), name) || eq_ignore_case(short_to_name(&f.short, 0).as_str(), name);
+            let hit = eq_ignore_case(f.entry.name.as_str(), name)
+                || eq_ignore_case(short_to_name(&f.short, 0).as_str(), name);
             if hit {
-                out = Some(Found { entry: f.entry, short: f.short, first_index: f.first_index, short_index: f.short_index });
+                out = Some(Found {
+                    entry: f.entry,
+                    short: f.short,
+                    first_index: f.first_index,
+                    short_index: f.short_index,
+                });
             }
             hit
         })?;
@@ -168,7 +182,10 @@ impl<D: BlockDevice> Volume<D> {
     /// Resolve `path` up to its last component. Intermediate components must be directories.
     pub(crate) fn locate<'a>(&mut self, path: &'a str) -> Res<Located<'a>, D> {
         let mut dir = self.root;
-        let mut comps = path.split('/').filter(|c| !c.is_empty() && *c != ".").peekable();
+        let mut comps = path
+            .split('/')
+            .filter(|c| !c.is_empty() && *c != ".")
+            .peekable();
         let mut last = "";
         while let Some(c) = comps.next() {
             if comps.peek().is_none() {
@@ -180,13 +197,25 @@ impl<D: BlockDevice> Volume<D> {
                 return Err(Error::NotADirectory);
             }
             // A `..` that points at the root stores cluster 0.
-            dir = if f.entry.first_cluster == 0 { self.root } else { f.entry.first_cluster };
+            dir = if f.entry.first_cluster == 0 {
+                self.root
+            } else {
+                f.entry.first_cluster
+            };
         }
         if last.is_empty() {
-            return Ok(Located { parent: dir, found: None, name: "" });
+            return Ok(Located {
+                parent: dir,
+                found: None,
+                name: "",
+            });
         }
         let found = self.lookup(dir, last)?;
-        Ok(Located { parent: dir, found, name: last })
+        Ok(Located {
+            parent: dir,
+            found,
+            name: last,
+        })
     }
 
     /// The directory a path names (the root for `/`).
@@ -199,7 +228,11 @@ impl<D: BlockDevice> Volume<D> {
         if !f.entry.is_dir {
             return Err(Error::NotADirectory);
         }
-        Ok(if f.entry.first_cluster == 0 { self.root } else { f.entry.first_cluster })
+        Ok(if f.entry.first_cluster == 0 {
+            self.root
+        } else {
+            f.entry.first_cluster
+        })
     }
 
     /// List a directory (`.` and `..` omitted).
@@ -237,7 +270,9 @@ impl<D: BlockDevice> Volume<D> {
         let epc = self.entries_per_cluster();
         let mut c = first;
         for _ in 0..index / epc {
-            c = self.next_cluster(c)?.ok_or(Error::Corrupt("directory chain too short"))?;
+            c = self
+                .next_cluster(c)?
+                .ok_or(Error::Corrupt("directory chain too short"))?;
         }
         let lba = self.cluster_lba(c) + u64::from((index % epc) / PER_SECTOR);
         Ok((lba, (index % PER_SECTOR) as usize * ENTRY))
@@ -279,7 +314,14 @@ impl<D: BlockDevice> Volume<D> {
     }
 
     /// Add an entry for `name` to the directory at `first`; returns its short entry's index.
-    pub(crate) fn create_entry(&mut self, first: u32, name: &str, attr: u8, cluster: u32, size: u32) -> Res<u32, D> {
+    pub(crate) fn create_entry(
+        &mut self,
+        first: u32,
+        name: &str,
+        attr: u8,
+        cluster: u32,
+        size: u32,
+    ) -> Res<u32, D> {
         if !valid_name(name) {
             return Err(Error::InvalidName);
         }
@@ -305,7 +347,11 @@ impl<D: BlockDevice> Volume<D> {
         };
         let mut units = [0u16; 255];
         let nunits = to_utf16(name, &mut units);
-        let lfn_entries = if stored.needs_lfn { nunits.div_ceil(13) } else { 0 };
+        let lfn_entries = if stored.needs_lfn {
+            nunits.div_ceil(13)
+        } else {
+            0
+        };
         let total = lfn_entries as u32 + 1;
 
         // A run of `total` free entries (deleted ones, or past the end marker).
@@ -380,7 +426,12 @@ impl<D: BlockDevice> Volume<D> {
     }
 
     /// Mark the entries `first_index..=short_index` of a directory deleted.
-    pub(crate) fn delete_entries(&mut self, dir: u32, first_index: u32, short_index: u32) -> Res<(), D> {
+    pub(crate) fn delete_entries(
+        &mut self,
+        dir: u32,
+        first_index: u32,
+        short_index: u32,
+    ) -> Res<(), D> {
         for i in first_index..=short_index {
             let mut e = self.read_entry(dir, i)?;
             e[0] = 0xE5;
@@ -401,14 +452,24 @@ impl<D: BlockDevice> Volume<D> {
         let (date, time) = (self.now.fat_date(), self.now.fat_time());
         let mut dots = [[0u8; ENTRY]; 2];
         for (i, d) in dots.iter_mut().enumerate() {
-            d[..11].copy_from_slice(if i == 0 { b".          " } else { b"..         " });
+            d[..11].copy_from_slice(if i == 0 {
+                b".          "
+            } else {
+                b"..         "
+            });
             d[11] = ATTR_DIR;
             put16(d, 14, time);
             put16(d, 16, date);
             put16(d, 18, date);
             put16(d, 22, time);
             put16(d, 24, date);
-            let target = if i == 0 { c } else if parent == self.root { 0 } else { parent };
+            let target = if i == 0 {
+                c
+            } else if parent == self.root {
+                0
+            } else {
+                parent
+            };
             put16(d, 20, (target >> 16) as u16);
             put16(d, 26, target as u16);
         }

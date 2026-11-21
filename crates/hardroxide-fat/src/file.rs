@@ -52,7 +52,12 @@ impl File {
     }
 
     /// The cluster that holds byte offset `pos`, walking (and, when `extend`, growing) the chain.
-    fn cluster_at<D: BlockDevice>(&mut self, vol: &mut Volume<D>, pos: u32, extend: bool) -> Res<Option<u32>, D> {
+    fn cluster_at<D: BlockDevice>(
+        &mut self,
+        vol: &mut Volume<D>,
+        pos: u32,
+        extend: bool,
+    ) -> Res<Option<u32>, D> {
         let cb = vol.cluster_bytes();
         let ord = pos / cb;
         if self.first_cluster < 2 {
@@ -95,7 +100,9 @@ impl File {
         let cb = vol.cluster_bytes();
         let mut done = 0;
         while done < want {
-            let Some(c) = self.cluster_at(vol, self.pos, false)? else { break };
+            let Some(c) = self.cluster_at(vol, self.pos, false)? else {
+                break;
+            };
             let off = self.pos % cb;
             let chunk = (want - done).min((cb - off) as usize);
             let lba = vol.cluster_lba(c) + u64::from(off) / BLOCK_SIZE as u64;
@@ -104,7 +111,9 @@ impl File {
                 // Whole sectors straight into the caller's buffer.
                 let n = chunk / BLOCK_SIZE * BLOCK_SIZE;
                 vol.flush_for(lba, (n / BLOCK_SIZE) as u64)?;
-                vol.dev.read_blocks(lba, &mut buf[done..done + n]).map_err(Error::Device)?;
+                vol.dev
+                    .read_blocks(lba, &mut buf[done..done + n])
+                    .map_err(Error::Device)?;
                 n
             } else {
                 let n = chunk.min(BLOCK_SIZE - in_sector);
@@ -142,7 +151,9 @@ impl File {
             let n = if in_sector == 0 && chunk >= BLOCK_SIZE {
                 let n = chunk / BLOCK_SIZE * BLOCK_SIZE;
                 vol.invalidate(lba, (n / BLOCK_SIZE) as u64);
-                vol.dev.write_blocks(lba, &data[done..done + n]).map_err(Error::Device)?;
+                vol.dev
+                    .write_blocks(lba, &data[done..done + n])
+                    .map_err(Error::Device)?;
                 n
             } else {
                 let n = chunk.min(BLOCK_SIZE - in_sector);
@@ -230,7 +241,9 @@ impl<D: BlockDevice> Volume<D> {
             OpenMode::Write | OpenMode::Append => (true, true),
         };
         let mut f = match found {
-            Some(Found { entry, short_index, .. }) => {
+            Some(Found {
+                entry, short_index, ..
+            }) => {
                 if entry.is_dir {
                     return Err(Error::IsADirectory);
                 }
@@ -248,7 +261,17 @@ impl<D: BlockDevice> Volume<D> {
             }
             None if create => {
                 let short_index = self.create_entry(parent, name, ATTR_ARCHIVE, 0, 0)?;
-                File { first_cluster: 0, size: 0, pos: 0, dir: parent, short_index, cur_cluster: 0, cur_ord: 0, writable, dirty: false }
+                File {
+                    first_cluster: 0,
+                    size: 0,
+                    pos: 0,
+                    dir: parent,
+                    short_index,
+                    cur_cluster: 0,
+                    cur_ord: 0,
+                    writable,
+                    dirty: false,
+                }
             }
             None => return Err(Error::NotFound),
         };

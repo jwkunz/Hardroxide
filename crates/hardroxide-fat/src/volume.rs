@@ -21,7 +21,11 @@ pub(crate) struct Cache {
 
 impl Cache {
     const fn new() -> Self {
-        Cache { lba: u64::MAX, dirty: false, buf: [0; BLOCK_SIZE] }
+        Cache {
+            lba: u64::MAX,
+            dirty: false,
+            buf: [0; BLOCK_SIZE],
+        }
     }
 }
 
@@ -61,7 +65,9 @@ impl<D: BlockDevice> Volume<D> {
         };
         let fat_lba = part + u64::from(bpb.reserved);
         let data_lba = fat_lba + u64::from(bpb.num_fats) * u64::from(bpb.fat_sectors);
-        let data_sectors = bpb.total_sectors.saturating_sub(bpb.reserved + bpb.num_fats * bpb.fat_sectors);
+        let data_sectors = bpb
+            .total_sectors
+            .saturating_sub(bpb.reserved + bpb.num_fats * bpb.fat_sectors);
         let clusters = data_sectors / bpb.sectors_per_cluster;
         if clusters < MIN_CLUSTERS {
             return Err(Error::NotFat32);
@@ -78,7 +84,11 @@ impl<D: BlockDevice> Volume<D> {
             data_lba,
             clusters,
             root: bpb.root_cluster,
-            fsinfo_lba: if bpb.fsinfo != 0 && bpb.fsinfo != 0xFFFF { part + u64::from(bpb.fsinfo) } else { 0 },
+            fsinfo_lba: if bpb.fsinfo != 0 && bpb.fsinfo != 0xFFFF {
+                part + u64::from(bpb.fsinfo)
+            } else {
+                0
+            },
             free_count: None,
             next_free: 2,
             fsinfo_dirty: false,
@@ -87,7 +97,9 @@ impl<D: BlockDevice> Volume<D> {
         };
         if v.fsinfo_lba != 0 {
             let mut f = [0u8; BLOCK_SIZE];
-            v.dev.read_blocks(v.fsinfo_lba, &mut f).map_err(Error::Device)?;
+            v.dev
+                .read_blocks(v.fsinfo_lba, &mut f)
+                .map_err(Error::Device)?;
             if u32le(&f, 0) == 0x4161_5252 && u32le(&f, 484) == 0x6141_7272 {
                 let free = u32le(&f, 488);
                 let next = u32le(&f, 492);
@@ -138,11 +150,15 @@ impl<D: BlockDevice> Volume<D> {
         self.flush_cache(META)?;
         if self.fsinfo_dirty && self.fsinfo_lba != 0 {
             let mut f = [0u8; BLOCK_SIZE];
-            self.dev.read_blocks(self.fsinfo_lba, &mut f).map_err(Error::Device)?;
+            self.dev
+                .read_blocks(self.fsinfo_lba, &mut f)
+                .map_err(Error::Device)?;
             if u32le(&f, 0) == 0x4161_5252 {
                 put32(&mut f, 488, self.free_count.unwrap_or(0xFFFF_FFFF));
                 put32(&mut f, 492, self.next_free);
-                self.dev.write_blocks(self.fsinfo_lba, &f).map_err(Error::Device)?;
+                self.dev
+                    .write_blocks(self.fsinfo_lba, &f)
+                    .map_err(Error::Device)?;
             }
             self.fsinfo_dirty = false;
         }
@@ -164,10 +180,14 @@ impl<D: BlockDevice> Volume<D> {
                 // Every copy of the table gets the same sector.
                 for k in 0..self.num_fats {
                     let at = lba + u64::from(k) * u64::from(self.fat_sectors);
-                    self.dev.write_blocks(at, &self.caches[which].buf).map_err(Error::Device)?;
+                    self.dev
+                        .write_blocks(at, &self.caches[which].buf)
+                        .map_err(Error::Device)?;
                 }
             } else {
-                self.dev.write_blocks(lba, &self.caches[which].buf).map_err(Error::Device)?;
+                self.dev
+                    .write_blocks(lba, &self.caches[which].buf)
+                    .map_err(Error::Device)?;
             }
             self.caches[which].dirty = false;
         }
@@ -294,7 +314,9 @@ impl<D: BlockDevice> Volume<D> {
         self.invalidate(lba, u64::from(self.spc));
         let zeros = [0u8; BLOCK_SIZE];
         for i in 0..u64::from(self.spc) {
-            self.dev.write_blocks(lba + i, &zeros).map_err(Error::Device)?;
+            self.dev
+                .write_blocks(lba + i, &zeros)
+                .map_err(Error::Device)?;
         }
         Ok(())
     }

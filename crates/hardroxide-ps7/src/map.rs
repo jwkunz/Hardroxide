@@ -13,6 +13,10 @@ pub const I2C0_BASE: usize = 0xE000_4000;
 pub const I2C1_BASE: usize = 0xE000_5000;
 pub const I2C_SIZE: usize = 0x1000;
 
+pub const SDIO0_BASE: usize = 0xE010_0000;
+pub const SDIO1_BASE: usize = 0xE010_1000;
+pub const SDIO_SIZE: usize = 0x1000;
+
 /// Base of the Cortex-A9 MPCore private peripherals (`PERIPHBASE`).
 pub const PERIPH_BASE: usize = 0xF8F0_0000;
 /// Snoop control unit.

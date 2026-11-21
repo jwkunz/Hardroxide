@@ -48,11 +48,13 @@ impl<'a> SliceDisk<'a> {
     }
 
     fn range(&self, lba: u64, len: usize) -> Result<core::ops::Range<usize>, SliceDiskError> {
-        if len % BLOCK_SIZE != 0 {
+        if !len.is_multiple_of(BLOCK_SIZE) {
             return Err(SliceDiskError::NotBlocks);
         }
         let blocks = self.block_count();
-        let start = lba.checked_mul(BLOCK_SIZE as u64).filter(|_| lba < blocks || len == 0);
+        let start = lba
+            .checked_mul(BLOCK_SIZE as u64)
+            .filter(|_| lba < blocks || len == 0);
         match start {
             Some(s) if s as usize + len <= self.bytes.len() => Ok(s as usize..s as usize + len),
             _ => Err(SliceDiskError::OutOfRange { lba, blocks }),
@@ -102,8 +104,17 @@ mod tests {
         let mut mem = [0u8; 2 * BLOCK_SIZE];
         let mut d = SliceDisk::new(&mut mem);
         let mut b = [0u8; BLOCK_SIZE];
-        assert!(matches!(d.read_blocks(2, &mut b), Err(SliceDiskError::OutOfRange { .. })));
-        assert!(matches!(d.read_blocks(0, &mut [0u8; 100]), Err(SliceDiskError::NotBlocks)));
-        assert!(matches!(d.write_blocks(1, &[0u8; 2 * BLOCK_SIZE]), Err(SliceDiskError::OutOfRange { .. })));
+        assert!(matches!(
+            d.read_blocks(2, &mut b),
+            Err(SliceDiskError::OutOfRange { .. })
+        ));
+        assert!(matches!(
+            d.read_blocks(0, &mut [0u8; 100]),
+            Err(SliceDiskError::NotBlocks)
+        ));
+        assert!(matches!(
+            d.write_blocks(1, &[0u8; 2 * BLOCK_SIZE]),
+            Err(SliceDiskError::OutOfRange { .. })
+        ));
     }
 }

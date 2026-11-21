@@ -11,13 +11,13 @@
 
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
 
+pub mod block;
 #[cfg(feature = "std")]
 mod mock;
 #[cfg(any(feature = "physmem", not(feature = "std")))]
 mod phys;
 #[cfg(feature = "std")]
 mod sys;
-pub mod block;
 pub mod time;
 
 #[cfg(feature = "std")]

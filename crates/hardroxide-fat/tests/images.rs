@@ -18,24 +18,49 @@ fn tools() -> bool {
 fn tmp(name: &str) -> PathBuf {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
-    std::env::temp_dir().join(format!("hrx-fat-{}-{}-{name}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)))
+    std::env::temp_dir().join(format!(
+        "hrx-fat-{}-{}-{name}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ))
 }
 
 /// Run `fsck.fat -n` (read only) on `bytes`; panics with its output if it finds anything wrong.
 fn fsck(bytes: &[u8], what: &str) {
     let p = tmp(what);
     std::fs::write(&p, bytes).unwrap();
-    let out = Command::new("fsck.fat").arg("-n").arg("-v").arg(&p).output().unwrap();
-    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    let out = Command::new("fsck.fat")
+        .arg("-n")
+        .arg("-v")
+        .arg(&p)
+        .output()
+        .unwrap();
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
     let _ = std::fs::remove_file(&p);
-    assert!(out.status.success(), "fsck.fat reports problems with {what}:\n{text}");
+    assert!(
+        out.status.success(),
+        "fsck.fat reports problems with {what}:\n{text}"
+    );
 }
 
 /// A bare 64 MiB FAT32 volume made by `mkfs.fat`.
 fn mkfs_image(kib: u32) -> Vec<u8> {
     let p = tmp("mkfs");
-    let out = Command::new("mkfs.fat").args(["-F", "32", "-n", "TESTVOL", "-C"]).arg(&p).arg(kib.to_string()).output().unwrap();
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let out = Command::new("mkfs.fat")
+        .args(["-F", "32", "-n", "TESTVOL", "-C"])
+        .arg(&p)
+        .arg(kib.to_string())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let b = std::fs::read(&p).unwrap();
     let _ = std::fs::remove_file(&p);
     b
@@ -93,7 +118,10 @@ where
 {
     let mut out: Vec<DirEntry> = Vec::new();
     v.read_dir(path, |e| out.push(*e)).unwrap();
-    let mut r: Vec<_> = out.iter().map(|e| (e.name.to_string(), e.is_dir, e.size)).collect();
+    let mut r: Vec<_> = out
+        .iter()
+        .map(|e| (e.name.to_string(), e.is_dir, e.size))
+        .collect();
     r.sort();
     r
 }
@@ -118,16 +146,38 @@ fn files_and_directories_written_here_pass_fsck() {
     let mut img = mkfs_image(65_536);
     {
         let mut v = Volume::mount(SliceDisk::new(&mut img)).unwrap();
-        v.set_time(Timestamp { year: 2026, month: 11, day: 21, hour: 12, minute: 30, second: 0 });
+        v.set_time(Timestamp {
+            year: 2026,
+            month: 11,
+            day: 21,
+            hour: 12,
+            minute: 30,
+            second: 0,
+        });
         let cb = v.cluster_bytes() as usize;
-        let sizes = [0, 1, 511, 512, 513, cb - 1, cb, cb + 1, 3 * cb + 17, 1_000_000];
+        let sizes = [
+            0,
+            1,
+            511,
+            512,
+            513,
+            cb - 1,
+            cb,
+            cb + 1,
+            3 * cb + 17,
+            1_000_000,
+        ];
         v.mkdir("/data").unwrap();
         v.mkdir("/data/deep").unwrap();
         for (i, n) in sizes.iter().enumerate() {
             write_file(&mut v, &format!("/data/f{i}.bin"), &data(i as u32, *n));
         }
         write_file(&mut v, "/hello.txt", b"hello, FAT32\n");
-        write_file(&mut v, "/data/deep/A long file name with spaces.txt", b"long name");
+        write_file(
+            &mut v,
+            "/data/deep/A long file name with spaces.txt",
+            b"long name",
+        );
         write_file(&mut v, "/data/deep/Another long file name.txt", b"second");
         write_file(&mut v, "/data/deep/Another long file name 2.txt", b"third");
         write_file(&mut v, "/Mixed Case.TXT", b"mixed");
@@ -135,17 +185,30 @@ fn files_and_directories_written_here_pass_fsck() {
         v.sync().unwrap();
 
         for (i, n) in sizes.iter().enumerate() {
-            assert_eq!(read_all(&mut v, &format!("/data/f{i}.bin")), data(i as u32, *n), "file {i} ({n} bytes)");
+            assert_eq!(
+                read_all(&mut v, &format!("/data/f{i}.bin")),
+                data(i as u32, *n),
+                "file {i} ({n} bytes)"
+            );
         }
         assert_eq!(read_all(&mut v, "/hello.txt"), b"hello, FAT32\n");
-        assert_eq!(read_all(&mut v, "/DATA/DEEP/a long file name with spaces.TXT"), b"long name");
+        assert_eq!(
+            read_all(&mut v, "/DATA/DEEP/a long file name with spaces.TXT"),
+            b"long name"
+        );
         assert_eq!(read_all(&mut v, "/mixed case.txt"), b"mixed");
         assert_eq!(read_all(&mut v, "/ünïcode-名前.txt"), b"unicode");
         let root = list(&mut v, "/");
         assert!(root.iter().any(|e| e.0 == "Mixed Case.TXT"), "{root:?}");
-        assert!(root.iter().any(|e| e.0 == "hello.txt" && e.2 == 13), "{root:?}");
+        assert!(
+            root.iter().any(|e| e.0 == "hello.txt" && e.2 == 13),
+            "{root:?}"
+        );
         let e = v.stat("/hello.txt").unwrap();
-        assert_eq!((e.modified.year, e.modified.month, e.modified.day), (2026, 11, 21));
+        assert_eq!(
+            (e.modified.year, e.modified.month, e.modified.day),
+            (2026, 11, 21)
+        );
     }
     fsck(&img, "written");
 }
@@ -213,7 +276,11 @@ fn a_directory_with_many_entries_grows_across_clusters() {
         let mut v = Volume::mount(SliceDisk::new(&mut img)).unwrap();
         v.mkdir("/many").unwrap();
         for i in 0..150 {
-            write_file(&mut v, &format!("/many/file number {i:03}.txt"), format!("content {i}").as_bytes());
+            write_file(
+                &mut v,
+                &format!("/many/file number {i:03}.txt"),
+                format!("content {i}").as_bytes(),
+            );
         }
         let names = list(&mut v, "/many");
         assert_eq!(names.len(), 150);
@@ -240,7 +307,15 @@ fn a_volume_formatted_here_passes_fsck_and_works() {
     let mut img = vec![0u8; 100 * 1024 * 1024];
     {
         let mut disk = SliceDisk::new(&mut img);
-        Volume::format(&mut disk, &FormatOptions { label: "mycard", partition_table: false, volume_id: 0x1234_ABCD }).unwrap();
+        Volume::format(
+            &mut disk,
+            &FormatOptions {
+                label: "mycard",
+                partition_table: false,
+                volume_id: 0x1234_ABCD,
+            },
+        )
+        .unwrap();
     }
     fsck(&img, "formatted");
     {
@@ -267,7 +342,10 @@ fn a_partitioned_card_formatted_here_mounts_and_its_volume_passes_fsck() {
     // The MBR: one FAT32 LBA partition at 1 MiB.
     assert_eq!(&img[510..512], &[0x55, 0xAA]);
     assert_eq!(img[446 + 4], 0x0C);
-    assert_eq!(u32::from_le_bytes(img[446 + 8..446 + 12].try_into().unwrap()), 2048);
+    assert_eq!(
+        u32::from_le_bytes(img[446 + 8..446 + 12].try_into().unwrap()),
+        2048
+    );
     {
         let mut v = Volume::mount(SliceDisk::new(&mut img)).unwrap();
         write_file(&mut v, "/card.txt", b"on a partitioned card");
@@ -292,7 +370,13 @@ fn an_8_gigabyte_card_gets_4_kib_clusters_and_a_sound_layout() {
         }
         fn read_blocks(&mut self, lba: u64, buf: &mut [u8]) -> Result<(), ()> {
             for (i, c) in buf.chunks_mut(BLOCK_SIZE).enumerate() {
-                c.copy_from_slice(&self.1.get(&(lba + i as u64)).copied().unwrap_or([0; BLOCK_SIZE]));
+                c.copy_from_slice(
+                    &self
+                        .1
+                        .get(&(lba + i as u64))
+                        .copied()
+                        .unwrap_or([0; BLOCK_SIZE]),
+                );
             }
             Ok(())
         }

@@ -9,7 +9,10 @@ pub struct NameBuf {
 
 impl NameBuf {
     pub const fn new() -> Self {
-        NameBuf { len: 0, bytes: [0; 255] }
+        NameBuf {
+            len: 0,
+            bytes: [0; 255],
+        }
     }
 
     pub fn as_str(&self) -> &str {
@@ -21,7 +24,8 @@ impl NameBuf {
         let mut tmp = [0u8; 4];
         let s = c.encode_utf8(&mut tmp);
         if usize::from(self.len) + s.len() <= 255 {
-            self.bytes[usize::from(self.len)..usize::from(self.len) + s.len()].copy_from_slice(s.as_bytes());
+            self.bytes[usize::from(self.len)..usize::from(self.len) + s.len()]
+                .copy_from_slice(s.as_bytes());
             self.len += s.len() as u8;
         }
     }
@@ -55,12 +59,17 @@ impl core::fmt::Display for NameBuf {
 
 /// ASCII-case-insensitive equality, which is how FAT compares names.
 pub(crate) fn eq_ignore_case(a: &str, b: &str) -> bool {
-    a.len() == b.len() && a.bytes().zip(b.bytes()).all(|(x, y)| x.eq_ignore_ascii_case(&y))
+    a.len() == b.len()
+        && a.bytes()
+            .zip(b.bytes())
+            .all(|(x, y)| x.eq_ignore_ascii_case(&y))
 }
 
 /// The checksum of an 8.3 name stored in each long-name entry.
 pub(crate) fn lfn_checksum(short: &[u8; 11]) -> u8 {
-    short.iter().fold(0u8, |sum, &b| (sum >> 1).wrapping_add(sum << 7).wrapping_add(b))
+    short.iter().fold(0u8, |sum, &b| {
+        (sum >> 1).wrapping_add(sum << 7).wrapping_add(b)
+    })
 }
 
 /// A name is valid if it is 1 to 255 bytes, has none of the reserved characters, no control
@@ -71,11 +80,16 @@ pub(crate) fn valid_name(name: &str) -> bool {
         && name != "."
         && name != ".."
         && !name.ends_with([' ', '.'])
-        && !name.chars().any(|c| c.is_control() || "\\/:*?\"<>|".contains(c))
+        && !name
+            .chars()
+            .any(|c| c.is_control() || "\\/:*?\"<>|".contains(c))
 }
 
 fn short_char_ok(c: u8) -> bool {
-    c.is_ascii_uppercase() || c.is_ascii_lowercase() || c.is_ascii_digit() || b"!#$%&'()-@^_`{}~".contains(&c)
+    c.is_ascii_uppercase()
+        || c.is_ascii_lowercase()
+        || c.is_ascii_digit()
+        || b"!#$%&'()-@^_`{}~".contains(&c)
 }
 
 /// How a name is stored.
@@ -90,7 +104,10 @@ pub(crate) struct Stored {
 
 fn case_of(part: &[u8]) -> Option<bool> {
     // Some(true): has lower case and no upper; Some(false): no lower case; None: mixed.
-    let (lower, upper) = (part.iter().any(u8::is_ascii_lowercase), part.iter().any(u8::is_ascii_uppercase));
+    let (lower, upper) = (
+        part.iter().any(u8::is_ascii_lowercase),
+        part.iter().any(u8::is_ascii_uppercase),
+    );
     match (lower, upper) {
         (true, true) => None,
         (true, false) => Some(true),
@@ -119,8 +136,17 @@ pub(crate) fn classify(name: &str, alias_n: u32) -> Stored {
         for (d, s) in short[8..].iter_mut().zip(ext) {
             *d = s.to_ascii_uppercase();
         }
-        let nt = if case_of(base) == Some(true) { 0x08 } else { 0 } | if !ext.is_empty() && case_of(ext) == Some(true) { 0x10 } else { 0 };
-        return Stored { short, nt, needs_lfn: false };
+        let nt = if case_of(base) == Some(true) { 0x08 } else { 0 }
+            | if !ext.is_empty() && case_of(ext) == Some(true) {
+                0x10
+            } else {
+                0
+            };
+        return Stored {
+            short,
+            nt,
+            needs_lfn: false,
+        };
     }
     // An alias: the first characters of the base (invalid ones become `_`), `~N`, three of the extension.
     let mut short = [b' '; 11];
@@ -138,17 +164,32 @@ pub(crate) fn classify(name: &str, alias_n: u32) -> Stored {
         if i >= keep {
             break;
         }
-        short[i] = if short_char_ok(c) { c.to_ascii_uppercase() } else { b'_' };
+        short[i] = if short_char_ok(c) {
+            c.to_ascii_uppercase()
+        } else {
+            b'_'
+        };
         i += 1;
     }
     short[i] = b'~';
     for d in 0..digits {
         short[i + 1 + d] = tail[digits - 1 - d];
     }
-    for (d, &c) in short[8..].iter_mut().zip(ext.iter().filter(|&&c| c != b' ')) {
-        *d = if short_char_ok(c) { c.to_ascii_uppercase() } else { b'_' };
+    for (d, &c) in short[8..]
+        .iter_mut()
+        .zip(ext.iter().filter(|&&c| c != b' '))
+    {
+        *d = if short_char_ok(c) {
+            c.to_ascii_uppercase()
+        } else {
+            b'_'
+        };
     }
-    Stored { short, nt: 0, needs_lfn: true }
+    Stored {
+        short,
+        nt: 0,
+        needs_lfn: true,
+    }
 }
 
 /// The name stored in a short entry, with the case flags applied.
@@ -243,7 +284,17 @@ mod tests {
     #[test]
     fn names_are_validated_and_compared_without_case() {
         assert!(valid_name("a b.txt") && valid_name("Ünï.txt"));
-        for bad in ["", ".", "..", "a/b", "a:b", "tab\t", "trailing.", "x ", "q?"] {
+        for bad in [
+            "",
+            ".",
+            "..",
+            "a/b",
+            "a:b",
+            "tab\t",
+            "trailing.",
+            "x ",
+            "q?",
+        ] {
             assert!(!valid_name(bad), "{bad:?}");
         }
         assert!(eq_ignore_case("ReadMe.TXT", "readme.txt"));

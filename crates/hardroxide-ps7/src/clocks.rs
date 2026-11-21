@@ -15,6 +15,7 @@ const ARM_CLK_CTRL: usize = 0x120;
 /// SLCR `CLK_621_TRUE`: bit 0 set when the CPU clock ratio is 6:2:1 (clear: 4:2:1).
 const CLK_621_TRUE: usize = 0x1C4;
 const UART_CLK_CTRL: usize = 0x154;
+const SDIO_CLK_CTRL: usize = 0x150;
 
 /// Which PLL feeds a clock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -61,6 +62,19 @@ pub fn periph_hz(slcr: &impl Mmio, ps_clk_hz: u64) -> Result<u64> {
 pub fn cpu_1x_hz(slcr: &impl Mmio, ps_clk_hz: u64) -> Result<u64> {
     let ratio_621 = slcr.read32(CLK_621_TRUE)? & 1 != 0;
     Ok(cpu_hz(slcr, ps_clk_hz)? / if ratio_621 { 6 } else { 4 })
+}
+
+/// The SD/SDIO host controllers' base clock: the selected PLL divided by `SDIO_CLK_CTRL.DIVISOR`
+/// (the same clock for both controllers).
+pub fn sdio_ref_hz(slcr: &impl Mmio, ps_clk_hz: u64) -> Result<u64> {
+    let ctrl = slcr.read32(SDIO_CLK_CTRL)?;
+    let pll = match (ctrl >> 4) & 0x3 {
+        2 => Pll::Arm,
+        3 => Pll::Ddr,
+        _ => Pll::Io,
+    };
+    let div = u64::from((ctrl >> 8) & 0x3F).max(1);
+    Ok(pll_hz(slcr, ps_clk_hz, pll)? / div)
 }
 
 /// The UART reference clock: the selected PLL divided by `UART_CLK_CTRL.DIVISOR`.

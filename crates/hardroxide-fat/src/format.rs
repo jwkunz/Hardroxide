@@ -19,7 +19,11 @@ pub struct FormatOptions<'a> {
 
 impl Default for FormatOptions<'_> {
     fn default() -> Self {
-        FormatOptions { label: "HARDROXIDE", partition_table: true, volume_id: 0x4852_5831 }
+        FormatOptions {
+            label: "HARDROXIDE",
+            partition_table: true,
+            volume_id: 0x4852_5831,
+        }
     }
 }
 
@@ -31,7 +35,8 @@ fn zero<D: BlockDevice>(dev: &mut D, lba: u64, count: u64) -> Res<(), D> {
     let mut done = 0;
     while done < count {
         let n = (count - done).min(8);
-        dev.write_blocks(lba + done, &zeros[..n as usize * BLOCK_SIZE]).map_err(Error::Device)?;
+        dev.write_blocks(lba + done, &zeros[..n as usize * BLOCK_SIZE])
+            .map_err(Error::Device)?;
         done += n;
     }
     Ok(())
@@ -53,13 +58,19 @@ impl<D: BlockDevice> Volume<D> {
     /// Write an empty FAT32 file system on `dev`, destroying what is there.
     pub fn format(dev: &mut D, opts: &FormatOptions) -> Res<(), D> {
         let total = dev.block_count();
-        let start = if opts.partition_table { PARTITION_START } else { 0 };
+        let start = if opts.partition_table {
+            PARTITION_START
+        } else {
+            0
+        };
         if total <= start + 70_000 {
             return Err(Error::Unsupported("device too small for FAT32"));
         }
         let part = total - start;
         if part > u64::from(u32::MAX) {
-            return Err(Error::Unsupported("device too large for a 32-bit sector count"));
+            return Err(Error::Unsupported(
+                "device too large for a 32-bit sector count",
+            ));
         }
         let part32 = part as u32;
         let mut spc = pick_spc(part);
@@ -134,7 +145,8 @@ impl<D: BlockDevice> Volume<D> {
         put32(&mut info, 492, 3);
         put32(&mut info, 508, 0xAA55_0000);
         for (at, sector) in [(0u64, &boot), (1, &info), (6, &boot), (7, &info)] {
-            dev.write_blocks(start + at, sector).map_err(Error::Device)?;
+            dev.write_blocks(start + at, sector)
+                .map_err(Error::Device)?;
         }
 
         // The two allocation tables: zeros, then the first sector of each.
@@ -145,7 +157,8 @@ impl<D: BlockDevice> Volume<D> {
         put32(&mut first, 4, 0x0FFF_FFFF);
         put32(&mut first, 8, 0x0FFF_FFFF); // cluster 2, the root directory, is one cluster long
         dev.write_blocks(fat0, &first).map_err(Error::Device)?;
-        dev.write_blocks(fat0 + u64::from(fat_sectors), &first).map_err(Error::Device)?;
+        dev.write_blocks(fat0 + u64::from(fat_sectors), &first)
+            .map_err(Error::Device)?;
 
         // The root directory: one cluster holding the volume label.
         let root = fat0 + 2 * u64::from(fat_sectors);

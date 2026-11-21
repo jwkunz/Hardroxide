@@ -26,13 +26,24 @@ pub struct Timestamp {
 
 impl Timestamp {
     /// 2026-01-01 00:00:00, the default until the program sets a time.
-    pub const DEFAULT: Timestamp = Timestamp { year: 2026, month: 1, day: 1, hour: 0, minute: 0, second: 0 };
+    pub const DEFAULT: Timestamp = Timestamp {
+        year: 2026,
+        month: 1,
+        day: 1,
+        hour: 0,
+        minute: 0,
+        second: 0,
+    };
 
     pub(crate) fn fat_date(&self) -> u16 {
-        (self.year.clamp(1980, 2107) - 1980) << 9 | u16::from(self.month.clamp(1, 12)) << 5 | u16::from(self.day.clamp(1, 31))
+        (self.year.clamp(1980, 2107) - 1980) << 9
+            | u16::from(self.month.clamp(1, 12)) << 5
+            | u16::from(self.day.clamp(1, 31))
     }
     pub(crate) fn fat_time(&self) -> u16 {
-        u16::from(self.hour.min(23)) << 11 | u16::from(self.minute.min(59)) << 5 | u16::from(self.second.min(59) / 2)
+        u16::from(self.hour.min(23)) << 11
+            | u16::from(self.minute.min(59)) << 5
+            | u16::from(self.second.min(59) / 2)
     }
     pub(crate) fn from_fat(date: u16, time: u16) -> Timestamp {
         Timestamp {
@@ -70,10 +81,17 @@ impl Bpb {
         let root_entries = u16le(s, 17);
         let tot16 = u32::from(u16le(s, 19));
         let fat16 = u32::from(u16le(s, 22));
-        let tot32 = u32::from(u32le(s, 32));
+        let tot32 = u32le(s, 32);
         let fat32 = u32le(s, 36);
         // FAT32 has no fixed root directory and a 32-bit FAT size.
-        if spc == 0 || !spc.is_power_of_two() || root_entries != 0 || fat16 != 0 || fat32 == 0 || num_fats == 0 || reserved == 0 {
+        if spc == 0
+            || !spc.is_power_of_two()
+            || root_entries != 0
+            || fat16 != 0
+            || fat32 == 0
+            || num_fats == 0
+            || reserved == 0
+        {
             return None;
         }
         let total = if tot16 != 0 { tot16 } else { tot32 };
@@ -109,9 +127,26 @@ mod tests {
 
     #[test]
     fn timestamps_round_trip_at_two_second_resolution() {
-        let t = Timestamp { year: 2026, month: 11, day: 21, hour: 13, minute: 7, second: 59 };
+        let t = Timestamp {
+            year: 2026,
+            month: 11,
+            day: 21,
+            hour: 13,
+            minute: 7,
+            second: 59,
+        };
         let back = Timestamp::from_fat(t.fat_date(), t.fat_time());
-        assert_eq!((back.year, back.month, back.day, back.hour, back.minute, back.second), (2026, 11, 21, 13, 7, 58));
+        assert_eq!(
+            (
+                back.year,
+                back.month,
+                back.day,
+                back.hour,
+                back.minute,
+                back.second
+            ),
+            (2026, 11, 21, 13, 7, 58)
+        );
     }
 
     #[test]

@@ -26,7 +26,7 @@ params = {p.get("NAME"): p.get("VALUE") for p in ps7.find("PARAMETERS").findall(
 
 # Settings that shape the PL interface, or are computed by Vivado: leave to the fixture script.
 skip = re.compile(
-    r"^PCW_(USE_|EN_CLK|EN_RST|FPGA|FCLK|ACT_|S_AXI_|M_AXI_|IRQ_|EN_EMIO|FTM_|PRESET_BANK|TPIU_|TRACE|"
+    r"^PCW_(USE_|EN_CLK|EN_RST|FPGA|FCLK|ACT_|S_AXI_|M_AXI_|IRQ_|EN_EMIO|FTM_|TPIU_|TRACE|"
     r"CORE0_|CORE1_|EN_DDR|NUM_FABRIC|P2F_|QOS_|DDR_PORT|DDR_HPRLPR|EXACT_FREQ|OVERRIDE_BASIC_CLK|"
     r"UIPARAM_DDR_|PACKAGE_DDR_|DDR_RAM_|MIO_PRIMITIVE|MIO_TREE_|PJTAG|SD1_|GPIO_EMIO)")
 keep = {k: v for k, v in sorted(params.items())

@@ -1,8 +1,8 @@
 # hardroxide-gfx
 
 A small 2D graphics library over a pixel buffer. A `Surface` borrows a `&mut [u32]` of `0x00RRGGBB` pixels and draws on it. Every
-operation takes signed coordinates and **clips** to the surface. `no_std`, no allocation, no dependencies; the tests render to memory
-on the host and compare against expected pictures.
+operation takes signed coordinates and **clips** to the surface. `no_std`, no allocation; the tests render to memory
+on the host and compare against expected pictures. Its only dependency is `thiserror` (for the BMP errors).
 
 ```rust,ignore
 pub struct Color(pub u32);
@@ -43,3 +43,23 @@ pub fn glyph(c: char) -> &'static [u8; GLYPH_W]
 - `Bitmap` is a read-only block (`width`, `height`, `stride`); `blit` copies it, skipping pixels equal to a colour key; `blit_alpha` blends.
 - Text uses a built-in 5x7 font for ASCII 32 to 126 (anything else draws as `?`): a character cell is 6 x 8 pixels at `scale` 1; `text` returns the x after
   the last character and starts a new line at `'\n'`. The glyph table is the classic dot-matrix set, re-keyed for this crate and checked by rendering.
+
+## BMP files (`gfx::bmp`)
+
+```rust,ignore
+pub enum BmpError
+pub struct BmpInfo
+pub fn parse(header: &[u8]) -> Result<BmpInfo, BmpError>
+pub fn stored_row(&self, y: u32) -> u32
+pub fn row_offset(&self, y: u32) -> u64
+pub fn convert_row(&self, row: &[u8], out: &mut [u32])
+pub fn decode(file: &[u8], out: &mut [u32]) -> Result<(u32, u32), BmpError>
+pub fn header_24bit(width: u32, height: u32) -> [u8; 54]
+pub fn encode_row(pixels: &[u32], out: &mut [u8]) 
+```
+
+Uncompressed 24- and 32-bit BMP files (a `BITMAPINFOHEADER` image, rows bottom to top or top to bottom), without a file system or allocation, so a
+picture can be streamed row by row between a card and the screen. `BmpInfo::parse` reads the first 54 bytes and gives the size, the offset of each stored row
+(`row_offset(y)`, `y` counted from the top of the picture) and the padded row length; `convert_row` turns one stored row into `0x00RRGGBB` pixels.
+`decode` does a whole in-memory file. To write one, `header_24bit(width, height)` is the 54-byte header and `encode_row` converts a row of pixels to its padded 24-bit form;
+write the rows from the bottom of the picture to the top. Compressed, palette and 16-bit files are `BmpError::Unsupported`.

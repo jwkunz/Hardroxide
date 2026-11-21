@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-Applications on the PYNQ base overlay, versions 2.2 and 2.3 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
-version is 2.3.0, not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
+Applications on the PYNQ base overlay, versions 2.2, 2.3 and 2.4 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
+version is 2.3.0 (2.4 is in progress on a branch), not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
 
 ### HDMI output and graphics (2.2)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
@@ -25,6 +25,18 @@ version is 2.3.0, not yet released (the release waits for the rest of the exampl
 - Verified: tones, WAV playback, a line-in loop with a cable from HPH OUT to LINE IN, recording to memory and playing it back, no missed samples.
   Not run: `audio_record` and `audio_loopback` (they need a separate source and headphones), the microphone input, RTOS audio (not written).
   Fixed on the board: unbounded recursion in the I2C `embedded-hal` impl; the missed-sample counter.
+
+### SD card and FAT32 (2.4, in progress)
+- `hardroxide-mmio`: the `BlockDevice` trait (512-byte blocks) and `SliceDisk`, a disk in memory.
+- `hardroxide-ps7`: `sd::SdHost`, the PS SD controller (SDHCI) in programmed I/O: card identification, 4-bit bus at 25 MHz, block reads and writes; `clocks::sdio_ref_hz`.
+- `hardroxide-fat` (new): FAT32 over any block device: mount (MBR or bare volume), long names, directories, read, write, append, seek, truncate, remove, format. Tested against
+  `mkfs.fat` and `fsck.fat -n` (CI now installs `dosfstools`) and under QEMU's SD card (`baremetal/sd-smoke`).
+- `hardroxide-gfx`: BMP reading and writing (`gfx::bmp`); it now depends on `thiserror`.
+- `apps/base`: `sd_info` (read only), `sd_erase_and_test` (formats a card; refuses a card that holds data unless its serial number is named at build time), `sd_logger`, `sd_wav`, `sd_bmp`.
+- Verified on a PYNQ-Z2 with a 32 GB SDHC card: identification, raw transfers, format (15 s), nine files byte for byte, the three applications; 7.4 MB/s read and 1.6 MB/s write.
+  Open: the board-formatted card has not been through `fsck.fat` on a PC; SDSC cards, the second controller and the RTOS flavor are not covered.
+- Fixed on the board: the PS configuration put MIO bank 1 (SD card, Ethernet, USB) at 3.3 V instead of the PYNQ-Z2's 1.8 V, so every SD command timed out (the board preset now carries
+  `PCW_PRESET_BANK0_VOLTAGE`/`PCW_PRESET_BANK1_VOLTAGE` and all board build scripts were regenerated); the CID's product name and serial were decoded one byte early.
 
 ### Tooling
 - `scripts/test-board.sh` also runs the video and audio programs (audio loopback with `HRX_AUDIO_LOOPBACK=1`).

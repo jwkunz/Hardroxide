@@ -257,6 +257,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-fat"
+version = "2.3.0"
+dependencies = [
+ "hardroxide-mmio",
+ "thiserror",
+]
+
+[[package]]
 name = "hardroxide-fpga"
 version = "2.3.0"
 dependencies = [
@@ -278,6 +286,9 @@ dependencies = [
 [[package]]
 name = "hardroxide-gfx"
 version = "2.3.0"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "hardroxide-hwh"

@@ -66,3 +66,30 @@ need2 "inheritance worked"
 need2 "second (after rearm) true, nothing pending true"
 need2 "RT ALL OK"
 [ "$fail" = 0 ] && echo "qemu kernel test: ok" || { echo "qemu kernel test: FAILED" >&2; exit 1; }
+
+# ---- the SD host driver and the FAT32 file system (baremetal/sd-smoke) ----
+# QEMU's Zynq machine has an SD host controller; the "card" is a throwaway image the program formats,
+# fills and reads back. Afterwards the host's fsck.fat checks the file system the program wrote.
+cd "$ROOT/baremetal/sd-smoke"
+cargo build --release --features qemu
+IMG=$(mktemp)
+OUT3=$(mktemp)
+trap 'rm -f "$OUT" "$OUT2" "$OUT3" "$IMG" "$IMG.part"' EXIT
+truncate -s 128M "$IMG"
+timeout "${QEMU_TIMEOUT:-20}" "${RUN[@]}" -M xilinx-zynq-a9 -m 512 -display none \
+  -serial stdio -serial null -monitor none -drive "if=sd,index=0,file=$IMG,format=raw" \
+  -kernel target/armv7a-none-eabihf/release/sd-smoke >"$OUT3" 2>&1 || true
+cat "$OUT3"
+fail=0
+need3() { grep -q -- "$1" "$OUT3" || { echo "MISSING: $1" >&2; fail=1; }; }
+need3 "raw blocks: 4 blocks written and read back"
+need3 "formatted and mounted"
+need3 "SD SMOKE OK"
+if command -v fsck.fat >/dev/null; then
+  # The partition starts at sector 2048 (1 MiB).
+  dd if="$IMG" of="$IMG.part" bs=512 skip=2048 status=none
+  if fsck.fat -n "$IMG.part" >/dev/null; then echo "fsck.fat on the card image: clean"; else echo "fsck.fat found problems" >&2; fail=1; fi
+else
+  echo "(fsck.fat not installed; skipping the file system check)"
+fi
+[ "$fail" = 0 ] && echo "qemu SD test: ok" || { echo "qemu SD test: FAILED" >&2; exit 1; }

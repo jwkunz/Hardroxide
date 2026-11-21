@@ -52,6 +52,7 @@
   - [1. Lights and buttons on the base overlay](tutorials/apps/01-base-lights.md)
   - [2. Pixels on the HDMI output](tutorials/apps/02-hdmi.md)
   - [3. Sound](tutorials/apps/03-audio.md)
+  - [4. An SD card and files](tutorials/apps/04-sd.md)
 
 # Reference
 
@@ -70,6 +71,7 @@
 - [hardroxide-video](reference/video.md)
 - [hardroxide-gfx](reference/gfx.md)
 - [hardroxide-audio](reference/audio.md)
+- [hardroxide-fat](reference/fat.md)
 - [hardroxide-ip](reference/ip.md)
   - [AXI GPIO](reference/ip-gpio.md)
   - [HLS IP](reference/ip-hls.md)

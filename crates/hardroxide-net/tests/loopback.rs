@@ -30,7 +30,7 @@ impl Device for Pipe {
     }
     fn transmit(&mut self, frame: &[u8]) -> bool {
         self.sent += 1;
-        if self.drop_every != 0 && self.sent % self.drop_every == 0 {
+        if self.drop_every != 0 && self.sent.is_multiple_of(self.drop_every) {
             return true; // lost on the wire
         }
         self.tx.borrow_mut().push_back(frame.to_vec());

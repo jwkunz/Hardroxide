@@ -20,13 +20,13 @@ pub fn regs(&self) -> &R
 pub fn ref_clk_hz(&self) -> Result<u32, MmioError>
 pub fn locked(&self) -> Result<bool, MmioError>
 pub fn disable(&self) -> Result<(), MmioError>
-pub fn set_rate(&self, pixel_hz: u32) -> Result<u32, DynclkError>
+pub fn set_rate(&self, ref_hz: u32, pixel_hz: u32) -> Result<u32, DynclkError>
 ```
 
 Register map: `CTRL` `0x00` (1 = output on), `STATUS` `0x04` (non-zero = locked), the MMCM words `CLK_L` `0x08`, `FB_L` `0x0C`,
-`FB_H_CLK_H` `0x10`, `DIV` `0x14`, `LOCK_L` `0x18`, `FLTR_LOCK_H` `0x1C`, and the reference clock frequency in Hz at `0x20` (read only).
+`FB_H_CLK_H` `0x10`, `DIV` `0x14`, `LOCK_L` `0x18`, `FLTR_LOCK_H` `0x1C`, and, in newer versions of the core only, the reference clock frequency in Hz at `0x20`. **The core in the PYNQ base overlay is the older one with eight registers** (found on the board: the register at `0x20` reads 0), so the reference, FCLK0 at 100 MHz on `REF_CLK_I`, is passed by the caller.
 
-- `set_rate(pixel_hz)` reads the reference clock, finds the MMCM settings for **five times** `pixel_hz` (the output goes through a
+- `set_rate(ref_hz, pixel_hz)` takes the reference clock, finds the MMCM settings for **five times** `pixel_hz` (the output goes through a
   divide-by-five buffer), writes the six words, switches the output off, waits for the old clock to stop, switches it on and
   waits for the lock (up to 100 ms, then `DynclkError::NoLock`). It returns the pixel frequency produced.
 - `find_mode(freq_khz, parent_khz)` is the search: input divider upward from the smallest valid one, feedback multiplier over the

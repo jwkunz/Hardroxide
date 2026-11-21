@@ -43,6 +43,7 @@ fn render() {
         }
         let display = Display {
             dynclk: &d.video_hdmi_out_frontend_axi_dynclk,
+            ref_clk_hz: 100_000_000, // FCLK0 feeds the pixel clock generator
             vtc: &d.video_hdmi_out_frontend_vtc_out,
             vdma: &d.video_axi_vdma,
             colour: d.video_hdmi_out_color_convert.regs(),

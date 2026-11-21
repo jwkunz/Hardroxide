@@ -190,6 +190,8 @@ pub enum DisplayError {
 /// The output pipeline of the base overlay.
 pub struct Display<'a, R: Mmio> {
     pub dynclk: &'a AxiDynclk<R>,
+    /// The clock wired to the pixel clock generator's reference input, in Hz (FCLK0 on the base overlay: 100 MHz).
+    pub ref_clk_hz: u32,
     pub vtc: &'a VideoTimingController<R>,
     pub vdma: &'a AxiVdma<R>,
     /// The output colour converter's registers (`video_hdmi_out_color_convert`).
@@ -216,7 +218,7 @@ impl<R: Mmio> Display<'_, R> {
             return Err(DisplayError::Frames(frames.len()));
         }
         self.vtc.stop()?;
-        let pixel_hz = self.dynclk.set_rate(mode.pixel_clock_hz)?;
+        let pixel_hz = self.dynclk.set_rate(self.ref_clk_hz, mode.pixel_clock_hz)?;
         self.set_colour(&colour::IDENTITY)?;
         self.unpack.write32(UNPACK_MODE, UNPACK_32_BPP)?;
         self.vdma.start_read(
@@ -331,7 +333,6 @@ mod tests {
             0x43C6_0000u64,
             0x43C7_0000u64,
         );
-        be.poke(dc + 0x20, 100_000_000); // reference clock the core reports
         be.poke(dc + 0x4, 1); // locked
         let dynclk = AxiDynclk::new(be.map(dc, 0x1000).unwrap());
         let vtc = VideoTimingController::new(be.map(vt, 0x1000).unwrap());
@@ -339,6 +340,7 @@ mod tests {
         let (colour_regs, unpack_regs) = (be.map(cc, 0x1000).unwrap(), be.map(up, 0x1000).unwrap());
         let d = Display {
             dynclk: &dynclk,
+            ref_clk_hz: 100_000_000,
             vtc: &vtc,
             vdma: &vdma,
             colour: &colour_regs,

@@ -35,7 +35,7 @@ pub fn check(&self) -> Result<(), VdmaError>
 pub fn as_pixels(bytes: &mut [u8]) -> Option<&mut [u32]>
 ```
 
-`Display` borrows the five pieces (fields `dynclk`, `vtc`, `vdma`, and the raw `colour` and `unpack` register windows, for example
+`Display` borrows the five pieces (fields `dynclk` with `ref_clk_hz` (the clock on the generator's reference input, 100 MHz on the base overlay), `vtc`, `vdma`, and the raw `colour` and `unpack` register windows, for example
 `d.video_hdmi_out_color_convert.regs()`). `start(mode, frames)`: stops the timing generator, programs the pixel clock, loads the identity
 colour matrix and 32-bit pixel mode, starts the DMA on the frame buffers (their 32-bit physical addresses, each `mode.frame_bytes()` long) and starts
 the timing generator last, which releases the stream. It returns the pixel clock produced. `show(n)` switches to buffer `n` at the next frame.

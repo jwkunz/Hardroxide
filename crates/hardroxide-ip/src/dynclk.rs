@@ -222,8 +222,8 @@ pub fn find_mode(freq_khz: u32, parent_khz: u32) -> Option<Mode> {
 pub enum DynclkError {
     #[error(transparent)]
     Mmio(#[from] MmioError),
-    /// The core reports a zero reference clock.
-    #[error("the clock generator reports no reference clock")]
+    /// The reference clock frequency given is zero.
+    #[error("the clock generator has no reference clock frequency")]
     NoReference,
     /// No MMCM setting produces the frequency.
     #[error("no MMCM setting produces {0} Hz")]
@@ -247,7 +247,9 @@ impl<R: Mmio> AxiDynclk<R> {
         &self.regs
     }
 
-    /// Frequency of the reference clock the core reports (Hz).
+    /// The reference clock frequency in Hz that newer versions of the core report at `0x20`; the older
+    /// core in the PYNQ base overlay has only eight registers and reads 0 here (its reference is the clock
+    /// wired to `REF_CLK_I`, FCLK0 at 100 MHz, which the caller passes to [`AxiDynclk::set_rate`]).
     pub fn ref_clk_hz(&self) -> Result<u32, MmioError> {
         self.regs.read32(REF_CLK_FREQ)
     }
@@ -262,11 +264,11 @@ impl<R: Mmio> AxiDynclk<R> {
         self.regs.write32(CTRL, 0)
     }
 
-    /// Program the output to about `pixel_hz` (the generator drives a divide-by-five buffer, so the MMCM
-    /// is set to five times that), switch it off and on, and wait for the lock. Returns the pixel
-    /// frequency actually produced, in Hz.
-    pub fn set_rate(&self, pixel_hz: u32) -> Result<u32, DynclkError> {
-        let parent = self.ref_clk_hz()?;
+    /// Program the output to about `pixel_hz` from a reference clock of `ref_hz` (the generator drives a
+    /// divide-by-five buffer, so the MMCM is set to five times the pixel clock), switch it off and on, and wait
+    /// for the lock. Returns the pixel frequency actually produced, in Hz.
+    pub fn set_rate(&self, ref_hz: u32, pixel_hz: u32) -> Result<u32, DynclkError> {
+        let parent = ref_hz;
         if parent == 0 {
             return Err(DynclkError::NoReference);
         }
@@ -356,7 +358,7 @@ mod tests {
             be.poke(0x43C1_0000 + REF_CLK_FREQ as u64, 100_000_000);
             be.poke(0x43C1_0000 + STATUS as u64, 1);
             let d = AxiDynclk::new(r);
-            let hz = d.set_rate(74_250_000).unwrap();
+            let hz = d.set_rate(100_000_000, 74_250_000).unwrap();
             assert!(hz.abs_diff(74_250_000) < 100_000, "{hz}");
             assert_eq!(be.peek(0x43C1_0000 + CTRL as u64), 1);
             assert_ne!(be.peek(0x43C1_0000 + CLK_L as u64), 0);

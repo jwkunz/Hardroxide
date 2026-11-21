@@ -1,0 +1,14 @@
+[package]
+name = "hardroxide-gfx"
+description = "A small 2D graphics library over a pixel buffer: lines, shapes, blits and text; no_std, no allocation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]

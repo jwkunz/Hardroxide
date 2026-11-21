@@ -10,6 +10,7 @@ extern crate alloc;
 
 pub mod bram;
 pub mod dma;
+pub mod dynclk;
 pub mod fifo;
 pub mod gpio;
 pub mod hls;
@@ -18,6 +19,8 @@ pub mod intc;
 pub mod spi;
 pub mod timer;
 pub mod uart;
+pub mod vdma;
+pub mod vtc;
 pub use hardroxide_mmio::{Mmio, MmioError};
 
 /// Test helper: look up `(register offset, field bit offset)` in a fixture HWH.

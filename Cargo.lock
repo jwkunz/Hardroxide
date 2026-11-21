@@ -266,6 +266,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-gfx"
+version = "2.1.0"
+
+[[package]]
 name = "hardroxide-hwh"
 version = "2.1.0"
 dependencies = [

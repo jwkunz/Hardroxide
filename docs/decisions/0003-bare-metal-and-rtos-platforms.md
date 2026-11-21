@@ -34,7 +34,9 @@ Fixed by the maintainer:
    and **halt** with a clear message; nothing is silently degraded.
 5. **No third-party dependencies for the new platform code.** The startup code,
    MMU/cache/GIC/timer/UART/PCAP support, and the kernel are written in this
-   repository. See "Dependencies" below for what that does and does not mean.
+   repository. The existing `embedded-hal` (traits only) and `thiserror`
+   (compile-time derive) dependencies are accepted and stay. See "Dependencies"
+   below.
 
 ## Motivation
 
@@ -169,11 +171,11 @@ singleton guard).
 (startup, PS drivers, kernel), and no code copied in from other projects. The
 new crates depend only on `core` and on other `hardroxide-*` crates.
 
-What stays: the existing optional `embedded-hal` trait impls in `hardroxide-ip`
-(traits only; they become a feature, off for the new crates) and `thiserror`
-(compile-time derive, no runtime code, used with `default-features = false`).
-The Vitis tools are an external requirement of the host commands, not a Rust
-dependency.
+**Accepted dependencies** (maintainer's decision): `embedded-hal` 1.0 (traits only,
+used by the driver impls in `hardroxide-ip`) and `thiserror` (a compile-time
+derive with no runtime code; `no_std` with `default-features = false`). Nothing
+else is added. The Vitis tools are an external requirement of the host commands,
+not a Rust dependency.
 
 **References we may read.** The authoritative sources for register behaviour are
 available locally and are used as *references*, not copied:
@@ -220,7 +222,7 @@ spirit as the existing driver tests against the HWH.
 
 | Phase | Deliverable | Gate |
 |---|---|---|
-| 0 | Recon (this ADR's findings): tools, JTAG, QEMU, targets | in progress |
+| 0 | Recon: tools, JTAG, QEMU, targets, console, DDR | **complete** (2026-11-20; findings below) |
 | 1 | `no_std` refactor of the shared crates (Linux unchanged) | all existing tests and the armv7 emulation pass |
 | 2 | `hardroxide-ps7`: startup, UART, timers, GIC; QEMU tests; then on the board via JTAG | hello on the UART; a PL interrupt serviced; time source accurate |
 | 3 | `--platform baremetal`, `hardroxide run`, board-accurate PS7 fixtures | `fixtures/board_tests` programs run on the board |
@@ -241,14 +243,51 @@ make this a separate project).
   UARTs (the model needs the PS PLL and UART clock and reset set up first, as
   `ps7_init` does on hardware).
 - The PYNQ-Z2's FT2232 (`0403:6010`, "Xilinx TUL", serial `1234-tul`) provides
-  JTAG and UART. `hw_server` cannot use it until the udev rule below is installed.
+  JTAG (interface 0) and the UART (interface 1, `/dev/ttyUSB1`). `hw_server` could
+  not use it until the vendor's udev rule was installed and the cable re-plugged.
+  **Verified on the board** after that: `hw_server` and `xsdb` enumerate the
+  chain (`arm_dap`, `xc7z020`, both Cortex-A9 cores), and the loop below works.
+  After the rule, `/dev/ttyUSB0` and `/dev/ttyUSB1` still exist (mode 0666) and
+  `ftdi_sio` is still bound, so the rule's unbind did not take effect here;
+  `hw_server` works regardless.
+- **The JTAG development loop works with no power cycle**: `rst -system`, `stop`,
+  `dow <elf>` (to on-chip memory, no DDR needed), `con`, `mrd`. Every
+  `rst -system` recovered the board. Results read back over JTAG matched the
+  program's own prints (`MIDR 0x413FC090` = Cortex-A9 r3p0, `PSS_IDCODE 0x23727093`
+  = xc7z020, MMU/caches off, System mode, `BOOT_MODE` 0 = JTAG, `REBOOT_STATUS`
+  changes on reset).
+- **JTAG boot mode does not bypass the PLLs** (`BOOT_MODE[4]` = 0): at reset the
+  ARM and IO PLLs run at the default feedback of 26 (1300 MHz), unlike the vendor
+  design (IO PLL 1000 MHz). A program must read the PLL setup to derive a UART
+  divider, not assume one. After the fixture's `ps7_init`: ARM clock 650 MHz
+  (`ARM_CLK_CTRL` divisor 2), global timer 325 MHz (measured: about 1.977 billion
+  ticks in a 6 s test).
+- **Console works**: UART0 on MIO 14 (RX) / 15 (TX), read on `/dev/ttyUSB1` at
+  115200. It needs `MIO_PIN_14 = 0x16E1` and `MIO_PIN_15 = 0x16E0` (3.3 V, pull-up,
+  `L3_SEL` = 7; values derived from the base overlay's HWH), a 100 MHz UART clock
+  (`UART_CLK_CTRL`, divisor `IO_PLL/100 MHz`), `BAUDGEN` 124 and `BAUDDIV` 6, and
+  **the UART0 APB clock enabled** (`APER_CLK_CTRL` bit 20, `UART0_CPU_1XCLKACT`).
+  That last bit is cleared by the fixture's `ps7_init` (UART0 is disabled in the
+  fixture) and then every UART register reads zero; a board-accurate `ps7_init`
+  sets it. Programs must not assume it.
+- **The fixture's `ps7_init` brings DDR up on the real board**: after it,
+  `DDRC_CTRL` reads `0x85` and a 16 MiB, two-pass pattern test from a program
+  running in DDR (MMU and caches off, about 6 s) found 0 errors. So DDR does not
+  need the board-accurate configuration to work; MIO, UART and the other
+  peripherals still do (see below).
+- **Serial capture pitfall**: only one process may read `/dev/ttyUSB1`. Stale
+  `cat` readers split the byte stream and produce missing or reordered lines.
+- Register-map slips to avoid: `REBOOT_STATUS` is at `0xF8000258` and `BOOT_MODE`
+  at `0xF800025C`.
 - **The test fixtures' PS7 configuration is not board-accurate.** 300 of about 900
   `PCW_` settings differ from the board's base overlay: no MIO pin-mux (178
-  settings), UART0 on MIO 14..15 disabled, SD/QSPI/Ethernet/USB disabled, DDR at
-  the stock 533 MHz instead of the board's 525 MHz custom timing. That did not
-  matter under Linux (U-Boot initialises the PS); a `ps7_init` from a fixture would
-  give no console and unverified DDR. Bare-metal fixtures must copy the PS7
-  settings from the PYNQ base overlay's HWH (Apache-2.0).
+  settings), UART0 on MIO 14..15 disabled, SD/QSPI/Ethernet/USB disabled, DDR
+  timing parameters differ (the same 525 MHz clock results). That did not matter
+  under Linux (U-Boot initialises the PS). On the board, DDR works with a fixture's
+  `ps7_init` (above), but the console needs the extra setup above, and a design
+  that must use Ethernet, SD, USB or QSPI needs the real settings. Bare-metal
+  fixtures should copy the PS7 settings from the PYNQ base overlay's HWH
+  (Apache-2.0).
 - A crates.io ecosystem for Zynq-7000 exists (a PAC, runtime and HAL under
   `zynq7000-rs`; a pure-Rust FreeRTOS translation, `freertos-in-rust`, whose
   Cortex-A9 port targets QEMU's `vexpress-a9`). It was surveyed and **not
@@ -270,11 +309,16 @@ The eventual documentation must include, as a **Host setup** page:
 
   then unplug and replug the board's USB cable (a rule only applies when the
   device is added). Caveats to state: the rule makes **every** FTDI device
-  (`0403`) world-writable, and it unbinds `ftdi_sio` from **both** FT2232
-  interfaces, which removes `/dev/ttyUSB0` and `/dev/ttyUSB1`. The console UART
-  (interface 1) then has to be read another way (the host loader provides it) or
-  `ftdi_sio` rebound to that interface. A narrower rule that releases only the
-  JTAG interface is preferable once tested.
+  (`0403`) world-writable (`MODE:="666"`), and as written it asks udev to unbind
+  `ftdi_sio` from **both** FT2232 interfaces. On the validated host the unbind did
+  not happen (both `ttyUSB` nodes remained and `hw_server` still worked), but
+  another host may behave differently; if `/dev/ttyUSB1` disappears, rebind it
+  (`echo -n <bus-id>:1.1 > /sys/bus/usb/drivers/ftdi_sio/bind`, as root). A
+  narrower rule that grants access to this one cable only is preferable once
+  tested.
+- Reading the console: use **one** reader on `/dev/ttyUSB1` (115200 8N1); a second
+  reader splits the stream. `hardroxide run` provides the reader so users do not
+  need `cat`.
 - Where the Vitis tools are looked for, what `hardroxide doctor` checks, and what
   the commands do when something is missing (warn and halt).
 - Putting the PYNQ-Z2 into JTAG boot mode (and back to SD for Linux).

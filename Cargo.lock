@@ -286,6 +286,9 @@ dependencies = [
 [[package]]
 name = "hardroxide-gfx"
 version = "2.3.0"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "hardroxide-hwh"

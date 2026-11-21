@@ -14,7 +14,7 @@ jobs:
           components: clippy, rustfmt
           targets: armv7-unknown-linux-gnueabihf,armv7a-none-eabihf
       - uses: Swatinem/rust-cache@v2
-      - run: sudo apt-get update && sudo apt-get install -y device-tree-compiler gcc-arm-linux-gnueabihf qemu-user qemu-system-arm
+      - run: sudo apt-get update && sudo apt-get install -y device-tree-compiler gcc-arm-linux-gnueabihf qemu-user qemu-system-arm dosfstools
       - run: cargo fmt --all --check
       - run: cd baremetal/ps7-smoke && cargo fmt --check
       - run: cd baremetal/rt-smoke && cargo fmt --check

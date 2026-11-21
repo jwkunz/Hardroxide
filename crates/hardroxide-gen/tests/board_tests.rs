@@ -46,6 +46,7 @@ fn board_test_programs_compile() {
         let opts = Options {
             hardroxide_path: Some(root()),
             crate_name: Some((*name).to_string()),
+            ..Default::default()
         };
         generate(&x, &opts).unwrap().write_to(&tmp).unwrap();
         for p in &programs {

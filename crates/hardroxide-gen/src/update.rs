@@ -70,10 +70,26 @@ fn package_name(manifest: &str) -> Option<String> {
     })
 }
 
+/// The platform a generated crate was made for, from the first line of its manifest.
+fn platform_of(manifest: &str) -> crate::Platform {
+    if manifest.contains("(platform: baremetal)") {
+        crate::Platform::BareMetal
+    } else {
+        crate::Platform::Linux
+    }
+}
+
 pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenError> {
     crate::check_arch(&xsa.design)?;
     let old_text = read(crate_dir, "interface.txt")?;
     let new_text = xsa.design.interface_text();
+    let manifest = read(crate_dir, "Cargo.toml")?;
+    let platform = platform_of(&manifest);
+    if old_text == new_text && platform == crate::Platform::BareMetal {
+        // A bare-metal crate embeds no bitstream (the loader takes it from the XSA), so a
+        // rebuild with the same interface leaves the crate exactly as it is.
+        return Ok(Outcome::Unchanged);
+    }
     if old_text == new_text {
         let old_sha256 = read(crate_dir, "bitstream/design.sha256")?;
         let files = bitstream_files(xsa)?;
@@ -93,14 +109,20 @@ pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenEr
     if !regen {
         return Ok(Outcome::InterfaceChanged { diff });
     }
-    // Keep the existing Cargo.toml (name, dependency sources, user edits).
-    let manifest = read(crate_dir, "Cargo.toml")?;
+    // Keep the existing Cargo.toml (name, dependency sources, user edits); for bare metal
+    // also the build setup, whose linker script may have been tuned.
     let opts = Options {
+        platform,
         crate_name: package_name(&manifest),
         hardroxide_path: None,
     };
     let mut g = generate(xsa, &opts)?;
     g.files.remove(Path::new("Cargo.toml"));
+    if platform == crate::Platform::BareMetal {
+        for f in [".cargo/config.toml", "build.rs", "link.ld"] {
+            g.files.remove(Path::new(f));
+        }
+    }
     // Drop stale generated examples if the design no longer has a GPIO.
     if !g.files.contains_key(Path::new("examples/gpio_smoke.rs")) {
         let _ = std::fs::remove_file(crate_dir.join("examples/gpio_smoke.rs"));

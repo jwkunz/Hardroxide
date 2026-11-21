@@ -260,6 +260,7 @@ version = "1.0.0"
 dependencies = [
  "hardroxide-fpga",
  "hardroxide-hwh",
+ "hardroxide-ps7",
  "thiserror",
 ]
 
@@ -305,6 +306,7 @@ dependencies = [
 name = "hardroxide-ps7"
 version = "1.0.0"
 dependencies = [
+ "hardroxide-irq",
  "hardroxide-mmio",
 ]
 

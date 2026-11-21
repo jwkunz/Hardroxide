@@ -65,6 +65,10 @@ pub struct IrqLine {
     /// interrupt controller rather than the PS directly; then there is no UIO
     /// device of its own (use the controller's line).
     pub via_intc: Option<(&'static str, u32)>,
+    /// The signal is rising-edge triggered (otherwise active-high level), as the design's
+    /// interrupt sensitivity says. A bare-metal GIC is configured from it; Linux gets the
+    /// same information from the generated device-tree overlay.
+    pub edge: bool,
 }
 
 /// Something that can be unmasked and waited on; implemented by `UioIrq` on Linux (`std` feature) and by the GIC

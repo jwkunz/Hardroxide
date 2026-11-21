@@ -1,0 +1,21 @@
+instance axi_gpio_0 xilinx.com:ip:axi_gpio:2.0
+ block Reg S_AXI 4096
+  reg GPIO_DATA 0x0 ReadWrite 0x0
+   field CH1_DATA 0 4 ReadWrite
+  reg GPIO_TRI 0x4 ReadWrite 0x0
+   field CH1_TRI 0 4 ReadWrite
+  reg GPIO2_DATA 0x8 ReadWrite 0x0
+   field CH2_DATA 0 6 ReadWrite
+  reg GPIO2_TRI 0xc ReadWrite 0x0
+   field CH2_TRI 0 6 ReadWrite
+  reg GIER 0x11c ReadWrite 0x0
+   field INT_EN 31 1 ReadWrite
+  reg IP_IER 0x128 ReadWrite 0x0
+   field CH1_INT_EN 0 1 ReadWrite
+   field CH2_INT_EN 1 1 ReadWrite
+  reg IP_ISR 0x120 ReadWrite 0x0
+   field CH1_INT_S 0 1 ReadWrite
+   field CH2_INT_S 1 1 ReadWrite
+instance ps7_0_axi_periph xilinx.com:ip:axi_interconnect:2.1
+instance rst_ps7_0_100M xilinx.com:ip:proc_sys_reset:5.0
+range axi_gpio_0 Reg 0x41200000 0x4120ffff

@@ -5,7 +5,7 @@
 use crate::pac;
 use hardroxide_ip::hls::HlsIp;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::ops::Deref;
+use core::ops::Deref;
 
 /// `vadd_0` (`xilinx.com:hls:vadd:1.0`).
 pub struct Vadd0<R: Mmio>(HlsIp<R>);

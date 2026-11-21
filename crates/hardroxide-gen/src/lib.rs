@@ -1,6 +1,7 @@
 //! Generate a Rust HAL crate from an [`Xsa`]. Output is a pure function of
 //! the inputs: no timestamps, sorted file map, stable naming.
 
+mod baremetal;
 mod names;
 mod render;
 
@@ -23,6 +24,10 @@ pub enum GenError {
          `hardroxide inspect` still works on this design"
     )]
     UnsupportedArch { arch: String, device: String },
+    #[error(
+        "the `{0}` platform is not available yet (see docs/decisions/0003-bare-metal-and-rtos-platforms.md)"
+    )]
+    PlatformUnavailable(&'static str),
     #[error("I/O error on {path}: {source}")]
     Io {
         path: PathBuf,
@@ -31,8 +36,47 @@ pub enum GenError {
     },
 }
 
+/// The kind of crate to generate.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Platform {
+    /// Linux userspace on the PS (the default): embeds the bitstream, programs the PL
+    /// through the FPGA manager, maps IP through `/dev/mem`.
+    #[default]
+    Linux,
+    /// A `no_std` program for core 0 with no operating system, built on `hardroxide-ps7`.
+    BareMetal,
+    /// Bare metal plus a FreeRTOS-style real-time kernel (not available yet).
+    Rtos,
+}
+
+impl Platform {
+    pub fn name(self) -> &'static str {
+        match self {
+            Platform::Linux => "linux",
+            Platform::BareMetal => "baremetal",
+            Platform::Rtos => "rtos",
+        }
+    }
+}
+
+impl std::str::FromStr for Platform {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "linux" => Ok(Platform::Linux),
+            "baremetal" => Ok(Platform::BareMetal),
+            "rtos" => Ok(Platform::Rtos),
+            other => Err(format!(
+                "unknown platform `{other}` (expected linux, baremetal or rtos)"
+            )),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Options {
+    /// Which kind of crate to generate. Defaults to [`Platform::Linux`].
+    pub platform: Platform,
     /// Cargo package name of the generated crate. Defaults to the block
     /// design name.
     pub crate_name: Option<String>,
@@ -179,8 +223,56 @@ pub fn summarize(design: &hardroxide_hwh::Design) -> Summary {
     }
 }
 
+fn generate_baremetal(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
+    let model = render::Model::build(&xsa.design);
+    let d = &xsa.design;
+    let crate_name = opts
+        .crate_name
+        .clone()
+        .unwrap_or_else(|| names::snake(&d.name));
+    let mut files: BTreeMap<PathBuf, Vec<u8>> = BTreeMap::new();
+    let mut put = |k: &str, v: String| {
+        files.insert(k.into(), v.into_bytes());
+    };
+    put("Cargo.toml", baremetal::cargo_toml(&crate_name, opts));
+    put(".cargo/config.toml", baremetal::cargo_config());
+    put("build.rs", baremetal::build_rs());
+    put("link.ld", baremetal::link_ld());
+    put("src/pac.rs", render::pac_rs(&model, d));
+    put("src/lib.rs", baremetal::lib_rs(&model, d));
+    if let Some(ips) = render::ips_rs(&model) {
+        put("src/ips.rs", ips);
+    }
+    put(
+        "examples/board_check.rs",
+        baremetal::board_check_example(&model, d, &crate_name),
+    );
+    for (name, ex) in [
+        ("gpio_smoke", baremetal::gpio_example(&model, &crate_name)),
+        ("timer_delay", baremetal::timer_example(&model, &crate_name)),
+        (
+            "timer_irq",
+            baremetal::timer_irq_example(&model, d, &crate_name),
+        ),
+        ("bram_test", baremetal::bram_example(&model, &crate_name)),
+        ("hls_smoke", baremetal::hls_example(&model, &crate_name)),
+    ] {
+        if let Some(ex) = ex {
+            put(&format!("examples/{name}.rs"), ex);
+        }
+    }
+    put("interface.txt", d.interface_text());
+    put("interface.sha256", d.interface_hash());
+    Ok(GeneratedCrate { files })
+}
+
 pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     check_arch(&xsa.design)?;
+    match opts.platform {
+        Platform::Linux => {}
+        Platform::BareMetal => return generate_baremetal(xsa, opts),
+        Platform::Rtos => return Err(GenError::PlatformUnavailable("rtos")),
+    }
     let model = render::Model::build(&xsa.design);
     let crate_name = opts
         .crate_name

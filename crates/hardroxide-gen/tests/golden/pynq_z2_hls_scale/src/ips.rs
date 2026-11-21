@@ -6,7 +6,7 @@ use crate::pac;
 use hardroxide_dma::DmaBuffer;
 use hardroxide_ip::hls::HlsIp;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::ops::Deref;
+use core::ops::Deref;
 
 /// `scale_0` (`xilinx.com:hls:scale:1.0`).
 pub struct Scale0<R: Mmio>(HlsIp<R>);

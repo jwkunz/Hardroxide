@@ -16,6 +16,7 @@ pub mod clocks;
 pub mod console;
 #[cfg(target_arch = "arm")]
 pub mod cp15;
+pub mod devcfg;
 pub mod gic;
 pub mod irq;
 pub mod map;
@@ -23,6 +24,8 @@ pub mod map;
 pub mod time;
 pub mod timer;
 pub mod uart;
+#[cfg(target_arch = "arm")]
+pub mod wait;
 
 #[cfg(target_arch = "arm")]
 pub mod start;

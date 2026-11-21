@@ -81,6 +81,7 @@ fn build_and_test(fixture: &str, crate_name: &str, test_src: &str) {
     let opts = Options {
         hardroxide_path: Some(root()),
         crate_name: Some(crate_name.into()),
+        ..Default::default()
     };
     generate(&fixture_named(fixture), &opts)
         .unwrap()

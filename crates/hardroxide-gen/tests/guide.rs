@@ -68,6 +68,7 @@ fn guide_examples_compile() {
         let opts = Options {
             hardroxide_path: Some(root()),
             crate_name: Some(name.clone()),
+            ..Default::default()
         };
         generate(&xsa, &opts).unwrap().write_to(&tmp).unwrap();
         for (i, src) in sources.iter().enumerate() {

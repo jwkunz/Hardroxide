@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use hardroxide_gen::{Options, generate};
+use hardroxide_gen::{Options, Platform, generate};
 use hardroxide_hwh::Xsa;
 use std::path::PathBuf;
 
@@ -29,6 +29,9 @@ enum Cmd {
         /// Hardroxide checkout; depend on runtime crates by path.
         #[arg(long)]
         hardroxide_path: Option<PathBuf>,
+        /// Kind of crate: linux (default), baremetal or rtos.
+        #[arg(long, default_value = "linux")]
+        platform: Platform,
     },
     /// Refresh an existing generated crate from a new XSA.
     ///
@@ -54,6 +57,7 @@ fn main() -> Result<()> {
             out,
             name,
             hardroxide_path,
+            platform,
         } => {
             let x = Xsa::open(&xsa).with_context(|| format!("reading {}", xsa.display()))?;
             let hardroxide_path = hardroxide_path
@@ -62,6 +66,7 @@ fn main() -> Result<()> {
             let g = generate(
                 &x,
                 &Options {
+                    platform,
                     crate_name: name.clone(),
                     hardroxide_path,
                 },

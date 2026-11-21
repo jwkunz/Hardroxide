@@ -285,6 +285,7 @@ mod tests {
             dt_node: "axi_dma_0_mm2s_introut",
             base: 0x40400000,
             via_intc: None,
+            edge: false,
         };
         let r = fake_sysfs("missing", &[("uio0", "unrelated", "0x1000")]);
         let e = line.open_in(&r, Path::new("/dev")).err().unwrap();
@@ -299,6 +300,7 @@ mod tests {
         // Behind an interrupt controller: no UIO device of its own.
         let behind = IrqLine {
             via_intc: Some(("axi_intc_0", 2)),
+            edge: false,
             ..line
         };
         let e = behind.open_in(&r2, &devdir).err().unwrap();

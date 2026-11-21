@@ -74,6 +74,31 @@ impl StaticBuffer {
     }
 }
 
+/// Define a DMA buffer of `$size` bytes in the `.dma` section (placed by the linker script
+/// in its own page-aligned region, so the MMU can give it non-cacheable attributes) and
+/// evaluate to `Option<StaticBuffer>`: `Some` the first time the expression runs, `None`
+/// afterwards, so the same memory is never handed out twice.
+///
+/// ```ignore
+/// let buf = hardroxide_dma::static_dma_buffer!(4096).expect("taken once");
+/// ```
+#[macro_export]
+macro_rules! static_dma_buffer {
+    ($size:expr) => {{
+        #[unsafe(link_section = ".dma")]
+        static mut BUF: [u8; $size] = [0; $size];
+        static TAKEN: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+        if TAKEN.swap(true, core::sync::atomic::Ordering::AcqRel) {
+            None
+        } else {
+            // SAFETY: `TAKEN` guarantees this is the only reference ever made to `BUF`.
+            Some($crate::StaticBuffer::identity(unsafe {
+                &mut *core::ptr::addr_of_mut!(BUF)
+            }))
+        }
+    }};
+}
+
 impl DmaBuffer for StaticBuffer {
     fn len(&self) -> usize {
         self.data.len()
@@ -244,6 +269,20 @@ mod tests {
 #[cfg(test)]
 mod static_buffer_tests {
     use super::*;
+
+    #[test]
+    fn the_static_buffer_macro_hands_out_each_buffer_once() {
+        // One expansion is one static: it can be taken once, however often it is evaluated.
+        let take = || static_dma_buffer!(64);
+        let first = take().expect("first call gets the buffer");
+        assert_eq!(first.len(), 64);
+        assert!(take().is_none());
+        assert!(take().is_none());
+        // A different expansion is a different buffer.
+        let other = || static_dma_buffer!(8);
+        assert_eq!(other().unwrap().len(), 8);
+        assert!(other().is_none());
+    }
 
     #[test]
     fn a_static_buffer_reports_its_address_and_gives_access() {

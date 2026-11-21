@@ -160,7 +160,11 @@ extern "C" fn hrx_irq_dispatch() {
     };
     let gic = crate::gic::Gic::new(d, c);
     if let Ok(Some(id)) = gic.acknowledge() {
-        crate::irq::dispatch(id);
+        // An interrupt in event mode, or with no handler, is masked until something asks
+        // for it again (a level-triggered line would otherwise fire continuously).
+        if crate::irq::dispatch(id) != crate::irq::Dispatched::Handler {
+            let _ = gic.disable(id);
+        }
         let _ = gic.end_of_interrupt(id);
     }
 }

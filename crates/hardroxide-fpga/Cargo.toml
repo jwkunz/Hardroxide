@@ -11,7 +11,11 @@ readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = ["std"]
+std = ["dep:sha2", "hardroxide-mmio/std", "thiserror/std"]
+
 [dependencies]
 thiserror.workspace = true
-hardroxide-mmio.workspace = true
-sha2.workspace = true
+hardroxide-mmio = { workspace = true, default-features = false }
+sha2 = { workspace = true, optional = true }

@@ -3,6 +3,17 @@
 Memory-mapped register access behind a pluggable backend, so drivers run
 unchanged on `/dev/mem`, UIO, or a mock.
 
+## Features and `no_std`
+
+| Feature | Default | Adds |
+|---|---|---|
+| `std` | yes | the `/dev/mem`, UIO and mock backends, `MmioError::Io`, `std::time` as the default clock |
+| `physmem` | no (always present without `std`) | the [`PhysMem`](#physical-memory-backend-bare-metal) backend |
+
+Without `std` the crate is `#![no_std]` (it builds for `armv7a-none-eabihf`; see
+`scripts/check-no-std.sh`). `MmioError` gains `BadAddress(u64)` (a physical address that
+does not fit in a pointer on this target); `Io` exists only with `std`.
+
 ## Traits
 
 ```rust,ignore
@@ -28,6 +39,29 @@ fn map(&self, phys: u64, len: usize) -> Result<Self::Region, MmioError>;
 `MmioError`: `OutOfBounds { offset, len }` (offset or offset+4 beyond the
 window), `Unaligned(offset)`, `Io { what, source }`.
 
+## Time
+
+Drivers measure timeouts with this crate's `Instant`, so the same driver code runs on
+Linux and without an operating system.
+
+```rust,ignore
+pub type TimeSource = fn() -> u64;
+pub fn set_time_source(source: TimeSource)
+pub struct Instant
+pub fn now() -> Self
+pub fn elapsed(&self) -> Duration
+pub fn duration_since(&self, earlier: Instant) -> Duration
+pub fn checked_add(&self, d: Duration) -> Option<Instant>
+pub fn sleep(d: Duration)
+```
+
+With `std`, `Instant::now()` defaults to `std::time::Instant`. Without it there is nothing
+to ask, so the platform must call `set_time_source` once at start-up with a function that
+returns monotonic nanoseconds; until then `Instant::now()` panics rather than let a
+timeout loop spin forever. `set_time_source` is one atomic store, so it can be called from
+any context. `elapsed` saturates at zero if the clock steps backwards. `sleep` sleeps the
+thread with `std` and busy-waits on the time source without it.
+
 ## `/dev/mem` backend
 
 ```rust,ignore
@@ -47,6 +81,24 @@ on drop; `map_file` maps any open file/device (used by the DMA buffers) and
 `as_ptr` exposes the start of the window, valid for `len()` bytes while the
 region lives. This crate contains all of the workspace's `unsafe` hardware
 access; each use is documented in source.
+
+## Physical-memory backend (bare metal)
+
+```rust,ignore
+pub struct PhysMem
+pub const unsafe fn new() -> Self
+pub struct PhysRegion
+pub fn address(&self) -> usize
+```
+
+For programs with no operating system: physical addresses are used as pointers, with
+volatile reads and writes and no `mmap`. `PhysMem::new` is `unsafe` because every region
+it hands out is a raw window onto hardware: the caller asserts that addresses are
+identity-mapped (with device-appropriate memory attributes for registers) and that nothing
+else uses the windows it maps. Writes are preceded by a data synchronisation barrier on
+ARM, so an earlier write to a buffer is visible before the register write that tells a
+device to use it. `PhysRegion` is `Send` (ownership of a window can move to another task)
+but not `Sync`. Unit tests use a heap buffer standing in for registers.
 
 ## UIO backend
 

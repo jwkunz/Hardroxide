@@ -3,9 +3,10 @@
 //! `irq` output (one UIO device); this driver says which input fired.
 //! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
 
+use core::time::Duration;
 use hardroxide_irq::{IrqError, IrqWaiter};
+use hardroxide_mmio::time::Instant;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::time::{Duration, Instant};
 
 /// Interrupt status (input latched, before masking).
 pub const ISR: usize = 0x00;
@@ -119,7 +120,7 @@ impl<R: Mmio> AxiIntc<R> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use hardroxide_mmio::{MmioBackend, MockAccess as Access, MockBackend, MockRegion};

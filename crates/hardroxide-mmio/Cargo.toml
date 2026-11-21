@@ -11,6 +11,15 @@ readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = ["std"]
+# Linux/host support: /dev/mem and UIO backends, the mock backend, `std::time` as the
+# default time source. Without it the crate is `#![no_std]`.
+std = ["dep:libc"]
+# `PhysMem`: a backend that accesses identity-mapped physical addresses directly
+# (bare metal). Available without `std`; opt-in with it.
+physmem = []
+
 [dependencies]
 thiserror.workspace = true
-libc.workspace = true
+libc = { workspace = true, optional = true }

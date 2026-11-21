@@ -11,6 +11,11 @@ readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = ["std"]
+# Linux host support: the `u-dma-buf` backend and the heap-backed `MockBuffer`.
+std = ["hardroxide-mmio/std", "thiserror/std"]
+
 [dependencies]
 hardroxide-mmio.workspace = true
 thiserror.workspace = true

@@ -13,7 +13,7 @@ keywords = ["fpga", "zynq", "vivado", "pynq", "hal"]
 categories = ["embedded", "hardware-support"]
 
 [workspace.dependencies]
-thiserror = "2"
+thiserror = { version = "2", default-features = false }
 roxmltree = "0.21"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 libc = "0.2"
@@ -21,9 +21,9 @@ sha2 = "0.10"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
 hardroxide-hwh = { path = "crates/hardroxide-hwh", version = "1.0.0" }
-hardroxide-mmio = { path = "crates/hardroxide-mmio", version = "1.0.0" }
-hardroxide-fpga = { path = "crates/hardroxide-fpga", version = "1.0.0" }
+hardroxide-mmio = { path = "crates/hardroxide-mmio", version = "1.0.0", default-features = false }
+hardroxide-fpga = { path = "crates/hardroxide-fpga", version = "1.0.0", default-features = false }
 hardroxide-gen = { path = "crates/hardroxide-gen", version = "1.0.0" }
-hardroxide-dma = { path = "crates/hardroxide-dma", version = "1.0.0" }
-hardroxide-irq = { path = "crates/hardroxide-irq", version = "1.0.0" }
+hardroxide-dma = { path = "crates/hardroxide-dma", version = "1.0.0", default-features = false }
+hardroxide-irq = { path = "crates/hardroxide-irq", version = "1.0.0", default-features = false }
 embedded-hal = "1"

@@ -3,8 +3,9 @@
 //! `0x00` CTRL, `0x04` GIER, `0x08` IP_IER, `0x0C` IP_ISR; user registers
 //! start at `0x10`.
 
+use core::time::Duration;
+use hardroxide_mmio::time::Instant;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::time::{Duration, Instant};
 
 pub const CTRL: usize = 0x00;
 pub const GIER: usize = 0x04;
@@ -87,7 +88,7 @@ impl<R: Mmio> HlsIp<R> {
             if t0.elapsed() >= timeout {
                 return Err(HlsError::Timeout(timeout));
             }
-            std::hint::spin_loop();
+            core::hint::spin_loop();
         }
     }
 
@@ -113,7 +114,7 @@ impl<R: Mmio> HlsIp<R> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use hardroxide_mmio::{MmioBackend, MockBackend};

@@ -22,6 +22,7 @@ pub fn try_write_byte(&self, b: u8) -> Result<bool, UartError>
 pub fn try_read_byte(&self) -> Result<Option<u8>, UartError>
 pub fn send(&self, data: &[u8], timeout: Duration) -> Result<(), UartError>
 pub fn receive(&self, buf: &mut [u8], timeout: Duration) -> Result<usize, UartError>
+impl<R: Mmio> core::fmt::Write for AxiUart<R>
 impl<R: Mmio> std::io::Write for AxiUart<R>
 ```
 
@@ -35,6 +36,7 @@ impl<R: Mmio> std::io::Write for AxiUart<R>
   elapsed in total, with however many bytes arrived (possibly 0).
 - `errors` returns the overrun/frame/parity flags and **clears them** (reading
   the status register clears the error bits).
-- `std::io::Write` sends with a 1 s timeout; `flush` waits for the TX FIFO to
+- `core::fmt::Write` (always available, so `write!(uart, ...)` works on bare metal) sends
+  with a 1 s timeout per call. `std::io::Write` (feature `std`) sends with a 1 s timeout; `flush` waits for the TX FIFO to
   drain. There is no `std::io::Read` because "no data yet" is not end of file;
   use `receive`.

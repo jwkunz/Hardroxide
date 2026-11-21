@@ -12,9 +12,12 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
+default = ["std"]
+# Linux UIO backend.
+std = ["dep:libc", "thiserror/std"]
 # Runtime-agnostic async API (helper thread + waker; no executor dependency).
-async = []
+async = ["std"]
 
 [dependencies]
 thiserror.workspace = true
-libc.workspace = true
+libc = { workspace = true, optional = true }

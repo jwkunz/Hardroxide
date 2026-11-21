@@ -12,7 +12,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-          targets: armv7-unknown-linux-gnueabihf
+          targets: armv7-unknown-linux-gnueabihf,armv7a-none-eabihf
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt-get update && sudo apt-get install -y device-tree-compiler gcc-arm-linux-gnueabihf qemu-user
       - run: cargo fmt --all --check
@@ -25,5 +25,7 @@ jobs:
       - run: cargo test -p hardroxide-irq --features async
       # Hardware-free only; see docs/08-verification-gaps.md for board checks.
       - run: cargo check --workspace --target armv7-unknown-linux-gnueabihf
+      # The runtime crates must build with no std, no allocator and no OS (bare-metal Cortex-A9).
+      - run: scripts/check-no-std.sh
       # Runtime crates' tests as real armv7 binaries under qemu-arm.
       - run: scripts/test-armv7.sh

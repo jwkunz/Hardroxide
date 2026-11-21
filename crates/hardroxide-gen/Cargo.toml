@@ -13,5 +13,5 @@ categories.workspace = true
 
 [dependencies]
 hardroxide-hwh.workspace = true
-hardroxide-fpga.workspace = true
+hardroxide-fpga = { workspace = true, features = ["std"] }
 thiserror.workspace = true

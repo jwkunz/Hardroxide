@@ -5,9 +5,10 @@
 //! is known to be stopped, so the CPU can never touch memory the hardware may
 //! still be accessing.
 
+use core::time::Duration;
 use hardroxide_dma::DmaBuffer;
+use hardroxide_mmio::time::Instant;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
@@ -78,8 +79,8 @@ pub struct StartError<B> {
     pub buffer: B,
 }
 
-impl<B> std::fmt::Debug for StartError<B> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<B> core::fmt::Debug for StartError<B> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "StartError({})", self.error)
     }
 }
@@ -262,7 +263,7 @@ impl<R: Mmio, B: DmaBuffer> Transfer<'_, R, B> {
             if t0.elapsed() >= timeout {
                 return Err(self.abort(DmaIpError::Timeout(timeout)));
             }
-            std::hint::spin_loop();
+            core::hint::spin_loop();
         }
     }
 
@@ -273,7 +274,7 @@ impl<R: Mmio, B: DmaBuffer> Transfer<'_, R, B> {
             Ok(()) => err, // buf dropped with `self`
             Err(stuck) => {
                 if let Some(b) = self.buf.take() {
-                    std::mem::forget(b);
+                    core::mem::forget(b);
                 }
                 stuck
             }
@@ -281,8 +282,8 @@ impl<R: Mmio, B: DmaBuffer> Transfer<'_, R, B> {
     }
 }
 
-impl<R: Mmio, B: DmaBuffer> std::fmt::Debug for Transfer<'_, R, B> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<R: Mmio, B: DmaBuffer> core::fmt::Debug for Transfer<'_, R, B> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Transfer({:?})", self.dir)
     }
 }
@@ -296,7 +297,7 @@ impl<R: Mmio, B: DmaBuffer> Drop for Transfer<'_, R, B> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use hardroxide_dma::MockBuffer;

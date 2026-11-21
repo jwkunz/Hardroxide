@@ -2,8 +2,9 @@
 //! with 16-byte FIFOs. Baud rate and framing are fixed at build time.
 //! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
 
+use core::time::Duration;
+use hardroxide_mmio::time::Instant;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::time::{Duration, Instant};
 
 pub const RX_FIFO: usize = 0x00;
 pub const TX_FIFO: usize = 0x04;
@@ -126,6 +127,15 @@ impl<R: Mmio> AxiUart<R> {
     }
 }
 
+/// `write!(uart, ...)` works on bare metal too: each write waits up to a second.
+impl<R: Mmio> core::fmt::Write for AxiUart<R> {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        self.send(s.as_bytes(), Duration::from_secs(1))
+            .map_err(|_| core::fmt::Error)
+    }
+}
+
+#[cfg(feature = "std")]
 impl<R: Mmio> std::io::Write for AxiUart<R> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.send(buf, Duration::from_secs(1))
@@ -143,7 +153,7 @@ impl<R: Mmio> std::io::Write for AxiUart<R> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use std::cell::RefCell;

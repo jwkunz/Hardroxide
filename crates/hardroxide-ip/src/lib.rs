@@ -1,4 +1,12 @@
 //! Curated drivers for Xilinx IP, written against [`hardroxide_mmio::Mmio`].
+//!
+//! Without the `std` feature the crate is `#![no_std]` and allocation-free; timeouts use
+//! [`hardroxide_mmio::time`], which the platform must give a clock (see there).
+
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
 pub mod bram;
 pub mod dma;
@@ -13,7 +21,7 @@ pub mod uart;
 pub use hardroxide_mmio::{Mmio, MmioError};
 
 /// Test helper: look up `(register offset, field bit offset)` in a fixture HWH.
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 pub(crate) fn hwh(fixture: &str, inst: &str, reg: &str, field: Option<&str>) -> (usize, u32) {
     let x = hardroxide_hwh::Xsa::open(format!(
         "{}/../../fixtures/{fixture}.xsa",

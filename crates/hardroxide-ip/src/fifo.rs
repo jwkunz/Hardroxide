@@ -6,8 +6,11 @@
 //! length must carry it in the payload.
 //! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+use core::time::Duration;
+use hardroxide_mmio::time::Instant;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::time::{Duration, Instant};
 
 pub const ISR: usize = 0x00;
 pub const IER: usize = 0x04;
@@ -121,7 +124,46 @@ impl<R: Mmio> AxiFifo<R> {
         Ok(())
     }
 
-    /// Take the next complete packet if there is one. Never blocks.
+    /// Take the next complete packet into `buf` if there is one, returning its length.
+    /// Never blocks and never allocates. A packet longer than `buf` is read out and
+    /// discarded (the FIFO cannot be rewound) and reported as `BufferTooSmall`.
+    pub fn try_recv_into(&self, buf: &mut [u8]) -> Result<Option<usize>, FifoError> {
+        if self.rx_occupancy()? == 0 {
+            return Ok(None);
+        }
+        let len = (self.regs.read32(RLR)? & RLR_LEN_MASK) as usize;
+        for i in 0..len.div_ceil(4) {
+            let w = self.regs.read32(RDFD)?.to_le_bytes();
+            let at = 4 * i;
+            if at < buf.len() {
+                let n = (buf.len() - at).min(4).min(len - at);
+                buf[at..at + n].copy_from_slice(&w[..n]);
+            }
+        }
+        if len > buf.len() {
+            return Err(FifoError::BufferTooSmall {
+                len,
+                cap: buf.len(),
+            });
+        }
+        Ok(Some(len))
+    }
+
+    /// Like [`try_recv_into`](Self::try_recv_into), but wait up to `timeout` for a packet.
+    pub fn recv_into(&self, buf: &mut [u8], timeout: Duration) -> Result<Option<usize>, FifoError> {
+        let t0 = Instant::now();
+        loop {
+            if let Some(n) = self.try_recv_into(buf)? {
+                return Ok(Some(n));
+            }
+            if t0.elapsed() > timeout {
+                return Ok(None);
+            }
+        }
+    }
+
+    /// Take the next complete packet if there is one. Never blocks. (Needs `alloc`.)
+    #[cfg(feature = "alloc")]
     pub fn try_recv(&self) -> Result<Option<Vec<u8>>, FifoError> {
         if self.rx_occupancy()? == 0 {
             return Ok(None);
@@ -135,7 +177,8 @@ impl<R: Mmio> AxiFifo<R> {
         Ok(Some(out))
     }
 
-    /// Wait up to `timeout` for a packet.
+    /// Wait up to `timeout` for a packet. (Needs `alloc`.)
+    #[cfg(feature = "alloc")]
     pub fn recv(&self, timeout: Duration) -> Result<Option<Vec<u8>>, FifoError> {
         let t0 = Instant::now();
         loop {
@@ -147,26 +190,9 @@ impl<R: Mmio> AxiFifo<R> {
             }
         }
     }
-
-    /// Like [`recv`](Self::recv) but into `buf`, returning the packet length.
-    /// A packet longer than `buf` is read out and discarded (the FIFO cannot
-    /// be rewound) and reported as `BufferTooSmall`.
-    pub fn recv_into(&self, buf: &mut [u8], timeout: Duration) -> Result<Option<usize>, FifoError> {
-        match self.recv(timeout)? {
-            None => Ok(None),
-            Some(p) if p.len() <= buf.len() => {
-                buf[..p.len()].copy_from_slice(&p);
-                Ok(Some(p.len()))
-            }
-            Some(p) => Err(FifoError::BufferTooSmall {
-                len: p.len(),
-                cap: buf.len(),
-            }),
-        }
-    }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use std::cell::RefCell;

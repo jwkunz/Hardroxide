@@ -24,6 +24,13 @@ line masked until re-enabled.
 - `wait_event` waits without re-enabling.
 - `from_file` wraps an already-open descriptor (tests use a socketpair).
 
+### Features and `no_std`
+
+`std` (default) provides the Linux UIO backend (`UioIrq`, `find_uio`, `IrqLine::open`) and
+`IrqError::Io`; `async` implies it. Without `std` the crate is `#![no_std]` and offers
+`IrqLine`, `IrqWaiter` and `IrqError`, which gains `Platform(&'static str)` for a platform's
+own interrupt layer (the bare-metal GIC, an RTOS).
+
 ### Waiting
 
 ```rust,ignore

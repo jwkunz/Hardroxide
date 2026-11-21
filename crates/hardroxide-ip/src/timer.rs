@@ -73,7 +73,7 @@ impl<R: Mmio> AxiTimer<R> {
             let chunk = ticks.min(u32::MAX as u64) as u32;
             self.start(chunk.max(2), false, false)?;
             while !self.expired()? {
-                std::hint::spin_loop();
+                core::hint::spin_loop();
             }
             self.stop()?;
             ticks -= chunk as u64;
@@ -91,7 +91,7 @@ impl<R: Mmio> DelayNs for AxiTimer<R> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use hardroxide_mmio::{MmioBackend, MockBackend};

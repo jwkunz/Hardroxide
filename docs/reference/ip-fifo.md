@@ -30,6 +30,7 @@ pub fn interrupt_status(&self) -> Result<u32, FifoError>
 pub fn clear_interrupts(&self, mask: u32) -> Result<(), FifoError>
 pub fn set_interrupt_mask(&self, mask: u32) -> Result<(), FifoError>
 pub fn send(&self, data: &[u8]) -> Result<(), FifoError>
+pub fn try_recv_into(&self, buf: &mut [u8]) -> Result<Option<usize>, FifoError>
 pub fn try_recv(&self) -> Result<Option<Vec<u8>>, FifoError>
 pub fn recv(&self, timeout: Duration) -> Result<Option<Vec<u8>>, FifoError>
 pub fn recv_into(&self, buf: &mut [u8], timeout: Duration) -> Result<Option<usize>, FifoError>
@@ -41,6 +42,9 @@ pub fn recv_into(&self, buf: &mut [u8], timeout: Duration) -> Result<Option<usiz
   `FifoError::NoRoom` and writes nothing. Otherwise it writes the words to
   `TDFD` and then the byte length to `TLR`, which starts the packet. Empty
   packets are rejected (`EmptyPacket`).
+- `try_recv_into` takes the next packet into a caller buffer without waiting or allocating
+  (`BufferTooSmall` if it does not fit; the packet is still drained). `try_recv`, `recv`
+  and the other `Vec` APIs need the `alloc` feature.
 - `try_recv` returns the next complete packet or `None` (no wait). A packet is
   available when `RDFO` is non-zero; the driver reads `RLR` (the byte count,
   low 23 bits) and then that many bytes' worth of words from `RDFD`.

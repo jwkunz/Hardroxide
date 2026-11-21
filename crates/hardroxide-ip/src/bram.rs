@@ -77,7 +77,7 @@ impl<R: Mmio> AxiBram<R> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use hardroxide_mmio::{MmioBackend, MockBackend};

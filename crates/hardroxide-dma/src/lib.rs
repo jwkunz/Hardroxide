@@ -5,24 +5,35 @@
 //! value: handing a buffer to a transfer moves it, so the CPU cannot touch it
 //! while hardware may (see `hardroxide_ip::dma::Transfer`).
 //!
-//! Default backend: [`Udmabuf`] (`u-dma-buf` kernel module), mapped
-//! uncached (`O_SYNC`), so no explicit cache maintenance is needed (ADR 0001).
+//! Default backend on Linux (`std` feature): [`Udmabuf`] (`u-dma-buf` kernel module),
+//! mapped uncached (`O_SYNC`), so no explicit cache maintenance is needed (ADR 0001).
+//! On bare metal (no `std`): [`StaticBuffer`], memory the program owns for its whole
+//! run, placed by the linker in a region with suitable memory attributes.
 
-use hardroxide_mmio::{MmioError, SysRegion};
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
+
+use hardroxide_mmio::MmioError;
+#[cfg(feature = "std")]
+use hardroxide_mmio::SysRegion;
+#[cfg(feature = "std")]
 use std::fs::OpenOptions;
+#[cfg(feature = "std")]
 use std::os::unix::fs::OpenOptionsExt;
+#[cfg(feature = "std")]
 use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DmaError {
     #[error(transparent)]
     Mmio(#[from] MmioError),
+    #[cfg(feature = "std")]
     #[error("I/O error on {path}: {source}")]
     Io {
         path: PathBuf,
         #[source]
         source: std::io::Error,
     },
+    #[cfg(feature = "std")]
     #[error("cannot parse `{0}` from {1}")]
     Parse(String, PathBuf),
 }
@@ -39,6 +50,46 @@ pub trait DmaBuffer {
     fn as_mut_slice(&mut self) -> &mut [u8];
 }
 
+/// A buffer in memory that lives for the whole program, for systems without an
+/// operating system: a `static` placed by the linker in a region with the right memory
+/// attributes (typically non-cacheable, so no cache maintenance is needed).
+///
+/// The bus address the DMA engine must be given is supplied by the caller: on bare
+/// metal with an identity-mapped address space it is the pointer itself
+/// ([`identity`](Self::identity)).
+pub struct StaticBuffer {
+    data: &'static mut [u8],
+    phys: u64,
+}
+
+impl StaticBuffer {
+    /// A buffer whose bus address is `phys`.
+    pub fn new(data: &'static mut [u8], phys: u64) -> Self {
+        Self { data, phys }
+    }
+    /// A buffer whose bus address equals its virtual address (identity mapping).
+    pub fn identity(data: &'static mut [u8]) -> Self {
+        let phys = data.as_ptr() as usize as u64;
+        Self { data, phys }
+    }
+}
+
+impl DmaBuffer for StaticBuffer {
+    fn len(&self) -> usize {
+        self.data.len()
+    }
+    fn phys_addr(&self) -> u64 {
+        self.phys
+    }
+    fn as_slice(&self) -> &[u8] {
+        self.data
+    }
+    fn as_mut_slice(&mut self) -> &mut [u8] {
+        self.data
+    }
+}
+
+#[cfg(feature = "std")]
 /// Ordinary heap memory with a *fake* physical address. For tests with a
 /// mock MMIO backend only; hardware cannot DMA to it.
 pub struct MockBuffer {
@@ -46,6 +97,7 @@ pub struct MockBuffer {
     phys: u64,
 }
 
+#[cfg(feature = "std")]
 impl MockBuffer {
     pub fn new(len: usize, phys: u64) -> Self {
         Self {
@@ -55,6 +107,7 @@ impl MockBuffer {
     }
 }
 
+#[cfg(feature = "std")]
 impl DmaBuffer for MockBuffer {
     fn len(&self) -> usize {
         self.data.len()
@@ -70,6 +123,7 @@ impl DmaBuffer for MockBuffer {
     }
 }
 
+#[cfg(feature = "std")]
 /// Sysfs/dev locations of a `u-dma-buf` device, configurable for tests.
 #[derive(Debug, Clone)]
 pub struct UdmabufPaths {
@@ -78,6 +132,7 @@ pub struct UdmabufPaths {
     pub size: PathBuf,
 }
 
+#[cfg(feature = "std")]
 impl UdmabufPaths {
     pub fn for_index(n: u32) -> Self {
         Self {
@@ -89,11 +144,13 @@ impl UdmabufPaths {
 }
 
 /// A `u-dma-buf` buffer, mapped uncached. Verified on a PYNQ-Z2 (docs/08, G10).
+#[cfg(feature = "std")]
 pub struct Udmabuf {
     region: SysRegion,
     phys: u64,
 }
 
+#[cfg(feature = "std")]
 fn read_num(p: &PathBuf) -> Result<u64, DmaError> {
     let t = std::fs::read_to_string(p).map_err(|source| DmaError::Io {
         path: p.clone(),
@@ -107,6 +164,7 @@ fn read_num(p: &PathBuf) -> Result<u64, DmaError> {
     r.map_err(|_| DmaError::Parse(t.into(), p.clone()))
 }
 
+#[cfg(feature = "std")]
 impl Udmabuf {
     pub fn open(index: u32) -> Result<Self, DmaError> {
         Self::open_with(&UdmabufPaths::for_index(index))
@@ -130,11 +188,13 @@ impl Udmabuf {
     }
 }
 
+#[cfg(feature = "std")]
 fn libc_o_sync() -> i32 {
     // O_SYNC on Linux (0o4010000); avoids a libc dependency in this crate.
     0o4010000
 }
 
+#[cfg(feature = "std")]
 impl DmaBuffer for Udmabuf {
     fn len(&self) -> usize {
         hardroxide_mmio::Mmio::len(&self.region)
@@ -155,7 +215,7 @@ impl DmaBuffer for Udmabuf {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 
@@ -178,5 +238,25 @@ mod tests {
         drop(b);
         assert_eq!(&std::fs::read(&p.dev).unwrap()[..4], &[1, 2, 3, 4]);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod static_buffer_tests {
+    use super::*;
+
+    #[test]
+    fn a_static_buffer_reports_its_address_and_gives_access() {
+        let mem: &'static mut [u8] = std::boxed::Box::leak(std::boxed::Box::new([0u8; 32]));
+        let addr = mem.as_ptr() as usize as u64;
+        let mut b = StaticBuffer::identity(mem);
+        assert_eq!((b.len(), b.phys_addr()), (32, addr));
+        b.as_mut_slice()[3] = 7;
+        assert_eq!(b.as_slice()[3], 7);
+        let other: &'static mut [u8] = std::boxed::Box::leak(std::boxed::Box::new([0u8; 4]));
+        assert_eq!(
+            StaticBuffer::new(other, 0x1F00_0000).phys_addr(),
+            0x1F00_0000
+        );
     }
 }

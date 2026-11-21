@@ -17,6 +17,18 @@ Drivers do not touch the FPGA or clocks; they only drive registers.
 | [`iic`](ip-iic.md) | AXI IIC | `i2c::I2c` |
 | [`spi`](ip-spi.md) | AXI Quad SPI, standard mode | `spi::SpiBus`, `spi::SpiDevice` |
 
+## Features and `no_std`
+
+| Feature | Default | Adds |
+|---|---|---|
+| `std` | yes | `std::io::Write` for the UART, and enables the `std` halves of `hardroxide-mmio`, `-dma`, `-irq`; implies `alloc` |
+| `alloc` | via `std` | `Vec`-returning conveniences (`AxiFifo::recv`, `try_recv`) |
+
+Without `std` the drivers are `#![no_std]` and allocation-free (checked by
+`scripts/check-no-std.sh` for `armv7a-none-eabihf`). Timeouts use
+[`hardroxide_mmio::time`](mmio.md#time), so the platform must register a clock first.
+The tests need `std` (they use the mock backend).
+
 Common conventions:
 
 - Constructors take the mapped region by value (`Driver::new(region, ...)`);

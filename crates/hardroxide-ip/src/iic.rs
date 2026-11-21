@@ -2,9 +2,10 @@
 //! dynamic controller logic: START/STOP are flagged in the TX FIFO words.
 //! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
 
+use core::time::Duration;
 use embedded_hal::i2c::{self, ErrorKind, ErrorType, NoAcknowledgeSource, Operation};
+use hardroxide_mmio::time::Instant;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::time::{Duration, Instant};
 
 pub const SOFTR: usize = 0x40;
 pub const CR: usize = 0x100;
@@ -186,7 +187,7 @@ impl<R: Mmio> i2c::I2c for AxiIic<R> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use embedded_hal::i2c::I2c;

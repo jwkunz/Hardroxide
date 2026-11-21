@@ -6,11 +6,12 @@
 //! [`AxiSpi::set_chip_select`]); [`AxiSpi::device`] returns a
 //! `SpiDevice` that asserts a slave line for each transaction.
 
+use core::time::Duration;
 use embedded_hal::spi::{
     self, ErrorKind, ErrorType, Mode, Operation, Phase, Polarity, SpiBus, SpiDevice,
 };
+use hardroxide_mmio::time::Instant;
 use hardroxide_mmio::{Mmio, MmioError};
-use std::time::{Duration, Instant};
 
 pub const SRR: usize = 0x40;
 pub const SPICR: usize = 0x60;
@@ -117,15 +118,18 @@ impl<R: Mmio> AxiSpi<R> {
         }
     }
 
-    /// Clock out `out` while capturing into `inp` (same length), in FIFO-
-    /// sized chunks with the master inhibit toggled around each chunk.
-    fn exchange(&mut self, out: &[u8], inp: &mut [u8]) -> Result<(), SpiError> {
-        debug_assert_eq!(out.len(), inp.len());
+    /// Run `len` bytes through the core in FIFO-sized chunks with the master inhibit
+    /// toggled around each chunk. `c` supplies each chunk's outgoing bytes and takes
+    /// the incoming ones (no allocation: a chunk is at most [`MAX_CHUNK`] bytes).
+    fn exchange(&mut self, len: usize, c: &mut impl Chunks) -> Result<(), SpiError> {
         self.regs.write32(SPISSR, Self::ssr_value(self.cs))?;
+        let depth = self.fifo_depth.min(MAX_CHUNK);
+        let (mut out, mut inp) = ([0u8; MAX_CHUNK], [0u8; MAX_CHUNK]);
         let mut off = 0;
-        while off < out.len() {
-            let n = self.fifo_depth.min(out.len() - off);
-            for &b in &out[off..off + n] {
+        while off < len {
+            let n = depth.min(len - off);
+            c.out(off, &mut out[..n]);
+            for &b in &out[..n] {
                 self.regs.write32(SPIDTR, b as u32)?;
             }
             self.regs.write32(SPICR, self.cr & !CR_INHIBIT)?; // start shifting
@@ -133,7 +137,7 @@ impl<R: Mmio> AxiSpi<R> {
             let mut got = 0;
             while got < n {
                 if self.regs.read32(SPISR)? & SR_RX_EMPTY == 0 {
-                    inp[off + got] = self.regs.read32(SPIDRR)? as u8;
+                    inp[got] = self.regs.read32(SPIDRR)? as u8;
                     got += 1;
                 } else if t0.elapsed() > self.timeout {
                     self.regs.write32(SPICR, self.cr)?;
@@ -142,6 +146,7 @@ impl<R: Mmio> AxiSpi<R> {
                 }
             }
             self.regs.write32(SPICR, self.cr)?; // inhibit again
+            c.inp(off, &inp[..n]);
             off += n;
         }
         self.regs.write32(SPISSR, !0)?;
@@ -157,32 +162,86 @@ impl<R: Mmio> AxiSpi<R> {
     }
 }
 
+/// The most bytes moved per FIFO round (the core's FIFO is 16 or 256 deep).
+const MAX_CHUNK: usize = 256;
+
+/// Where a transfer's bytes come from and go to, one chunk at a time.
+trait Chunks {
+    /// Fill `buf` with the outgoing bytes for stream positions `off..off + buf.len()`.
+    fn out(&mut self, off: usize, buf: &mut [u8]);
+    /// Take the bytes received for positions `off..off + buf.len()`.
+    fn inp(&mut self, off: usize, buf: &[u8]);
+}
+
+/// Clock in `words.len()` bytes, sending zeros.
+struct Rd<'a>(&'a mut [u8]);
+impl Chunks for Rd<'_> {
+    fn out(&mut self, _: usize, buf: &mut [u8]) {
+        buf.fill(0);
+    }
+    fn inp(&mut self, off: usize, buf: &[u8]) {
+        self.0[off..off + buf.len()].copy_from_slice(buf);
+    }
+}
+
+/// Send `words`, discarding what comes back.
+struct Wr<'a>(&'a [u8]);
+impl Chunks for Wr<'_> {
+    fn out(&mut self, off: usize, buf: &mut [u8]) {
+        buf.copy_from_slice(&self.0[off..off + buf.len()]);
+    }
+    fn inp(&mut self, _: usize, _: &[u8]) {}
+}
+
+/// `embedded-hal` `transfer`: the longer of the two sets the length; `write` is padded
+/// with zeros and `read` keeps only what fits.
+struct Xfer<'a> {
+    read: &'a mut [u8],
+    write: &'a [u8],
+}
+impl Chunks for Xfer<'_> {
+    fn out(&mut self, off: usize, buf: &mut [u8]) {
+        for (i, b) in buf.iter_mut().enumerate() {
+            *b = self.write.get(off + i).copied().unwrap_or(0);
+        }
+    }
+    fn inp(&mut self, off: usize, buf: &[u8]) {
+        for (i, &b) in buf.iter().enumerate() {
+            if let Some(r) = self.read.get_mut(off + i) {
+                *r = b;
+            }
+        }
+    }
+}
+
+/// Send and receive over the same buffer.
+struct InPlace<'a>(&'a mut [u8]);
+impl Chunks for InPlace<'_> {
+    fn out(&mut self, off: usize, buf: &mut [u8]) {
+        buf.copy_from_slice(&self.0[off..off + buf.len()]);
+    }
+    fn inp(&mut self, off: usize, buf: &[u8]) {
+        self.0[off..off + buf.len()].copy_from_slice(buf);
+    }
+}
+
 impl<R: Mmio> ErrorType for AxiSpi<R> {
     type Error = SpiError;
 }
 
 impl<R: Mmio> SpiBus<u8> for AxiSpi<R> {
     fn read(&mut self, words: &mut [u8]) -> Result<(), SpiError> {
-        let out = vec![0u8; words.len()];
-        self.exchange(&out, words)
+        self.exchange(words.len(), &mut Rd(words))
     }
     fn write(&mut self, words: &[u8]) -> Result<(), SpiError> {
-        let mut sink = vec![0u8; words.len()];
-        self.exchange(words, &mut sink)
+        self.exchange(words.len(), &mut Wr(words))
     }
     fn transfer(&mut self, read: &mut [u8], write: &[u8]) -> Result<(), SpiError> {
         let n = read.len().max(write.len());
-        let mut out = write.to_vec();
-        out.resize(n, 0);
-        let mut inp = vec![0u8; n];
-        self.exchange(&out, &mut inp)?;
-        let r = read.len();
-        read.copy_from_slice(&inp[..r]);
-        Ok(())
+        self.exchange(n, &mut Xfer { read, write })
     }
     fn transfer_in_place(&mut self, words: &mut [u8]) -> Result<(), SpiError> {
-        let out = words.to_vec();
-        self.exchange(&out, words)
+        self.exchange(words.len(), &mut InPlace(words))
     }
     fn flush(&mut self) -> Result<(), SpiError> {
         Ok(()) // every call completes before returning
@@ -210,7 +269,7 @@ impl<R: Mmio> SpiDevice<u8> for SpiSlave<'_, R> {
                 Operation::Transfer(r, w) => SpiBus::transfer(self.bus, r, w),
                 Operation::TransferInPlace(b) => SpiBus::transfer_in_place(self.bus, b),
                 Operation::DelayNs(ns) => {
-                    std::thread::sleep(Duration::from_nanos(*ns as u64));
+                    hardroxide_mmio::time::sleep(Duration::from_nanos(*ns as u64));
                     Ok(())
                 }
             };
@@ -225,7 +284,7 @@ impl<R: Mmio> SpiDevice<u8> for SpiSlave<'_, R> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use embedded_hal::spi::MODE_3;

@@ -11,6 +11,14 @@ readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = ["std"]
+# Linux/host: `io::Write` for the UART, the std time source, the Linux halves of the
+# dma/irq crates; also enables `alloc`.
+std = ["alloc", "hardroxide-mmio/std", "hardroxide-dma/std", "hardroxide-irq/std", "thiserror/std"]
+# `Vec`-returning conveniences (the FIFO's `recv`); everything else is allocation-free.
+alloc = []
+
 [dependencies]
 hardroxide-mmio.workspace = true
 thiserror.workspace = true

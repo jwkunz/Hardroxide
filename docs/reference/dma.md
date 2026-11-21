@@ -15,6 +15,24 @@ is how hardware access is tracked: [`AxiDma::start`](ip-dma.md) moves the
 buffer into a `Transfer` and only returns it once the channel is known to be
 stopped.
 
+## Features and `no_std`
+
+`std` (default) provides `Udmabuf`, `MockBuffer` and the `Io`/`Parse` variants of
+`DmaError`. Without it the crate is `#![no_std]` and provides [`StaticBuffer`](#staticbuffer-bare-metal).
+
+## `StaticBuffer` (bare metal)
+
+```rust,ignore
+pub struct StaticBuffer
+pub fn new(data: &'static mut [u8], phys: u64) -> Self
+pub fn identity(data: &'static mut [u8]) -> Self
+```
+
+A buffer in memory that lives for the whole program, typically a `static` the linker places
+in a region with the right memory attributes (non-cacheable, so no cache maintenance is
+needed). `new` takes the bus address the DMA engine must be given; `identity` uses the
+buffer's own address, correct when the address space is identity-mapped.
+
 ## `Udmabuf` (default backend)
 
 ```rust,ignore

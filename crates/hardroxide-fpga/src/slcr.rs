@@ -99,7 +99,20 @@ pub fn set_pl_clock(
     Ok(got)
 }
 
-#[cfg(test)]
+/// Set every `(FCLK index, Hz)` in `fclks` (the no-allocation equivalent of
+/// `LoadConfig::apply`, for bare-metal start-up code).
+pub fn apply_clocks(
+    slcr: &impl Mmio,
+    ps_clk_hz: u64,
+    fclks: &[(u8, u64)],
+) -> Result<(), FpgaError> {
+    for &(i, hz) in fclks {
+        set_pl_clock(slcr, ps_clk_hz, i, hz)?;
+    }
+    Ok(())
+}
+
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use hardroxide_mmio::{MmioBackend, MockBackend};

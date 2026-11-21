@@ -56,6 +56,7 @@ the same interrupt line.
 - Generated driver constructors may only use values from
   `hardroxide_hwh::Instance::driver_config()` (it is hashed into the interface
   hash; anything else would go stale on a bitstream-only `hardroxide update`).
+- The runtime crates (`mmio`, `fpga`, `dma`, `irq`, `ip`) must stay `no_std`-capable: new code that needs the OS goes behind the `std` feature, and `scripts/check-no-std.sh` (CI) builds them for `armv7a-none-eabihf`. Timeouts use `hardroxide_mmio::time`, never `std::time`.
 - `scripts/test-armv7.sh` runs the runtime crates' tests as armv7 binaries
   under `qemu-arm` (uses the Vitis-bundled gcc/qemu if no system ones; CI too).
 

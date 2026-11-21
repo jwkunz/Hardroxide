@@ -2,12 +2,28 @@
 //!
 //! Drivers are written against [`Mmio`]; a [`MmioBackend`] turns a physical
 //! address window into a region. Backends: [`DevMem`] (`/dev/mem`),
-//! [`Uio`] (`/dev/uioN`) and [`MockBackend`] (hardware-free tests).
+//! [`Uio`] (`/dev/uioN`) and [`MockBackend`] (hardware-free tests), all behind the
+//! default `std` feature, and [`PhysMem`] (identity-mapped physical addresses, for
+//! bare metal) behind `physmem` (always present without `std`).
+//!
+//! Without the `std` feature the crate is `#![no_std]`. The [`time`] module gives
+//! drivers a monotonic clock in both worlds.
 
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
+
+#[cfg(feature = "std")]
 mod mock;
+#[cfg(any(feature = "physmem", not(feature = "std")))]
+mod phys;
+#[cfg(feature = "std")]
 mod sys;
+pub mod time;
 
+#[cfg(feature = "std")]
 pub use mock::{Access as MockAccess, MockBackend, MockRegion};
+#[cfg(any(feature = "physmem", not(feature = "std")))]
+pub use phys::{PhysMem, PhysRegion};
+#[cfg(feature = "std")]
 pub use sys::{DevMem, SysRegion, Uio};
 
 #[derive(Debug, thiserror::Error)]
@@ -16,6 +32,9 @@ pub enum MmioError {
     OutOfBounds { offset: usize, len: usize },
     #[error("offset {0:#x} is not 4-byte aligned")]
     Unaligned(usize),
+    #[error("physical address {0:#x} does not fit in a pointer on this target")]
+    BadAddress(u64),
+    #[cfg(feature = "std")]
     #[error("I/O error on {what}: {source}")]
     Io {
         what: String,

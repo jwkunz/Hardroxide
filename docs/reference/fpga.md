@@ -2,6 +2,12 @@
 
 Programs the PL and configures its clocks.
 
+## Features and `no_std`
+
+The `std` feature (default) provides the Linux loader below. Without it the crate is
+`#![no_std]` and offers only the [SLCR clock code](#pl-clocks), which bare-metal programs
+use; `FpgaError` then has only the clock and register variants.
+
 ## Loading a bitstream
 
 ```rust,ignore
@@ -48,6 +54,7 @@ pub const SLCR_SIZE: usize = 0x1000;
 pub fn set_pl_clock(slcr: &impl Mmio, ps_clk_hz: u64, index: u8, hz: u64) -> Result<u64, FpgaError>
 pub fn read_pl_clock(slcr: &impl Mmio, ps_clk_hz: u64, index: u8) -> Result<u64, FpgaError>
 pub fn best_divisors(src_hz: u64, target_hz: u64) -> (u32, u32, u64)
+pub fn apply_clocks(slcr: &impl Mmio, ps_clk_hz: u64, fclks: &[(u8, u64)]) -> Result<(), FpgaError>
 ```
 
 (In module `hardroxide_fpga::slcr`.) `set_pl_clock` reads the FCLK's source

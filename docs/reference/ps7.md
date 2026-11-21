@@ -107,7 +107,9 @@ interrupt `IRQ_F2P[bit]`.
 pub type Handler = fn();
 pub fn register(id: u32, handler: Handler) -> bool
 pub fn unregister(id: u32)
-pub fn dispatch(id: u32) -> bool
+pub fn register_event(id: u32) -> bool
+pub fn take_event(id: u32) -> Option<u32>
+pub fn dispatch(id: u32) -> Dispatched
 pub fn unhandled_count() -> usize
 ```
 
@@ -116,6 +118,14 @@ vector entry saves the caller-saved registers and VFP state, acknowledges the in
 calls `dispatch`, signals end-of-interrupt and returns. Handlers run on the IRQ stack with
 interrupts masked; they may use floating point. `register` does not enable the interrupt
 in the GIC.
+
+**Event mode** mirrors a Linux UIO device for the drivers: `register_event(id)` makes the
+interrupt count instead of call a function; the vector entry masks it in the GIC when it
+fires (so a level-triggered line cannot storm), and `take_event(id)` returns the cumulative
+count when it changed. `wait::IrqWait` (ARM only) wraps this as a `hardroxide_irq::IrqWaiter`
+(`enable` unmasks, `wait_event` waits for a new event), so `AxiIntc::wait` and the other
+drivers work unchanged; waiting with IRQs masked returns an error instead of hanging. An
+interrupt with nothing registered is also masked and counted by `unhandled_count`.
 
 ## Timers and time source
 

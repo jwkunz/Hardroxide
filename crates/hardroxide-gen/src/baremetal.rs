@@ -361,7 +361,7 @@ pub fn board_check_example(m: &Model, d: &Design, crate_name: &str) -> String {
     let lib = crate_name.replace('-', "_");
     let _ = writeln!(
         s,
-        "fn main() -> ! {{\n    println!(\"\\n== board check ({lib}) ==\");\n{INIT}    println!(\"PL configured, interface {{}}\", {lib}::INTERFACE_HASH.trim());\n    let mut failed = 0;\n    for &(i, want) in {lib}::FCLKS {{\n        match d.fclk_hz(i) {{\n            Ok(got) if got.abs_diff(want) * 100 <= want => println!(\"FCLK{{i}}: {{got}} Hz (want {{want}}) ok\"),\n            Ok(got) => {{\n                println!(\"FCLK{{i}}: {{got}} Hz (want {{want}}) MISMATCH\");\n                failed += 1;\n            }}\n            Err(e) => {{\n                println!(\"FCLK{{i}}: {{e}}\");\n                failed += 1;\n            }}\n        }}\n    }}"
+        "fn main() -> ! {{\n{INIT}    println!(\"\\n== board check ({lib}) ==\");\n    println!(\"PL configured, interface {{}}\", {lib}::INTERFACE_HASH.trim());\n    let mut failed = 0;\n    for &(i, want) in {lib}::FCLKS {{\n        match d.fclk_hz(i) {{\n            Ok(got) if got.abs_diff(want) * 100 <= want => println!(\"FCLK{{i}}: {{got}} Hz (want {{want}}) ok\"),\n            Ok(got) => {{\n                println!(\"FCLK{{i}}: {{got}} Hz (want {{want}}) MISMATCH\");\n                failed += 1;\n            }}\n            Err(e) => {{\n                println!(\"FCLK{{i}}: {{e}}\");\n                failed += 1;\n            }}\n        }}\n    }}"
     );
     let any = m.insts.iter().any(|i| {
         irq_lines(i, d)

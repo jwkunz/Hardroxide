@@ -10,7 +10,9 @@ Apache-2.0, built by the PYNQ project for this board) and writes
   board/pynq_z2_ps7_board.tcl        the preset (a proc applied to the PS7 cell)
   board/build_pynq_z2_<name>.tcl     each fixture script with the preset applied right after
                                      the script's own PS7 settings
-Only the PS-side settings are copied; everything that shapes the PL interface (ports, clocks
+The DDR settings are deliberately NOT copied: the base overlay's values, applied through Vivado,
+gave a DDR that failed a memory test on the board, while the fixtures' own stock-part settings
+pass it (see docs/decisions/0003, findings). Only the other PS-side settings are copied; everything that shapes the PL interface (ports, clocks
 to the PL, interrupts, AXI HP/GP use) stays as the fixture script sets it.
 """
 import re, sys, zipfile, glob, os
@@ -26,7 +28,7 @@ params = {p.get("NAME"): p.get("VALUE") for p in ps7.find("PARAMETERS").findall(
 skip = re.compile(
     r"^PCW_(USE_|EN_CLK|EN_RST|FPGA|FCLK|ACT_|S_AXI_|M_AXI_|IRQ_|EN_EMIO|FTM_|PRESET_BANK|TPIU_|TRACE|"
     r"CORE0_|CORE1_|EN_DDR|NUM_FABRIC|P2F_|QOS_|DDR_PORT|DDR_HPRLPR|EXACT_FREQ|OVERRIDE_BASIC_CLK|"
-    r"DDR_RAM_|MIO_PRIMITIVE|MIO_TREE_|PJTAG|SD1_|GPIO_EMIO)")
+    r"UIPARAM_DDR_|PACKAGE_DDR_|DDR_RAM_|MIO_PRIMITIVE|MIO_TREE_|PJTAG|SD1_|GPIO_EMIO)")
 keep = {k: v for k, v in sorted(params.items())
         if k.startswith("PCW_") and not skip.match(k) and v not in (None, "", "<Select>")}
 

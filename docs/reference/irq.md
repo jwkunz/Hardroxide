@@ -54,6 +54,7 @@ pub gic_spi: Option<u32>,
 pub dt_node: &'static str,
 pub base: u64,
 pub via_intc: Option<(&'static str, u32)>,
+pub edge: bool,
 pub fn open(&self) -> Result<UioIrq, IrqError>
 pub fn open_in(&self, sysfs_uio: &Path, dev_dir: &Path) -> Result<UioIrq, IrqError>
 pub fn find_uio(sysfs_uio: &Path, node: &str, base: u64) -> Result<Option<u32>, IrqError>
@@ -64,7 +65,7 @@ constant per connected interrupt in the generated crate's `pac`
 ([Generated crate](generated-crate.md#pacrs)). `f2p_bit`/`gic_spi` come from
 the HWH (`None` if the net could not be traced to `IRQ_F2P`), `dt_node` is the
 name of the `uio` node in the generated `interrupts.dtso`, `base` the IP's
-register base. `via_intc` is `Some((controller, input bit))` when the signal
+register base. `edge` says the signal is rising-edge triggered (otherwise active-high level), from the design; a bare-metal GIC is programmed from it. `via_intc` is `Some((controller, input bit))` when the signal
 feeds an [AXI Interrupt Controller](ip-intc.md); such a line has no UIO device
 of its own, `f2p_bit`/`gic_spi` are `None`, and `open()` fails with
 `IrqError::ViaController { instance, port, controller, bit }`. Open the

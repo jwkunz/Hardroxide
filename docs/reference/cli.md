@@ -38,12 +38,16 @@ Options:
           Cargo package name (default: block design name)
       --hardroxide-path <HARDROXIDE_PATH>
           Hardroxide checkout; depend on runtime crates by path
+      --platform <PLATFORM>
+          Kind of crate: linux (default), baremetal or rtos [default: linux]
   -h, --help
           Print help
 ```
 
 Writes the crate described in [Generated crate](generated-crate.md). Output is
-deterministic. Exit status is non-zero on any error (unreadable XSA, malformed
+deterministic. `--platform baremetal` writes a `no_std` crate for core 0 with no
+operating system ([Bare-metal crate](baremetal.md)); `rtos` is reserved and fails with
+a clear message until the kernel exists. Exit status is non-zero on any error (unreadable XSA, malformed
 HWH, I/O failure).
 
 ## `update`

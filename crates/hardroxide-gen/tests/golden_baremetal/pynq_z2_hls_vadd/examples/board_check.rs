@@ -11,7 +11,6 @@ use ps7::println;
 ps7::entry!(main);
 
 fn main() -> ! {
-    println!("\n== board check (design_1) ==");
     let d = match Design::init() {
         Ok(d) => d,
         Err(e) => {
@@ -19,6 +18,7 @@ fn main() -> ! {
             halt()
         }
     };
+    println!("\n== board check (design_1) ==");
     println!("PL configured, interface {}", design_1::INTERFACE_HASH.trim());
     let mut failed = 0;
     for &(i, want) in design_1::FCLKS {

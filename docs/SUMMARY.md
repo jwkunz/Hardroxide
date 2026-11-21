@@ -33,6 +33,7 @@
 
 - [CLI](reference/cli.md)
 - [Generated crate](reference/generated-crate.md)
+- [Bare-metal crate](reference/baremetal.md)
 - [hardroxide-hwh](reference/hwh.md)
 - [hardroxide-gen](reference/gen.md)
 - [hardroxide-mmio](reference/mmio.md)

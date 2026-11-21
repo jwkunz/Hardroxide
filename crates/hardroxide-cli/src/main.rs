@@ -70,6 +70,26 @@ enum Cmd {
         #[arg(long)]
         no_pl: bool,
     },
+    /// Build a BOOT.BIN that starts a bare-metal program on its own from SD or QSPI (needs the Vitis tools).
+    ///
+    /// Packs the vendor's first-stage loader (built from the XSA, so it runs the design's own PS
+    /// setup), the bitstream and the program with bootgen.
+    Package {
+        /// The program (an ELF built for armv7a-none-eabihf).
+        elf: PathBuf,
+        /// The XSA of the design it runs on.
+        #[arg(long)]
+        xsa: PathBuf,
+        /// Output file.
+        #[arg(short, long, default_value = "BOOT.BIN")]
+        output: PathBuf,
+        /// Use this first-stage loader (an ELF) instead of building the vendor's.
+        #[arg(long)]
+        fsbl: Option<PathBuf>,
+        /// Leave the bitstream out (the design has no PL, or the program loads it).
+        #[arg(long)]
+        no_pl: bool,
+    },
     /// Check that the host can drive a board: Vitis tools, JTAG cable access, console port.
     Doctor {
         /// Console serial port.
@@ -144,6 +164,19 @@ fn main() -> Result<()> {
             tty: &tty,
             watch_secs: watch,
             program_pl: !no_pl,
+        })?,
+        Cmd::Package {
+            elf,
+            xsa,
+            output,
+            fsbl,
+            no_pl,
+        } => host::package(&host::PackageOptions {
+            elf: &elf,
+            xsa: &xsa,
+            out: &output,
+            fsbl: fsbl.as_deref(),
+            no_pl,
         })?,
         Cmd::Doctor { tty } => {
             let checks = host::doctor(&tty);

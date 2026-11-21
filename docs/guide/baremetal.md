@@ -64,3 +64,17 @@ built without a board preset has UART0 disabled and prints nothing; the fixture 
 
 Always run `board_check` first: it touches no IP register, and `Design::init()` refuses with
 `PlNotConfigured` instead of letting a register access on an unconfigured PL hang the CPU.
+
+## Booting on its own
+
+`hardroxide run` needs the JTAG cable and a host. To make the board start a program by itself:
+
+```text
+$ hardroxide package target/armv7a-none-eabihf/release/examples/rt_control --xsa design.xsa -o BOOT.BIN
+```
+
+Copy `BOOT.BIN` to the root of a FAT-formatted SD card, set the board's boot-mode jumper to SD, and
+power-cycle. The boot ROM runs the first-stage loader the command built from your XSA, which initialises the PS
+and the PL and then starts the program; the console appears on the same UART as under `run`. The same file
+can be written to QSPI flash with the Vitis `program_flash`. The first-stage loader is the vendor's
+(built on your machine from your Vitis install; nothing of it is redistributed by Hardroxide).

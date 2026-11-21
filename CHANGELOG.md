@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 2.0.0
+
+Bare-metal and RTOS platforms ([ADR 0003](docs/decisions/0003-bare-metal-and-rtos-platforms.md)).
+Linux crates are unchanged; their dependencies move to 2.
+
+### New
+- `hardroxide generate --platform baremetal|rtos`: a `no_std` crate for core 0 of the
+  Zynq-7000 with no operating system, built on the new `hardroxide-ps7` (start-up, exception
+  vectors, GIC, timers, UART console, MMU, L1/L2 caches with a non-cacheable `.dma` section,
+  cache maintenance), and, for `rtos`, on the new `hardroxide-rt` kernel (priority-preemptive
+  tasks, delays, periodic release, semaphores, priority-inheriting mutexes, queues).
+- `hardroxide run`: load a program over JTAG with the design's own `ps7_init` and show the console.
+- `hardroxide package`: build a BOOT.BIN (vendor FSBL, bitstream, program).
+- `hardroxide doctor`: check the Vitis tools, JTAG access and the console port.
+- Runtime crates (`mmio`, `fpga`, `dma`, `irq`, `ip`) are `no_std`-capable (`std` feature, on by
+  default); `IrqLine` gained `edge`; `mmio::time` is a registered time source.
+
+### Verified
+On a PYNQ-Z2 and under QEMU; see `docs/08-verification-gaps.md`. `hardroxide package` has built a
+BOOT.BIN but it has not yet been booted from SD.
+
 ### Documentation
 - New tutorials (eleven, one per test design) with output captured on a PYNQ-Z2, a
   page on the end-to-end workflow, and a page on exporting an XSA from Vivado.

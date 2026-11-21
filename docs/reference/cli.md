@@ -14,6 +14,7 @@ Commands:
   update    Refresh an existing generated crate from a new XSA
   inspect   Print a summary of an XSA: instances, addresses, clocks, hashes
   run       Run a bare-metal program on a board over JTAG (needs the Vitis tools)
+  package   Build a BOOT.BIN that starts a bare-metal program on its own from SD or QSPI (needs the Vitis tools)
   doctor    Check that the host can drive a board: Vitis tools, JTAG cable access, console port
   help      Print this message or the help of the given subcommand(s)
 
@@ -157,6 +158,47 @@ XSA must come from a design with a board-accurate PS configuration, or the conso
 nothing. `hw_server` is started if it is not running. If the Vitis tools are not found
 (`HRX_VITIS`, `XILINX_ROOT`, `PATH`, or a standard install location) the command prints what
 to do and stops. See [Running bare metal](../guide/baremetal.md).
+
+## `package`
+
+```text
+$ hardroxide package --help
+Build a BOOT.BIN that starts a bare-metal program on its own from SD or QSPI (needs the Vitis tools).
+
+Packs the vendor's first-stage loader (built from the XSA, so it runs the design's own PS setup), the bitstream and the program with bootgen.
+
+Usage: hardroxide package [OPTIONS] --xsa <XSA> <ELF>
+
+Arguments:
+  <ELF>
+          The program (an ELF built for armv7a-none-eabihf)
+
+Options:
+      --xsa <XSA>
+          The XSA of the design it runs on
+
+  -o, --output <OUTPUT>
+          Output file
+          
+          [default: BOOT.BIN]
+
+      --fsbl <FSBL>
+          Use this first-stage loader (an ELF) instead of building the vendor's
+
+      --no-pl
+          Leave the bitstream out (the design has no PL, or the program loads it)
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+Builds a `BOOT.BIN` with which the board starts a bare-metal or RTOS program by itself, with no JTAG
+cable. It builds the vendor's Zynq first-stage loader (FSBL) from the XSA with `xsct` (about 20 s; the loader runs the design's own
+PS initialisation, so the XSA needs a board-accurate PS configuration), then runs `bootgen` over the FSBL,
+the XSA's bitstream and the program. Copy the file to the root of a FAT-formatted SD card, set the
+board's boot jumper to SD and power-cycle. `--fsbl` uses a loader you built yourself. Needs the Vitis
+tools (`xsct`, `bootgen`); without them the command says so and stops. The program must be linked for the DDR (the default
+`link.ld`); the FSBL copies it there. See [Running bare metal](../guide/baremetal.md#booting-on-its-own).
 
 ## `doctor`
 

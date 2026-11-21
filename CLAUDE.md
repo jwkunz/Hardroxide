@@ -24,6 +24,14 @@ decision changes.
 - Rust latest stable, edition 2024. License `MIT OR Apache-2.0`.
 - Out of scope for v1: partial reconfiguration, Python bindings.
 
+## Platforms (2.0)
+
+`hardroxide generate --platform linux|baremetal|rtos` ([ADR 0003](docs/decisions/0003-bare-metal-and-rtos-platforms.md)).
+Bare-metal/RTOS crates run on core 0 with no OS (`crates/hardroxide-ps7`, `crates/hardroxide-rt`, no third-party
+dependencies); `hardroxide run`/`package`/`doctor` drive the board with the Vitis tools (JTAG boot mode for `run`).
+Their tests: `scripts/test-qemu.sh`, `cargo test -p hardroxide-gen --test baremetal`, programs in `baremetal/`
+(own workspace). Work happens on branch `v2`.
+
 ## Current state and next step
 
 Zynq-7000 only. `hardroxide generate`, `update` and `inspect` work (golden

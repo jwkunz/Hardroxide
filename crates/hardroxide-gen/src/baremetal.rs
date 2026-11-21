@@ -60,7 +60,7 @@ pub fn cargo_toml(name: &str, opts: &Options) -> String {
                 "{c} = {{ path = \"{}\"{nd}{extra} }}",
                 root.join("crates").join(c).display()
             ),
-            None => format!("{c} = {{ version = \"1\"{nd}{extra} }}"),
+            None => format!("{c} = {{ version = \"2\"{nd}{extra} }}"),
         }
     };
     let (label, rt_dep) = if rtos {

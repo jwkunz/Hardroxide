@@ -250,6 +250,107 @@ pub fn run(o: &RunOptions) -> Result<()> {
     Ok(())
 }
 
+/// The `xsct` script that builds the first-stage boot loader (the vendor's Zynq FSBL, which
+/// runs the XSA's own PS initialisation, loads the PL and hands over to the program).
+pub fn fsbl_script(ws: &Path, xsa: &Path) -> String {
+    format!(
+        "setws {{{}}}\nplatform create -name hrx_plat -hw {{{}}} -proc ps7_cortexa9_0 -os standalone\nplatform generate\n",
+        ws.display(),
+        xsa.display()
+    )
+}
+
+/// The Boot Image Format file bootgen reads: FSBL, then (optionally) the bitstream, then the program.
+pub fn bif(fsbl: &Path, bit: Option<&Path>, elf: &Path) -> String {
+    let mut s = format!("the_ROM_image:\n{{\n    [bootloader] {}\n", fsbl.display());
+    if let Some(b) = bit {
+        s.push_str(&format!("    {}\n", b.display()));
+    }
+    s.push_str(&format!("    {}\n}}\n", elf.display()));
+    s
+}
+
+pub struct PackageOptions<'a> {
+    pub elf: &'a Path,
+    pub xsa: &'a Path,
+    pub out: &'a Path,
+    /// A first-stage loader to use instead of building the vendor's.
+    pub fsbl: Option<&'a Path>,
+    pub no_pl: bool,
+}
+
+/// Build a `BOOT.BIN` that boots `elf` on its own from SD or QSPI flash.
+pub fn package(o: &PackageOptions) -> Result<()> {
+    let v = require_vitis()?;
+    if !o.elf.is_file() {
+        bail!("{}: no such program", o.elf.display());
+    }
+    for tool in ["bootgen", "xsct"] {
+        if !v.dir.join("bin").join(tool).exists() {
+            bail!(
+                "{tool} not found in {}/bin ({})",
+                v.dir.display(),
+                MISSING_VITIS
+            );
+        }
+    }
+    let tmp = std::env::temp_dir().join(format!("hrx-package-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    extract_xsa(o.xsa, &tmp)?;
+    let fsbl = match o.fsbl {
+        Some(f) => f.canonicalize().with_context(|| f.display().to_string())?,
+        None => {
+            eprintln!("building the first-stage loader (about 20 s) ...");
+            let ws = tmp.join("ws");
+            let script = tmp.join("fsbl.tcl");
+            std::fs::write(&script, fsbl_script(&ws, &o.xsa.canonicalize()?))?;
+            let out = v
+                .shell(&format!("xsct '{}'", script.display()))
+                .output()
+                .context("running xsct")?;
+            let built = ws.join("hrx_plat/export/hrx_plat/sw/hrx_plat/boot/fsbl.elf");
+            if !built.is_file() {
+                bail!(
+                    "xsct did not produce an FSBL:\n{}\n{}",
+                    String::from_utf8_lossy(&out.stdout),
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            }
+            built
+        }
+    };
+    let elf = o.elf.canonicalize()?;
+    let bit = tmp.join("design.bit");
+    let bif_path = tmp.join("boot.bif");
+    std::fs::write(
+        &bif_path,
+        bif(&fsbl, (!o.no_pl).then_some(bit.as_path()), &elf),
+    )?;
+    let out = o.out.to_path_buf();
+    let st = v
+        .shell(&format!(
+            "bootgen -arch zynq -image '{}' -o '{}' -w on",
+            bif_path.display(),
+            out.display()
+        ))
+        .output()
+        .context("running bootgen")?;
+    let _ = std::fs::remove_dir_all(&tmp);
+    if !st.status.success() {
+        bail!(
+            "bootgen failed:\n{}\n{}",
+            String::from_utf8_lossy(&st.stdout),
+            String::from_utf8_lossy(&st.stderr)
+        );
+    }
+    eprintln!(
+        "wrote {} ({} bytes). Copy it to the root of a FAT-formatted SD card, set the board's boot jumper to SD, and power-cycle.",
+        out.display(),
+        std::fs::metadata(&out)?.len()
+    );
+    Ok(())
+}
+
 /// One line of the `doctor` report.
 pub struct Check {
     pub what: String,

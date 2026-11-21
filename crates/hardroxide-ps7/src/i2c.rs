@@ -232,8 +232,10 @@ impl<R: Mmio> i2c::I2c for I2c<R> {
     ) -> Result<(), I2cError> {
         for op in operations {
             match op {
-                Operation::Write(d) => self.write(address, d)?,
-                Operation::Read(b) => self.read(address, b)?,
+                // The controller's own methods: `self.write` here would resolve to the trait's default `write`,
+                // which calls `transaction` again (unbounded recursion).
+                Operation::Write(d) => Self::write(self, address, d)?,
+                Operation::Read(b) => Self::read(self, address, b)?,
             }
         }
         Ok(())
@@ -317,6 +319,19 @@ mod tests {
         assert!(matches!(i.wait_done(0x3B), Err(I2cError::Nack(0x3B))));
         be.poke(BASE + ISR as u64, IXR_ARB_LOST);
         assert!(matches!(i.wait_done(0x3B), Err(I2cError::ArbitrationLost)));
+    }
+
+    #[test]
+    fn the_embedded_hal_trait_reaches_the_controller_without_recursing() {
+        use embedded_hal::i2c::I2c as _;
+        let be = MockBackend::new();
+        let mut i = I2c::new(be.map(BASE, 0x1000).unwrap());
+        // The mock keeps what is written to the status register (0x2FF: every flag, so a NACK), which is enough
+        // to check the point: the trait's `write` reaches the controller's own code and ends (it used to recurse
+        // without end, which overflowed the stack on the board).
+        let r = i.write(0x3B, &[0x40, 0x19, 0x33]);
+        assert!(matches!(r, Err(I2cError::Nack(0x3B))), "{r:?}");
+        assert_eq!(be.peek(BASE + ADDR as u64), 0x3B);
     }
 
     #[test]

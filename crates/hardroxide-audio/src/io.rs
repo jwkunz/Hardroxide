@@ -27,6 +27,7 @@ pub fn play<R: Mmio>(
     frames: impl Iterator<Item = Frame>,
 ) -> Result<Stats, MmioError> {
     let mut st = Stats::default();
+    ctrl.clear_ready()?;
     for f in frames {
         if ctrl.ready()? && st.frames > 0 {
             st.missed += 1;
@@ -43,6 +44,7 @@ pub fn play<R: Mmio>(
 /// Record `out.len()` frames from the codec.
 pub fn record<R: Mmio>(ctrl: &AudioCodecCtrl<R>, out: &mut [Frame]) -> Result<Stats, MmioError> {
     let mut st = Stats::default();
+    ctrl.clear_ready()?;
     for slot in out.iter_mut() {
         if ctrl.ready()? && st.frames > 0 {
             st.missed += 1;
@@ -63,6 +65,7 @@ pub fn pass_through<R: Mmio>(
     mut f: impl FnMut(Frame) -> Frame,
 ) -> Result<Stats, MmioError> {
     let mut st = Stats::default();
+    ctrl.clear_ready()?;
     for _ in 0..frames {
         if ctrl.ready()? && st.frames > 0 {
             st.missed += 1;

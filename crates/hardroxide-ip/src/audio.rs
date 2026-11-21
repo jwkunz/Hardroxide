@@ -82,11 +82,14 @@ impl<R: Mmio> AudioCodecCtrl<R> {
         self.regs.write32(TX_R, (f.right as u32) & 0xFF_FFFF)
     }
 
-    /// Wait for the next sample time by polling (spin), up to `spins` reads; `false` if none came.
+    /// Wait for the next sample tick by polling (spin), up to `spins` reads of the status; `true` if one came
+    /// (and its flag is cleared, so the next call waits for the following tick), `false` if none did (no clock).
+    /// The flag is not cleared on entry: call [`AudioCodecCtrl::clear_ready`] once before a stream so a stale tick
+    /// is not taken for the first one, and a tick already waiting when this is called means the caller was late.
     pub fn wait_sample(&self, spins: u32) -> Result<bool, MmioError> {
-        self.clear_ready()?;
         for _ in 0..spins {
             if self.ready()? {
+                self.clear_ready()?;
                 return Ok(true);
             }
         }

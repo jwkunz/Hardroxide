@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### 2.2 (written, not yet run on a board)
+### 2.2 (board-verified at 800x600 to 1920x1080; 640x480 is an open item)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
   reconfigurable pixel clock); the generator uses them for the base overlay's video cores.
 - `hardroxide-video`: display modes (640x480 to 1920x1080 at 60 Hz) and `Display`, the bring-up of the HDMI output.

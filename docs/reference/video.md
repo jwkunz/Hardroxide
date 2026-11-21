@@ -6,8 +6,9 @@ HDMI output for the PYNQ base overlay. The overlay's pipeline is: frame buffers 
 `Display` brings it up for a `VideoMode`; the graphics library [`hardroxide-gfx`](gfx.md) draws on the buffers. `no_std`. Pixels are 32
 bits, `0x00RRGGBB`, four bytes in memory.
 
-> **Not yet run on a board.** The steps follow PYNQ's video pipeline (Apache-2.0) for the colour and pixel-format settings and the
-> vendor's drivers for the timing controller. See [Verification gaps](../08-verification-gaps.md).
+> **Verified on a PYNQ-Z2 (2026-11-21)** at 800x600, 1024x768, 1280x720, 1280x1024 and 1920x1080, at 60 frames per second with double buffering; **640x480 is rejected by the
+> tested monitor** (open item). The steps follow PYNQ's video pipeline (Apache-2.0) for the colour and pixel-format settings; the timing controller and DMA sequences were
+> corrected against the Linux driver's register state read over JTAG. See [Verification gaps](../08-verification-gaps.md).
 
 ```rust,ignore
 pub const BYTES_PER_PIXEL: u32 = 4;
@@ -40,8 +41,12 @@ pub fn as_pixels(bytes: &mut [u8]) -> Option<&mut [u32]>
 colour matrix and 32-bit pixel mode, starts the DMA on the frame buffers (their 32-bit physical addresses, each `mode.frame_bytes()` long) and starts
 the timing generator last, which releases the stream. It returns the pixel clock produced. `show(n)` switches to buffer `n` at the next frame.
 
-Modes (all 60 Hz): 640x480 (25.175 MHz), 800x600 (40), 1024x768 (65), 1280x720 (74.25), 1280x1024 (108), 1920x1080 (148.5); the timings
+Modes (all 60 Hz): 640x480 (25.2 MHz; not working on the tested monitor), 800x600 (40), 1024x768 (65), 1280x720 (74.25), 1280x1024 (108), 1920x1080 (148.5); the timings
 are the VESA and CEA-861 ones and are checked for consistency in the tests. `colour::IDENTITY` passes pixels through (byte 0 blue, so `0x00RRGGBB`
 little-endian); `colour::SWAP_RB` swaps red and blue. Frame buffers in the non-cacheable `.dma` section need no cache maintenance
-([`static_dma_buffer!`](dma.md)); `as_pixels` views such a buffer's bytes as pixels. Whether 1920x1080 works within the HP port's bandwidth
-is to be measured.
+([`static_dma_buffer!`](dma.md)); `as_pixels` views such a buffer's bytes as pixels. 1920x1080 works.
+
+**Frame buffer placement.** The base overlay's video DMA reaches DDR through one HP port, and the design maps only **`0x1000_0000` to `0x1FFF_FFFF`** to it: a frame
+buffer anywhere else (the lower half of DDR, where the program and `.dma` live) ends in a DMA decode error (status bit 6) and a blank screen. The applications put the frame
+buffers at `0x1000_0000` and make that window non-cacheable with [`ps7::mem::set_non_cacheable`](ps7.md#memory-mmu-caches-l2-mem) so the processor's drawing and the DMA's
+reads agree. `0x1000_0000` + 4 MiB per 720p frame (3.5 MiB rounded up to whole sections), 8 MiB per 1080p frame.

@@ -2,10 +2,8 @@
 
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Needs:** [Applications 1](01-base-lights.md), an HDMI monitor on the board's **HDMI OUT**
 
-> **Status: written, not yet run on a board.** Everything below compiles and the register-level code is unit-tested, but the first
-> run on the board (and on a monitor) is still to be done; the "what you should see" parts are expectations, not captured output.
-> The project's rule is that nothing is called verified until it has been, so this page will be updated with real output after that
-> run ([Verification gaps](../../08-verification-gaps.md)).
+> **Status: run on a PYNQ-Z2 and a monitor (2026-11-21).** 800x600, 1024x768, 1280x720, 1280x1024 and 1920x1080 work; 640x480 is rejected by the tested monitor (open item).
+> The first run did not: the monitor saw nothing. The findings are in section 7, and are why the code is the way it is ([Verification gaps](../../08-verification-gaps.md)).
 
 The base overlay's HDMI output is a pipeline of five pieces: frame buffers in memory, a VDMA that reads them out as a video stream, a pixel
 unpacker and a colour converter, and the HDMI transmitter, paced by a video timing generator and a pixel clock whose frequency software sets.
@@ -32,9 +30,18 @@ $ hardroxide run target/armv7a-none-eabihf/release/examples/video_demo --xsa ../
 ```
 
 The program draws a test pattern into one frame buffer, starts the output in 1280x720, and shows the pattern for five seconds, then animates a
-bouncing ball for ten with double buffering. On the console it prints the pixel clock the MMCM produced (expected: within 0.1 % of
-74.25 MHz) and the number of animated frames. On the monitor: eight colour bars, a hue gradient and a gray ramp, a grid, and the text
-HARDROXIDE.
+bouncing ball for ten with double buffering. On the console:
+
+```console
+== video_demo: 1280x720@60 ==
+pixel clock 74285600 Hz (asked 74250000)
+showing the test pattern for 5 s
+animating for 10 s
+601 animated frames in 10010 ms = 60 frames per second; display errors: false
+```
+
+On the monitor: eight colour bars, a hue gradient and a gray ramp, a grid, and the text HARDROXIDE for five seconds, then a hue-cycling ball bouncing over the bars at 60 frames per second
+(the program then stops and the display holds the last frame, so the picture freezes: that is the program having ended).
 
 ## 3. The two frame buffers
 
@@ -47,9 +54,9 @@ let mut s = Surface::new(as_pixels(front.as_mut_slice()).unwrap(), 1280, 720);
 s.fill_circle(x, y, 40, Color::hue(h));
 ```
 
-Both buffers live in the `.dma` section, which the MMU maps non-cacheable, so the CPU's drawing and the VDMA's reads see the same bytes with no
-cache maintenance. The cost, measured for DMA in [Bare metal 3](../baremetal/03-dma.md), is that drawing goes straight to DDR; at 720p a
-full-screen redraw is 3.5 MiB of writes. A cached buffer with `clean_range` before each flip is the faster variant and is future work.
+The frame buffers are at fixed addresses in the window of DDR (`0x1000_0000` to `0x1FFF_FFFF`) that this overlay's video DMA can reach, made non-cacheable with `ps7::mem::set_non_cacheable`, so the CPU's drawing and the
+VDMA's reads see the same bytes with no cache maintenance. (A buffer anywhere else, such as from `static_dma_buffer!`, ends in a DMA decode error and a blank screen: see section 7.) The cost is that drawing goes
+straight to DDR; at 720p a full-screen redraw is 3.5 MiB of writes, so the demo paints the pattern once and repaints only the small area around the ball each frame. A cached buffer with `clean_range` before each flip is the faster variant and is future work.
 
 ## 4. Double buffering
 
@@ -69,11 +76,33 @@ display.wait_frame(Duration::from_millis(100))?;   // the switch has happened; t
 `apps/base/rtos/rt_video.rs` does the same on `--platform rtos`. A render task (priority 5) sleeps on an `IrqEvent` for the VDMA's frame-done
 interrupt (input 1 of the interrupt controller), so it runs exactly once per frame without polling; a priority-3 task burns 2 ms of every 10 ms, and a
 priority-2 task prints the worst drawing time and the worst deviation of the frame interval from 16.667 ms every 5 seconds. The kernel's job here is
-to keep the frame interval steady however busy the rest is. Build it as in section 2 with the RTOS crate (`--platform rtos`).
+to keep the frame interval steady however busy the rest is. Build it as in section 2 with the RTOS crate (`--platform rtos`):
 
-## 6. What to check, and what to tell us
+```console
+== rt_video: 1280x720@60 paced by the display interrupt ==
+display up, pixel clock 74285600 Hz
+299 frames; draw worst 3129 us; frame interval worst deviation from 16.667 ms 10 us
+599 frames; draw worst 3136 us; frame interval worst deviation from 16.667 ms 10 us
+899 frames; draw worst 3136 us; frame interval worst deviation from 16.667 ms 10 us
+```
 
-When you run it for the first time: does the monitor sync (any picture at all)? Are the colours right (red is red, not blue: the colour
-matrix is the identity for `0x00RRGGBB`, and `colour::SWAP_RB` swaps the channels if not)? Is the image stable at 1280x720, and what do the 640x480 and 1920x1080
-modes do? What frame rate does the animation reach? The answers go into [Verification gaps](../../08-verification-gaps.md) and, with the real console output,
-into this page.
+Sixty frames per second, drawn in about 3 ms, and the frame interval never more than 10 microseconds off 16.667 ms while the load task takes 2 ms of every 10.
+
+## 6. Every mode
+
+`apps/base/baremetal/video_modes.rs` cycles through the modes, 12 seconds each, with colour bars and the mode's name. Allow a monitor several seconds to re-sync after each change (with 4 seconds per mode only the last was
+seen). Results on a PYNQ-Z2 with one monitor: 800x600, 1024x768, 1280x720, 1280x1024 and 1920x1080 work; **640x480 does not**: the monitor falls back to its own test pattern (tried at 25.175 and 25.2 MHz; the MMCM
+settings, the timings and the DMA were fine in each case; the lowest pixel clock, with a 252 Mbit/s TMDS rate per lane, is the suspect, and it is an open item).
+
+## 7. What the first run taught us
+
+The first run showed nothing, and the monitor did not even detect the cable. The stock PYNQ desktop turned out to drive the same pipeline at 1920x1080, so its registers could be read over JTAG while it ran (`xsdb`, target `APU`, which reads
+physical addresses) and compared with ours. In the order they were found:
+
+1. **The clock generator's reference.** `axi_dynclk` in this overlay is an older core with eight registers; the reference-frequency register our driver read (offset `0x20`) does not exist. The reference is FCLK0 (100 MHz) and is now a parameter. With it, the words
+   written for 148.5 MHz are byte-identical to Linux's.
+2. **Where the frame buffers must be.** The VDMA stopped at once with a decode error (`SR` bit 6): the design maps only `0x1000_0000` to `0x1FFF_FFFF` to its HP port, and the buffers were at `0x200000`. They are now in that window, made non-cacheable.
+3. **The VDMA's start sequence.** Even with the right addresses the channel halted until the sequence matched Linux's: all four start-address slots written (the frames repeating), no frame-store register write, no frame-count-enable bit.
+4. **The video timing controller.** Linux's polarity register is `0x3F` and its vertical sync starts at the end of the front porch (we had a different polarity bit and one line earlier).
+
+Between steps the screen said, in turn: nothing (cable not detected), no signal, black, and then the colour bars: a cheap way to tell how far the pipeline gets.

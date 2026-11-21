@@ -266,7 +266,7 @@ this ADR's status table below.
 | Version | State |
 |---|---|
 | 2.1 | implemented, board-verified including the buttons and LEDs by hand (2026-11-21); released as 2.1.0 |
-| 2.2 | written and host-tested (drivers, `hardroxide-video`, `hardroxide-gfx`, two applications, a tutorial); **not yet run on a board**; on branch `v2.2` |
+| 2.2 | implemented and board-verified (2026-11-21) except 640x480; on branch `v2.2`, not yet merged |
 | 2.3 | not started |
 | 2.4 | not started |
 | 2.5 | not started |

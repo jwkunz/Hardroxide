@@ -70,5 +70,10 @@ gen base-video fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremeta
     && run_check "base/video_demo (starts and runs)" base-video video_demo fixtures/board/pynq_base_overlay.xsa 30 "animated frames in"
 }
 
+gen base-rtvideo fixtures/board/pynq_base_overlay.xsa rtos apps/base/rtos && {
+  (cd "$WORK/base-rtvideo" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-gfx" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-video" --no-default-features && cargo build -q --release --examples 2>&1) \
+    && run_check "base/rt_video (60 fps by interrupt)" base-rtvideo rt_video fixtures/board/pynq_base_overlay.xsa 12 "frame interval worst deviation"
+}
+
 echo "board regression: $pass passed, $fail failed"
 [ "$fail" = 0 ] || { printf 'failed: %s\n' "${failed[@]}"; exit 1; }

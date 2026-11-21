@@ -161,6 +161,7 @@ Needs a QEMU with the `xilinx-zynq-a9` machine (the one bundled with Vitis, or
 ```rust,ignore
 pub unsafe fn enable(ddr_bytes: usize)
 pub fn is_enabled() -> bool
+pub unsafe fn set_non_cacheable(base: usize, len: usize)
 pub fn clean_range(addr: usize, len: usize)
 pub fn invalidate_range(addr: usize, len: usize)
 pub fn flush_range(addr: usize, len: usize)
@@ -173,5 +174,7 @@ branch prediction and the PL310 L2 cache (the generated `Design::init` calls it 
 the CPU and a PL master see the same memory with no maintenance; everything else (PL, PS peripherals, OCM) is strongly ordered.
 Single core: memory is non-shareable and the SCU and `ACTLR.SMP` stay off. For memory a PL master touches outside `.dma`, call
 `clean_range` before the PL reads it and `invalidate_range` before the CPU reads what the PL wrote (32-byte-aligned ranges);
-`flush_range` does both. On the PYNQ-Z2 a loop over 64 KiB ran 23 times faster with the caches on (100.7 ms against 4.4 ms for 20 passes), and a DMA loopback over
+`flush_range` does both. `set_non_cacheable(base, len)` is the other route: it makes the DDR sections covering a fixed physical range non-cacheable (after writing back and
+discarding anything cached there; the range is rounded out to 1 MiB sections), for a buffer a PL master uses at a fixed address outside `.dma`, such as a frame buffer in the
+window a video DMA can reach. On the PYNQ-Z2 a loop over 64 KiB ran 23 times faster with the caches on (100.7 ms against 4.4 ms for 20 passes), and a DMA loopback over
 `.dma` buffers passes with them on.

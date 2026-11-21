@@ -5,8 +5,7 @@ The PYNQ base overlay uses it for the HDMI output's pixel clock. The register ma
 and filter tables from Xilinx XAPP888) follow Digilent's driver (MIT licence, github.com/Digilent/vivado-library), the only
 description of this core; the code is written for this crate.
 
-> **Not yet run on a board.** The register values are unit-tested (against the divider encoding and the MMCM's limits) and the
-> sequence follows the vendor's; the first run on the base overlay is the check ([Verification gaps](../08-verification-gaps.md)).
+> **Verified on a PYNQ-Z2:** the words written for 148.5 MHz are byte-identical to what Linux's driver programs (`LOCK_L` `0xCFAFA401`, `FLTR_LOCK_H` `0x00A300FF`), and pixel clocks from 40 to 148.5 MHz drive the HDMI output ([Verification gaps](../08-verification-gaps.md)). 25.2 MHz locks but the tested monitor rejects the 640x480 signal.
 
 ```rust,ignore
 pub struct Mode

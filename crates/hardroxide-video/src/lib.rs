@@ -71,13 +71,13 @@ const fn timing(
     }
 }
 
-/// VGA, 640x480 at 60 Hz (VESA).
+/// VGA, 640x480 at 60 Hz (CEA-861 VIC 1, a 25.2 MHz pixel clock).
 pub const VGA_640X480_60: VideoMode = VideoMode {
     name: "640x480@60",
     width: 640,
     height: 480,
     refresh_hz: 60,
-    pixel_clock_hz: 25_175_000,
+    pixel_clock_hz: 25_200_000,
     timing: timing((640, 16, 96, 48), (480, 10, 2, 33), false, false),
 };
 

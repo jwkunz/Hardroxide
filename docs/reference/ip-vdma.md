@@ -3,7 +3,7 @@
 `hardroxide_ip::vdma` — `xilinx.com:ip:axi_vdma` (PG020), register direct mode, **read channel** (memory to video stream: the display
 side). The register layout follows the vendor driver's header. The write channel (video capture) is not wrapped yet.
 
-> **Not yet run on a board** (see [Verification gaps](../08-verification-gaps.md)); the register sequence is unit-tested.
+> **Verified on a PYNQ-Z2** (see [Verification gaps](../08-verification-gaps.md)): the register sequence was corrected against the state Linux's driver leaves, read over JTAG.
 
 ```rust,ignore
 pub const MAX_FRAMES: usize = 16;
@@ -30,8 +30,8 @@ pub fn wait_frame(&self, timeout: Duration) -> Result<bool, MmioError>
 The read channel runs in **park mode**: it repeats one frame buffer, and `show_frame(n)` switches to frame `n` at the next frame
 boundary, which is all double buffering needs (draw into the hidden buffer, `show_frame`, wait for a frame boundary, draw into the
 other). `start_read(frames, g)` resets the channel, writes the frame buffers' 32-bit physical addresses (`0x5C` + 4 per frame),
-the line size, stride and line count (`0x54`, `0x58`, `0x50`, the last starting the transfer) and parks on frame 0.
+the line size, stride and line count (`0x54`, `0x58`, `0x50`, the last starting the transfer) and parks on frame 0. All four start-address slots of the base overlay's core are written, the given frames repeating (an earlier sequence that wrote only the frames given, and the frame-store register, left the channel halted). The frame buffers must be in the DDR window the design maps to the DMA's HP port (on the base overlay `0x1000_0000` to `0x1FFF_FFFF`); an address outside it gives a decode error (`SR` bit 6) and the channel halts.
 `Geometry { hsize, stride, lines }` is in bytes and lines. Interrupts: `enable_frame_interrupt` raises one at the end of every
 frame; `ack_frame` clears the flag (write 1) and returns what was set; `wait_frame` polls. Register map: `MM2S_CR` `0x00`,
 `MM2S_SR` `0x04`, `PARK_PTR` `0x28` (read reference in bits 4:0, the frame being read in bits 20:16), `VERSION` `0x2C`,
-`FRMSTORE` `0x18`.
+the frame-store register `0x18` is not written.

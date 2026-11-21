@@ -23,15 +23,12 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: mdbook@0.5.4
-      # The book: user guide, authoritative reference, design docs, status.
-      - run: mdbook build
-      # Generated rustdoc, published beside the book under /api/.
-      - run: cargo doc --workspace --no-deps
-      - run: cp -r target/doc target/book/api
+      # Landing page (site/), the book under /book/, rustdoc under /api/.
+      - run: scripts/build-site.sh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: target/book
+          path: target/site
 
   deploy:
     needs: build

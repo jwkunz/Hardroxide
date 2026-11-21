@@ -11,15 +11,15 @@ Rust crate, a Rust counterpart to the PYNQ overlay framework.
 hardroxide generate design.xsa -o my_design
 ```
 
-Documentation: <https://jwkunz.github.io/Hardroxide/>, or build it locally with
-`mdbook build` (output in `target/book`).
+Documentation: <https://jwkunz.github.io/Hardroxide/> (book at `/book/`, API reference at `/api/`), or build it locally with
+`scripts/build-site.sh` (output in `target/site`).
 
-- **New here?** Start with the [tutorials](https://jwkunz.github.io/Hardroxide/tutorials/index.html):
+- **New here?** Start with the [tutorials](https://jwkunz.github.io/Hardroxide/book/tutorials/index.html):
   thirteen step-by-step walk-throughs, one per test design in `fixtures/`, with real
   output from a PYNQ-Z2. No Vivado needed.
-- **Your own design?** [The workflow](https://jwkunz.github.io/Hardroxide/guide/workflow.html)
-  and [Exporting an XSA from Vivado](https://jwkunz.github.io/Hardroxide/guide/vivado.html).
-- **Looking something up?** The [reference](https://jwkunz.github.io/Hardroxide/reference/cli.html)
+- **Your own design?** [The workflow](https://jwkunz.github.io/Hardroxide/book/guide/workflow.html)
+  and [Exporting an XSA from Vivado](https://jwkunz.github.io/Hardroxide/book/guide/vivado.html).
+- **Looking something up?** The [reference](https://jwkunz.github.io/Hardroxide/book/reference/cli.html)
   and the [verification status](docs/08-verification-gaps.md).
 
 ## What it does
@@ -57,14 +57,14 @@ hardroxide inspect design.xsa
 hardroxide generate design.xsa -o my_design
 ```
 
-then follow the [user guide](https://jwkunz.github.io/Hardroxide/guide/getting-started.html)
+then follow the [user guide](https://jwkunz.github.io/Hardroxide/book/guide/getting-started.html)
 to cross-build for the board (`armv7-unknown-linux-gnueabihf`) and run
 `board_check` first.
 
 Before reprogramming the PL, stop anything on the board that uses it (a base
 overlay's HDMI or GPIO drivers, for example): reprogramming under a live driver
 can freeze the CPU. `load()` refuses when it detects one. See
-[Running on hardware](https://jwkunz.github.io/Hardroxide/guide/hardware.html).
+[Running on hardware](https://jwkunz.github.io/Hardroxide/book/guide/hardware.html).
 
 ## License
 

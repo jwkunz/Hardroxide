@@ -6,7 +6,8 @@
 # QEMU: $QEMU_SYSTEM, or `qemu-system-aarch64` on PATH, or the one bundled with Vitis
 # (which has the `xilinx-zynq-a9` machine; stock Debian/Ubuntu QEMU has `xilinx-zynq-a9` too).
 set -euo pipefail
-cd "$(dirname "$0")/../baremetal/ps7-smoke"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/baremetal/ps7-smoke"
 XILINX_ROOT=${XILINX_ROOT:-$HOME/AMD/2025.2}
 VITIS_QEMU_DIR=$XILINX_ROOT/data/emulation/qemu/comp/qemu/sysroots/x86_64-petalinux-linux/usr
 if [ -n "${QEMU_SYSTEM:-}" ]; then
@@ -46,3 +47,21 @@ print(f"timing: sleep {sleep_us} us, 20 ticks {span_us} us -> {'ok' if ok else '
 sys.exit(0 if ok else 1)
 PY
 [ "$fail" = 0 ] && echo "qemu smoke test: ok" || { echo "qemu smoke test: FAILED" >&2; exit 1; }
+
+# ---- the kernel (hardroxide-rt) ----
+cd "$ROOT/baremetal/rt-smoke"
+cargo build --release --features qemu
+OUT2=$(mktemp)
+trap 'rm -f "$OUT" "$OUT2"' EXIT
+timeout "${QEMU_TIMEOUT:-20}" "${RUN[@]}" -M xilinx-zynq-a9 -m 512 -display none \
+  -serial stdio -serial null -monitor none -kernel target/armv7a-none-eabihf/release/rt-smoke >"$OUT2" 2>&1 || true
+cat "$OUT2"
+fail=0
+need2() { grep -q -- "$1" "$OUT2" || { echo "MISSING: $1" >&2; fail=1; }; }
+need2 "no drift"
+need2 "10/10 items received in order"
+need2 "woke the task: true, after 20 ticks"
+need2 "0 late"
+need2 "inheritance worked"
+need2 "RT ALL OK"
+[ "$fail" = 0 ] && echo "qemu kernel test: ok" || { echo "qemu kernel test: FAILED" >&2; exit 1; }

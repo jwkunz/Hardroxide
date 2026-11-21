@@ -1,0 +1,18 @@
+[package]
+name = "hardroxide-rt"
+description = "A FreeRTOS-style real-time kernel for the Zynq-7000 Cortex-A9: priority-preemptive tasks, semaphores, mutexes with priority inheritance, queues"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+# The kernel's start-up, interrupt entry and tick; ARM only. The default IRQ/SVC entries
+# are turned off: this crate provides its own, scheduler-aware ones.
+hardroxide-ps7 = { workspace = true, default-features = false }
+hardroxide-mmio = { workspace = true, features = ["physmem"] }

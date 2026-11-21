@@ -1,0 +1,479 @@
+//! The kernel API: tasks, time, semaphores, mutexes and queues. ARM only.
+//!
+//! Single core. The scheduler state is only touched with interrupts masked (a critical
+//! section), which on one core is mutual exclusion. A blocking call marks the task blocked
+//! inside a critical section and then executes a supervisor call; the SVC entry switches to
+//! whichever task the scheduler picks. Interrupt handlers may give semaphores and send to
+//! queues (`*_from_isr`), which never switch tasks themselves: the switch happens as the
+//! interrupt returns, if a more urgent task became ready.
+
+use crate::port;
+use crate::sched::{FOREVER, ObjId, Sched, TaskId};
+use core::cell::UnsafeCell;
+use core::mem::MaybeUninit;
+use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use hardroxide_mmio::{MmioBackend, PhysMem};
+use hardroxide_ps7::{cp15, gic::Gic, irq, map, timer::PrivateTimer};
+
+static mut SCHED: Sched = Sched::new();
+static TICK_HZ: AtomicU32 = AtomicU32::new(0);
+static STARTED: AtomicU32 = AtomicU32::new(0);
+
+/// Run `f` on the scheduler state with interrupts masked.
+#[inline(always)]
+fn cs<R>(f: impl FnOnce(&mut Sched) -> R) -> R {
+    cp15::without_irq(|| {
+        // SAFETY: single core, interrupts masked: nothing else can touch `SCHED` now.
+        f(unsafe { &mut *core::ptr::addr_of_mut!(SCHED) })
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    /// The task table or the synchronisation-object table is full, or the priority is 0.
+    NoSlot,
+    /// The stack is too small for a context frame plus work.
+    StackTooSmall,
+}
+
+/// Convert milliseconds to ticks (rounded up, at least 1 for a non-zero time).
+pub fn ms_to_ticks(ms: u32) -> u64 {
+    let hz = u64::from(TICK_HZ.load(Ordering::Relaxed).max(1));
+    (u64::from(ms) * hz).div_ceil(1000)
+}
+
+/// Ticks since the kernel started.
+pub fn ticks() -> u64 {
+    cs(|s| s.tick)
+}
+
+/// Define a stack for a task: `static` memory handed out once.
+///
+/// ```ignore
+/// let stack = hardroxide_rt::task_stack!(4096).unwrap();
+/// ```
+#[macro_export]
+macro_rules! task_stack {
+    ($size:expr) => {{
+        #[repr(align(8))]
+        #[allow(dead_code)]
+        struct Stack([u8; $size]);
+        static mut STACK: Stack = Stack([0; $size]);
+        static TAKEN: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
+        if TAKEN.swap(true, core::sync::atomic::Ordering::AcqRel) {
+            None
+        } else {
+            let len: usize = $size;
+            // SAFETY: `TAKEN` guarantees this is the only reference ever made to `STACK`.
+            Some(unsafe {
+                core::slice::from_raw_parts_mut(core::ptr::addr_of_mut!(STACK) as *mut u8, len)
+            })
+        }
+    }};
+}
+
+extern "C" fn task_returned() -> ! {
+    cs(|s| s.exit_current());
+    loop {
+        port::yield_now();
+    }
+}
+
+fn idle() {
+    loop {
+        cp15::wfi();
+    }
+}
+
+/// Create a task with priority `prio` (1 and up; **higher is more urgent**) that runs
+/// `entry` on `stack` (at least 512 bytes). May be called before [`start`] or from a task.
+pub fn spawn(
+    name: &'static str,
+    prio: u8,
+    stack: &'static mut [u8],
+    entry: fn(),
+) -> Result<TaskId, Error> {
+    if stack.len() < 512 {
+        return Err(Error::StackTooSmall);
+    }
+    let sp = port::init_frame(stack, entry, task_returned);
+    cs(|s| s.add_task(name, prio, sp)).ok_or(Error::NoSlot)
+}
+
+extern "C" fn dummy() -> ! {
+    loop {
+        cp15::wfe();
+    }
+}
+
+/// Start the scheduler: create the idle task, start the tick (a private-timer interrupt at
+/// `tick_hz`; `periph_hz` is [`hardroxide_ps7::clocks::periph_hz`]) and run the most urgent
+/// task. Never returns. The GIC must already be initialised (`Design::init` does it).
+pub fn start(periph_hz: u64, tick_hz: u32) -> ! {
+    TICK_HZ.store(tick_hz, Ordering::Relaxed);
+    let idle_stack = crate::task_stack!(1024).expect("kernel started twice");
+    let idle_sp = port::init_frame(idle_stack, idle, dummy);
+    cs(|s| s.init_idle(idle_sp));
+    // SAFETY: the GIC and private-timer windows belong to the kernel tick from here on.
+    let be = unsafe { PhysMem::new() };
+    let gic = Gic::new(
+        be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)
+            .expect("gic"),
+        be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE)
+            .expect("gic"),
+    );
+    let timer = PrivateTimer::new(
+        be.map(map::PRIVATE_TIMER_BASE as u64, map::PRIVATE_TIMER_SIZE)
+            .expect("timer"),
+    );
+    gic.set_priority(map::ppi::PRIVATE_TIMER, 0x40)
+        .expect("gic");
+    gic.enable(map::ppi::PRIVATE_TIMER).expect("gic");
+    let per_tick = (periph_hz / u64::from(tick_hz.max(1))) as u32;
+    timer.start_periodic(per_tick).expect("timer");
+    STARTED.store(1, Ordering::Release);
+    let first = cs(|s| {
+        s.schedule();
+        s.tasks[s.current].sp
+    });
+    // SAFETY: `first` is a frame built by `init_frame`; this never returns.
+    unsafe { port::hrx_rt_start_first(first) }
+}
+
+/// Save `sp` for the running task, choose the next one, and return its stack pointer.
+fn switch(sp: usize, force: bool) -> usize {
+    cs(|s| {
+        s.tasks[s.current].sp = sp;
+        if force || s.should_preempt() {
+            s.schedule();
+        }
+        s.tasks[s.current].sp
+    })
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn hrx_rt_svc(sp: usize) -> usize {
+    // A blocking call or an explicit yield: always reschedule.
+    cs(|s| {
+        s.tasks[s.current].sp = sp;
+        s.schedule();
+        s.tasks[s.current].sp
+    })
+}
+
+#[unsafe(no_mangle)]
+extern "C" fn hrx_rt_irq(sp: usize) -> usize {
+    // SAFETY: the GIC and private-timer windows are used only by the interrupt path.
+    let be = unsafe { PhysMem::new() };
+    let (Ok(d), Ok(c)) = (
+        be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE),
+        be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE),
+    ) else {
+        return sp;
+    };
+    let gic = Gic::new(d, c);
+    let mut tick_switch = false;
+    if let Ok(Some(id)) = gic.acknowledge() {
+        if id == map::ppi::PRIVATE_TIMER {
+            if let Ok(t) = be.map(map::PRIVATE_TIMER_BASE as u64, map::PRIVATE_TIMER_SIZE) {
+                let _ = PrivateTimer::new(t).clear_interrupt();
+            }
+            tick_switch = cs(|s| s.tick());
+        } else if irq::dispatch(id) != irq::Dispatched::Handler {
+            let _ = gic.disable(id);
+        }
+        let _ = gic.end_of_interrupt(id);
+    }
+    switch(sp, tick_switch)
+}
+
+/// Give up the processor to an equally urgent ready task (or keep it if there is none).
+pub fn yield_now() {
+    // Re-queue the caller behind its equals by marking nothing: the scheduler's round-robin
+    // scan starts after the current task.
+    port::yield_now();
+}
+
+/// Sleep for at least `ticks` ticks.
+pub fn delay(ticks: u64) {
+    cs(|s| s.delay_current(ticks));
+    port::yield_now();
+}
+
+/// Sleep for at least `ms` milliseconds.
+pub fn delay_ms(ms: u32) {
+    delay(ms_to_ticks(ms));
+}
+
+/// A periodic release: construct it once at the top of a task's loop, then call
+/// [`wait_next`](Self::wait_next) at the end of each iteration. The period does not drift
+/// however long an iteration takes.
+pub struct Periodic {
+    last: u64,
+    period: u64,
+}
+
+impl Periodic {
+    pub fn new(period_ticks: u64) -> Self {
+        Periodic {
+            last: ticks(),
+            period: period_ticks.max(1),
+        }
+    }
+    pub fn every_ms(ms: u32) -> Self {
+        Self::new(ms_to_ticks(ms))
+    }
+    /// Sleep until the next release. Returns `false` (without sleeping) if that release is
+    /// already in the past: the iteration overran its period.
+    pub fn wait_next(&mut self) -> bool {
+        let slept = cs(|s| s.delay_until_current(&mut self.last, self.period));
+        if slept {
+            port::yield_now();
+        }
+        slept
+    }
+}
+
+/// Lazily allocated kernel object id (so objects can be `static`).
+struct LazyId(AtomicUsize);
+
+impl LazyId {
+    const fn new() -> Self {
+        LazyId(AtomicUsize::new(usize::MAX))
+    }
+    fn get(&self, alloc: impl FnOnce(&mut Sched) -> Option<ObjId>) -> ObjId {
+        let v = self.0.load(Ordering::Acquire);
+        if v != usize::MAX {
+            return v;
+        }
+        cs(|s| {
+            let v = self.0.load(Ordering::Acquire);
+            if v != usize::MAX {
+                return v;
+            }
+            let id = alloc(s).expect("kernel object table full");
+            self.0.store(id, Ordering::Release);
+            id
+        })
+    }
+}
+
+/// A counting semaphore.
+pub struct Semaphore {
+    id: LazyId,
+    initial: u32,
+    max: u32,
+}
+
+impl Semaphore {
+    /// A semaphore with `initial` permits, holding at most `max`. `const`, so it can be a `static`.
+    pub const fn new(initial: u32, max: u32) -> Self {
+        Semaphore {
+            id: LazyId::new(),
+            initial,
+            max,
+        }
+    }
+
+    fn id(&self) -> ObjId {
+        self.id.get(|s| s.new_semaphore(self.initial, self.max))
+    }
+
+    /// Take a permit, waiting up to `timeout` ticks ([`FOREVER`] to wait for ever, 0 to
+    /// poll). `true` if a permit was taken.
+    pub fn take(&self, timeout: u64) -> bool {
+        let id = self.id();
+        let blocked = cs(|s| {
+            if s.sem_try_take(id) {
+                return Some(true);
+            }
+            if timeout == 0 {
+                return Some(false);
+            }
+            s.block_current_on(id, timeout);
+            None
+        });
+        if let Some(r) = blocked {
+            return r;
+        }
+        port::yield_now();
+        // Resumed: a permit was handed to us, unless the wait timed out.
+        cs(|s| !s.tasks[s.current].timed_out)
+    }
+
+    /// Give a permit, from a task. Switches at once if that wakes a more urgent task.
+    pub fn give(&self) {
+        let id = self.id();
+        if cs(|s| {
+            s.sem_give(id);
+            s.should_preempt()
+        }) {
+            port::yield_now();
+        }
+    }
+
+    /// Give a permit from an interrupt handler. Never switches; the switch, if needed, happens
+    /// when the interrupt returns.
+    pub fn give_from_isr(&self) {
+        let id = self.id();
+        cs(|s| {
+            s.sem_give(id);
+        });
+    }
+}
+
+/// A mutual-exclusion lock with priority inheritance: while a more urgent task waits for it,
+/// the holder runs at that task's priority, so a medium-priority task cannot starve it.
+pub struct Mutex {
+    id: LazyId,
+}
+
+/// Held while the lock is. Unlocks on drop.
+pub struct MutexGuard<'a>(&'a Mutex);
+
+impl Mutex {
+    pub const fn new() -> Self {
+        Mutex { id: LazyId::new() }
+    }
+
+    fn id(&self) -> ObjId {
+        self.id.get(|s| s.new_mutex())
+    }
+
+    /// Take the lock, waiting up to `timeout` ticks. `None` on timeout.
+    pub fn lock(&self, timeout: u64) -> Option<MutexGuard<'_>> {
+        let id = self.id();
+        let outcome = cs(|s| {
+            if s.mutex_try_take(id) {
+                return Some(true);
+            }
+            if timeout == 0 {
+                return Some(false);
+            }
+            s.mutex_boost_owner(id);
+            s.block_current_on(id, timeout);
+            None
+        });
+        match outcome {
+            Some(true) => Some(MutexGuard(self)),
+            Some(false) => None,
+            None => {
+                port::yield_now();
+                // Resumed: ownership was handed to us, unless the wait timed out.
+                if cs(|s| s.tasks[s.current].timed_out) {
+                    None
+                } else {
+                    Some(MutexGuard(self))
+                }
+            }
+        }
+    }
+}
+
+impl Default for Mutex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for MutexGuard<'_> {
+    fn drop(&mut self) {
+        let id = self.0.id();
+        if cs(|s| {
+            let me = s.current;
+            let _ = s.mutex_give(id, me);
+            s.should_preempt()
+        }) {
+            port::yield_now();
+        }
+    }
+}
+
+/// A bounded first-in-first-out queue of `Copy` items between tasks, and from interrupt
+/// handlers to tasks.
+pub struct Queue<T: Copy, const N: usize> {
+    items: Semaphore,
+    space: Semaphore,
+    buf: UnsafeCell<[MaybeUninit<T>; N]>,
+    head: UnsafeCell<usize>,
+    tail: UnsafeCell<usize>,
+}
+
+// SAFETY: all access to the buffer and indices is inside critical sections (or follows a
+// semaphore permit that grants exclusive use of that slot), so sharing between tasks and
+// interrupt handlers on one core is sound.
+unsafe impl<T: Copy + Send, const N: usize> Sync for Queue<T, N> {}
+
+impl<T: Copy, const N: usize> Queue<T, N> {
+    pub const fn new() -> Self {
+        Queue {
+            items: Semaphore::new(0, N as u32),
+            space: Semaphore::new(N as u32, N as u32),
+            buf: UnsafeCell::new([const { MaybeUninit::uninit() }; N]),
+            head: UnsafeCell::new(0),
+            tail: UnsafeCell::new(0),
+        }
+    }
+
+    fn push(&self, v: T) {
+        cs(|_| {
+            // SAFETY: inside a critical section; a `space` permit guarantees a free slot.
+            unsafe {
+                let t = *self.tail.get();
+                (*self.buf.get())[t].write(v);
+                *self.tail.get() = (t + 1) % N;
+            }
+        });
+    }
+
+    fn pop(&self) -> T {
+        cs(|_| {
+            // SAFETY: inside a critical section; an `items` permit guarantees a stored item.
+            unsafe {
+                let h = *self.head.get();
+                let v = (*self.buf.get())[h].assume_init();
+                *self.head.get() = (h + 1) % N;
+                v
+            }
+        })
+    }
+
+    /// Append `v`, waiting up to `timeout` ticks for room. `false` if there was none in time.
+    pub fn send(&self, v: T, timeout: u64) -> bool {
+        if !self.space.take(timeout) {
+            return false;
+        }
+        self.push(v);
+        self.items.give();
+        true
+    }
+
+    /// Take the oldest item, waiting up to `timeout` ticks for one.
+    pub fn recv(&self, timeout: u64) -> Option<T> {
+        if !self.items.take(timeout) {
+            return None;
+        }
+        let v = self.pop();
+        self.space.give();
+        Some(v)
+    }
+
+    /// Append from an interrupt handler without waiting; `false` if the queue is full.
+    pub fn send_from_isr(&self, v: T) -> bool {
+        if !self.space.take(0) {
+            return false;
+        }
+        self.push(v);
+        self.items.give_from_isr();
+        true
+    }
+}
+
+impl<T: Copy, const N: usize> Default for Queue<T, N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Wait for ever.
+pub const WAIT_FOREVER: u64 = FOREVER;

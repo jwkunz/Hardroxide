@@ -1,0 +1,29 @@
+[package]
+name = "rt-smoke"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# A standalone workspace: this builds for the bare-metal target, not the host.
+[workspace]
+
+[features]
+# Run under QEMU's xilinx-zynq-a9 machine (does the PLL/UART-clock setup ps7_init would).
+qemu = []
+
+[dependencies]
+# The kernel provides the IRQ and SVC entries, so the PS crate's defaults are off.
+hardroxide-ps7 = { path = "../../crates/hardroxide-ps7", default-features = false, features = ["panic-handler"] }
+hardroxide-rt = { path = "../../crates/hardroxide-rt" }
+hardroxide-mmio = { path = "../../crates/hardroxide-mmio", default-features = false, features = ["physmem"] }
+
+[build-dependencies]
+hardroxide-ps7 = { path = "../../crates/hardroxide-ps7" }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+debug = true
+
+[profile.dev]
+panic = "abort"

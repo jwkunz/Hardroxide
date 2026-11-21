@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "hardroxide-irq"
+version = "1.0.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "hardroxide-mmio"
 version = "1.0.0"
 dependencies = [
@@ -13,6 +20,7 @@ dependencies = [
 name = "hardroxide-ps7"
 version = "1.0.0"
 dependencies = [
+ "hardroxide-irq",
  "hardroxide-mmio",
 ]
 

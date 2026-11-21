@@ -8,6 +8,8 @@ CRATES="-p hardroxide-mmio -p hardroxide-fpga -p hardroxide-dma -p hardroxide-ir
 cargo build --release --target armv7a-none-eabihf --no-default-features $CRATES "$@"
 # The PS support crate (ARM only parts included).
 cargo build --release --target armv7a-none-eabihf -p hardroxide-ps7 --features panic-handler "$@"
+# The kernel (ARM only parts included).
+cargo build --release --target armv7a-none-eabihf -p hardroxide-rt "$@"
 # `alloc` adds the Vec-returning conveniences and needs a global allocator at link time,
 # so only check that it type-checks.
 cargo check --release --target armv7a-none-eabihf --no-default-features --features hardroxide-ip/alloc -p hardroxide-ip "$@"

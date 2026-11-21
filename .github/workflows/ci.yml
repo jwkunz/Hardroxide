@@ -17,6 +17,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y device-tree-compiler gcc-arm-linux-gnueabihf qemu-user qemu-system-arm
       - run: cargo fmt --all --check
       - run: cd baremetal/ps7-smoke && cargo fmt --check
+      - run: cd baremetal/rt-smoke && cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - uses: taiki-e/install-action@v2

@@ -51,7 +51,7 @@ fails if signatures, help text or links drift. Guide examples are compile-tested
 (`cargo test -p hardroxide-gen --test guide`; tag blocks
 `rust,ignore,fixture=<name>`, `# ` lines are hidden setup).
 
-**Next step:** 2.7.0 is released (tag `v2.7.0` and a GitHub release; 2.0.0 and 2.1.0 are tagged too; nothing is on crates.io, publishing needs the maintainer's token, `docs/release.md`). ADR 0004's plan is complete. Open items, recorded in `docs/05-roadmap.md` ("After 2.7"): a hardware random source in the PL (the TLS
+**Next step:** 2.7.0 is released (tag `v2.7.0` and a GitHub release; 2.0.0 and 2.1.0 are tagged too; all 17 crates are on crates.io at 2.7.0, published 2026-11-22 under the maintainer's own account `jwkunz`; publishing a crate or a new version needs the maintainer's token and is irreversible, see `docs/release.md`). ADR 0004's plan is complete. Open items, recorded in `docs/05-roadmap.md` ("After 2.7"): a hardware random source in the PL (the TLS
 random bytes are weak), faster public-key arithmetic or PL accelerators (a TLS handshake is about 80 ms of the core), HDMI input capture, regenerating the other board fixtures' `ps7_init`, `fsck.fat` on a board-formatted card, listening to the audio, an interactive browser session, a longer soak, an independent review of the crypto and TLS.
 
 On a board: stop anything using the PL before the first `load()` (it refuses if a

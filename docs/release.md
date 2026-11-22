@@ -26,8 +26,8 @@ irreversible (a crate version can be yanked but not deleted).
    to `main`; check <https://jwkunz.github.io/Hardroxide/>.
 
 Generated crates depend on the runtime crates by version (`"2"`) unless
-`--hardroxide-path` is given, so a crate generated before publication only builds
-with that flag.
+`--hardroxide-path` is given. All 17 crates were first published at 2.7.0 on 2026-11-22 (the `v2.7.0` tag is the commit before the security policy and the README warnings were added, so
+the published crates differ from the tag by documentation files only).
 
 The CLI is the `hardroxide-cli` crate; `cargo install hardroxide-cli` installs the
 `hardroxide` binary. The crate name `hardroxide` itself is unclaimed.

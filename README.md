@@ -61,7 +61,8 @@ IP instance, and Vivado 2025.2 is the version actually exercised on hardware.
 ## Quick start
 
 ```
-cargo install --path crates/hardroxide-cli      # installs `hardroxide`
+cargo install hardroxide-cli                    # from crates.io, or:
+cargo install --path crates/hardroxide-cli      # from a checkout
 hardroxide inspect design.xsa
 hardroxide generate design.xsa -o my_design
 ```

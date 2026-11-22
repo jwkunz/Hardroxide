@@ -240,7 +240,7 @@ network needs for a login form or a control page. Scope: **TLS 1.3 server only**
 3. **Hardware:** the maintainer has all of it and will connect each item when its version needs it: the HDMI monitor for
    2.2, audio cables for 2.3, a microSD card for 2.4, Ethernet for 2.5 and 2.6.
 4. **Publishing is deferred.** Nothing in 2.x is published for now; the libraries are published later, once the maintainer
-   decides, after their board acceptance tests pass.
+   decides, after their board acceptance tests pass. *Update 2026-11-22: all 17 crates were published to crates.io at 2.7.0 under the maintainer's account (`jwkunz`), crypto and TLS included, with prominent unaudited warnings.*
 
 ## Later: hardware acceleration and a hardware random source
 

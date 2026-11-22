@@ -3,7 +3,7 @@
 ## 2.7.0 (2026-11-21)
 
 The rest of the applications on the PYNQ base overlay, versions 2.2 to 2.7 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md), released together (2.2 to 2.6 were merged one by one without a release). Every item was verified on a PYNQ-Z2; the open
-items are listed with each. **The networking, TLS and cryptography are home-made and have had no outside review: read the [security statement](docs/reference/tls.md#security-statement) before trusting them.** Not published to crates.io (that needs the maintainer's token).
+items are listed with each. **The networking, TLS and cryptography are home-made and have had no outside review: read the [security statement](docs/reference/tls.md#security-statement) before trusting them.** **Published to crates.io on 2026-11-22: all 17 crates at 2.7.0** (`cargo install hardroxide-cli`). The published packages add a security policy and warnings at the top of the `hardroxide-crypto`, `-tls` and `-net` READMEs to the `v2.7.0` tag.
 
 ### HDMI output and graphics (2.2)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the

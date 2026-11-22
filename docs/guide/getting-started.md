@@ -26,8 +26,11 @@ $ export PATH=$PWD/target/release:$PATH
 $ hardroxide --help
 ```
 
-(Once the crates are published, `cargo install hardroxide-cli` installs the
-`hardroxide` binary directly.)
+Or install the released binary from crates.io (version 2.7.0 and later; it needs no checkout):
+
+```console
+$ cargo install hardroxide-cli
+```
 
 ## Inspect a design
 
@@ -56,8 +59,8 @@ $ hardroxide generate fixtures/pynq_z2_gpio.xsa -o my_design \
 $ cd my_design && cargo build
 ```
 
-`--hardroxide-path` makes the crate depend on the runtime crates in your checkout
-(use it until they are published; the path is made absolute for you). The crate
+By default the generated crate depends on the runtime crates published on crates.io (version `"2"`); `--hardroxide-path` makes it depend on the runtime crates in your checkout
+instead (to develop the runtime or to try a change that is not released; the path is made absolute for you). The crate
 builds on your workstation, where it can be tested against a mock backend
 ([Using a generated crate](using.md)); it can only reach hardware on the board.
 

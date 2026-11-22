@@ -49,8 +49,8 @@ $ hardroxide generate design.xsa -o my_design [--hardroxide-path <checkout>]
 ```
 
 Output is **deterministic** (same XSA, byte-identical crate), so commit the crate
-and diff it. Until the runtime crates are published, `--hardroxide-path` points the
-crate at a checkout of this repository. See [Generated crate](../reference/generated-crate.md).
+and diff it. The runtime crates are on crates.io (2.7.0 and later); `--hardroxide-path` points the
+crate at a checkout of this repository instead. See [Generated crate](../reference/generated-crate.md).
 
 ## 4. Write your program
 

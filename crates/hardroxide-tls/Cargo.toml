@@ -1,0 +1,16 @@
+[package]
+name = "hardroxide-tls"
+description = "A TLS 1.3 server written for Hardroxide: one cipher suite (ChaCha20-Poly1305), X25519, Ed25519 certificates; no_std, no allocation. Educational: not audited."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+hardroxide-crypto.workspace = true
+hardroxide-net.workspace = true

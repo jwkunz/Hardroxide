@@ -357,6 +357,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-tls"
+version = "2.5.0"
+dependencies = [
+ "hardroxide-crypto",
+ "hardroxide-net",
+]
+
+[[package]]
 name = "hardroxide-video"
 version = "2.5.0"
 dependencies = [

@@ -249,6 +249,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-crypto"
+version = "2.5.0"
+
+[[package]]
 name = "hardroxide-dma"
 version = "2.5.0"
 dependencies = [

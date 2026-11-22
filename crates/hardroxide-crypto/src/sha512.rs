@@ -120,8 +120,8 @@ impl Sha512 {
 
     fn compress(state: &mut [u64; 8], block: &[u8; 128]) {
         let mut w = [0u64; 80];
-        for (i, c) in block.chunks_exact(8).enumerate() {
-            w[i] = u64::from_be_bytes(c.try_into().unwrap());
+        for (i, c) in block.as_chunks::<8>().0.iter().enumerate() {
+            w[i] = u64::from_be_bytes(*c);
         }
         for i in 16..80 {
             let s0 = w[i - 15].rotate_right(1) ^ w[i - 15].rotate_right(8) ^ (w[i - 15] >> 7);
@@ -194,7 +194,7 @@ impl Sha512 {
         self.update(&pad[..padlen + 16]);
         self.total = total;
         let mut out = [0u8; 64];
-        for (o, s) in out.chunks_exact_mut(8).zip(self.state) {
+        for (o, s) in out.as_chunks_mut::<8>().0.iter_mut().zip(self.state) {
             o.copy_from_slice(&s.to_be_bytes());
         }
         out

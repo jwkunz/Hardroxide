@@ -133,7 +133,7 @@ pub fn header_24bit(width: u32, height: u32) -> [u8; 54] {
 /// Encode one row of pixels (`0x00RRGGBB`) as a padded 24-bit BMP row into `out`
 /// (`(width * 3).next_multiple_of(4)` bytes).
 pub fn encode_row(pixels: &[u32], out: &mut [u8]) {
-    for (p, o) in pixels.iter().zip(out.chunks_exact_mut(3)) {
+    for (p, o) in pixels.iter().zip(out.as_chunks_mut::<3>().0.iter_mut()) {
         o[0] = *p as u8;
         o[1] = (*p >> 8) as u8;
         o[2] = (*p >> 16) as u8;

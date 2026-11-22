@@ -780,8 +780,10 @@ impl<'a> Hello<'a> {
         }
         let suites = r.vec16()?;
         let cipher_ok = suites
-            .chunks_exact(2)
-            .any(|c| u16::from_be_bytes([c[0], c[1]]) == CIPHER_CHACHA20_POLY1305);
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .any(|c| u16::from_be_bytes(*c) == CIPHER_CHACHA20_POLY1305);
         let compression = r.vec8()?;
         if !compression.contains(&0) {
             return err(Alert::IllegalParameter, "no null compression offered");
@@ -802,14 +804,16 @@ impl<'a> Hello<'a> {
                 0x002b => {
                     let list = d.vec8()?;
                     h.version_ok = list
-                        .chunks_exact(2)
-                        .any(|c| u16::from_be_bytes([c[0], c[1]]) == VERSION_TLS13);
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .any(|c| u16::from_be_bytes(*c) == VERSION_TLS13);
                 }
                 // signature_algorithms.
                 0x000d => {
                     let list = d.vec16()?;
-                    for c in list.chunks_exact(2) {
-                        match u16::from_be_bytes([c[0], c[1]]) {
+                    for c in list.as_chunks::<2>().0 {
+                        match u16::from_be_bytes(*c) {
                             SIGALG_ED25519 => h.sigalgs |= 1,
                             SIGALG_ECDSA_P256_SHA256 => h.sigalgs |= 2,
                             _ => {}

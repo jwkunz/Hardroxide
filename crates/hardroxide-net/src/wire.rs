@@ -22,11 +22,11 @@ pub const TCP_ACK: u8 = 0x10;
 
 /// Add the 16-bit big-endian words of `data` to a running one's-complement sum (an odd last byte is padded with zero).
 pub fn checksum_add(mut sum: u32, data: &[u8]) -> u32 {
-    let mut chunks = data.chunks_exact(2);
-    for c in &mut chunks {
-        sum += u32::from(u16::from_be_bytes([c[0], c[1]]));
+    let (pairs, rest) = data.as_chunks::<2>();
+    for c in pairs {
+        sum += u32::from(u16::from_be_bytes(*c));
     }
-    if let [last] = chunks.remainder() {
+    if let [last] = rest {
         sum += u32::from(*last) << 8;
     }
     sum

@@ -32,7 +32,5 @@ hardroxide-ip = { path = "crates/hardroxide-ip", version = "2.7.0", default-feat
 hardroxide-tls = { path = "crates/hardroxide-tls", version = "2.7.0" }
 hardroxide-crypto = { path = "crates/hardroxide-crypto", version = "2.7.0" }
 hardroxide-net = { path = "crates/hardroxide-net", version = "2.7.0" }
-hardroxide-audio = { path = "crates/hardroxide-audio", version = "2.7.0", default-features = false }
 hardroxide-ps7 = { path = "crates/hardroxide-ps7", version = "2.7.0", default-features = false }
-hardroxide-rt = { path = "crates/hardroxide-rt", version = "2.7.0" }
 embedded-hal = "1"

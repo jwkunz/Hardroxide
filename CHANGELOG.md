@@ -3,7 +3,7 @@
 ## Unreleased
 
 Applications on the PYNQ base overlay, versions 2.2 to 2.6 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
-version is 2.5.0 (2.6 is in progress on a branch), not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
+version is 2.6.0, not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
 
 ### HDMI output and graphics (2.2)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the

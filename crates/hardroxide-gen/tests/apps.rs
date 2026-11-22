@@ -64,7 +64,10 @@ fn applications_build() {
         let data = root().join("apps").join(set).join("data");
         if let Ok(rd) = std::fs::read_dir(&data) {
             for e in rd.flatten() {
-                if e.path().extension().is_some_and(|x| x == "wav") {
+                if e.path()
+                    .extension()
+                    .is_some_and(|x| x == "wav" || x == "der" || x == "bin")
+                {
                     std::fs::copy(e.path(), tmp.join("examples").join(e.file_name())).unwrap();
                 }
             }
@@ -72,12 +75,14 @@ fn applications_build() {
         let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
         // The applications use the library crates beyond what a generated crate depends on.
         manifest.push_str(&format!(
-            "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\nhardroxide-audio = {{ path = {:?}, default-features = false }}\nhardroxide-fat = {{ path = {:?} }}\nhardroxide-net = {{ path = {:?} }}\nhardroxide-ps7 = {{ path = {:?}, default-features = false, features = [\"net\"] }}\n\n[workspace]\n",
+            "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\nhardroxide-audio = {{ path = {:?}, default-features = false }}\nhardroxide-fat = {{ path = {:?} }}\nhardroxide-net = {{ path = {:?} }}\nhardroxide-crypto = {{ path = {:?} }}\nhardroxide-tls = {{ path = {:?} }}\nhardroxide-ps7 = {{ path = {:?}, default-features = false, features = [\"net\"] }}\n\n[workspace]\n",
             root().join("crates/hardroxide-gfx"),
             root().join("crates/hardroxide-video"),
             root().join("crates/hardroxide-audio"),
             root().join("crates/hardroxide-fat"),
             root().join("crates/hardroxide-net"),
+            root().join("crates/hardroxide-crypto"),
+            root().join("crates/hardroxide-tls"),
             root().join("crates/hardroxide-ps7")
         ));
         std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();

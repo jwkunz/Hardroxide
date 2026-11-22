@@ -4,9 +4,73 @@
 //! [`Server`]. Responses may be larger than the TCP buffer: the body is either fixed bytes, written by the handler into a scratch buffer,
 //! or produced in pieces by a function as the connection has room.
 
-use crate::tcp::State;
+use crate::tcp::{State, TcpSocket};
 use crate::{Device, Stack};
 use core::fmt::Write;
+
+/// A byte stream the HTTP server can serve over: a TCP socket, or a TLS connection on one.
+pub trait Stream {
+    /// Move bytes between the layers underneath (a no-op for a TCP socket). Called before and after the server works on the stream.
+    fn pump(&mut self) {}
+    /// The stream is idle and should be told to listen again.
+    fn is_idle(&self) -> bool;
+    /// A connection is being set up (or a handshake is running): nothing to do yet.
+    fn is_waiting(&self) -> bool;
+    /// The peer reset the connection, or it failed.
+    fn was_reset(&self) -> bool;
+    /// Read bytes; returns how many.
+    fn recv(&mut self, buf: &mut [u8]) -> usize;
+    /// The peer has closed and everything it sent has been read.
+    fn peer_closed(&self) -> bool;
+    /// Room to queue outgoing bytes.
+    fn send_space(&self) -> usize;
+    /// Queue outgoing bytes; returns how many were taken.
+    fn send(&mut self, data: &[u8]) -> usize;
+    /// Finish sending and close.
+    fn close(&mut self);
+    /// Drop the connection at once.
+    fn abort(&mut self);
+    /// Wait for a new connection on `port`.
+    fn listen(&mut self, port: u16);
+}
+
+impl<const N: usize> Stream for TcpSocket<N> {
+    // A finished connection waits in TIME-WAIT in case its last acknowledgement is lost; a server short of sockets
+    // cannot afford that, and a retransmitted FIN that finds the socket listening again just draws a reset.
+    fn is_idle(&self) -> bool {
+        matches!(self.state(), State::Closed | State::TimeWait)
+    }
+    fn is_waiting(&self) -> bool {
+        matches!(
+            self.state(),
+            State::Listen | State::SynReceived | State::SynSent
+        )
+    }
+    fn was_reset(&self) -> bool {
+        TcpSocket::was_reset(self)
+    }
+    fn recv(&mut self, buf: &mut [u8]) -> usize {
+        TcpSocket::recv(self, buf)
+    }
+    fn peer_closed(&self) -> bool {
+        TcpSocket::peer_closed(self)
+    }
+    fn send_space(&self) -> usize {
+        TcpSocket::send_space(self)
+    }
+    fn send(&mut self, data: &[u8]) -> usize {
+        TcpSocket::send(self, data)
+    }
+    fn close(&mut self) {
+        TcpSocket::close(self)
+    }
+    fn abort(&mut self) {
+        TcpSocket::abort(self)
+    }
+    fn listen(&mut self, port: u16) {
+        TcpSocket::listen(self, port)
+    }
+}
 
 /// Why a request could not be read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -283,126 +347,159 @@ impl<const CONNS: usize, const REQ: usize, const SCRATCH: usize> Server<CONNS, R
         }
     }
 
-    /// Advance every connection: accept, read, call `handler` for each complete request, send responses.
+    /// Advance every connection on the stack's TCP sockets: accept, read, call `handler` for each complete request, send responses.
     pub fn poll<D: Device, const T: usize, const U: usize, const BUF: usize>(
         &mut self,
         stack: &mut Stack<D, T, U, BUF>,
         mut handler: impl FnMut(&Request, &mut Response),
     ) {
         for k in 0..CONNS {
-            let conn = &mut self.conns[k];
             let sock = stack.tcp(self.first_socket + k);
-            match sock.state() {
-                // A finished connection waits in TIME-WAIT in case its last acknowledgement is lost; a server short of sockets
-                // cannot afford that, and a retransmitted FIN that finds the socket listening again just draws a reset.
-                State::Closed | State::TimeWait => {
-                    sock.listen(self.port);
-                    conn.reset();
-                    continue;
+            self.poll_stream(k, sock, &mut handler);
+        }
+    }
+
+    /// Advance connection `k` over `stream` (see [`Server::poll`]; this is the same for any [`Stream`], such as a TLS connection).
+    pub fn poll_stream<S: Stream>(
+        &mut self,
+        k: usize,
+        sock: &mut S,
+        mut handler: impl FnMut(&Request, &mut Response),
+    ) {
+        let port = self.port;
+        let conn = &mut self.conns[k];
+        sock.pump();
+        if sock.is_idle() {
+            sock.listen(port);
+            conn.reset();
+            sock.pump();
+            return;
+        }
+        if sock.is_waiting() {
+            return;
+        }
+        if sock.was_reset() {
+            sock.abort();
+            return;
+        }
+        if conn.phase == Phase::Reading {
+            let n = sock.recv(&mut conn.req[conn.req_len..]);
+            conn.req_len += n;
+            let status = match parse(&conn.req[..conn.req_len]) {
+                Ok(req) => {
+                    let mut res = Response {
+                        status: 200,
+                        content_type: "text/plain",
+                        body: Body::Empty,
+                        scratch: &mut conn.scratch,
+                    };
+                    handler(&req, &mut res);
+                    self.served += 1;
+                    let (status, ct, body) = (res.status, res.content_type, res.body);
+                    conn.body = body;
+                    Some((status, ct))
                 }
-                State::Listen | State::SynReceived | State::SynSent => continue,
-                _ => {}
-            }
-            if sock.was_reset() {
-                sock.abort();
-                continue;
-            }
-            if conn.phase == Phase::Reading {
-                let n = sock.recv(&mut conn.req[conn.req_len..]);
-                conn.req_len += n;
-                let status = match parse(&conn.req[..conn.req_len]) {
-                    Ok(req) => {
-                        let mut res = Response {
-                            status: 200,
-                            content_type: "text/plain",
-                            body: Body::Empty,
-                            scratch: &mut conn.scratch,
-                        };
-                        handler(&req, &mut res);
-                        self.served += 1;
-                        let (status, ct, body) = (res.status, res.content_type, res.body);
-                        conn.body = body;
-                        Some((status, ct))
+                Err(ParseError::Bad) => {
+                    conn.body = Body::Static(b"bad request\n");
+                    Some((400, "text/plain"))
+                }
+                Err(ParseError::Incomplete) if conn.req_len == REQ => {
+                    conn.body = Body::Static(b"request too large\n");
+                    Some((413, "text/plain"))
+                }
+                Err(ParseError::Incomplete) => {
+                    if sock.peer_closed() {
+                        sock.abort();
                     }
-                    Err(ParseError::Bad) => {
-                        conn.body = Body::Static(b"bad request\n");
-                        Some((400, "text/plain"))
-                    }
-                    Err(ParseError::Incomplete) if conn.req_len == REQ => {
-                        conn.body = Body::Static(b"request too large\n");
-                        Some((413, "text/plain"))
-                    }
-                    Err(ParseError::Incomplete) => {
-                        if sock.peer_closed() {
-                            sock.abort();
-                        }
-                        None
-                    }
+                    None
+                }
+            };
+            if let Some((status, ct)) = status {
+                let len = match conn.body {
+                    Body::Empty => 0,
+                    Body::Static(b) => b.len(),
+                    Body::Scratch(n) => n,
+                    Body::Generated { len, .. } => len,
                 };
-                if let Some((status, ct)) = status {
-                    let len = match conn.body {
-                        Body::Empty => 0,
-                        Body::Static(b) => b.len(),
-                        Body::Scratch(n) => n,
-                        Body::Generated { len, .. } => len,
-                    };
-                    let mut w = SliceWriter {
-                        buf: &mut conn.head,
-                        len: 0,
-                    };
-                    let _ = write!(
-                        w,
-                        "HTTP/1.1 {status} {}\r\nContent-Type: {ct}\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n",
-                        reason(status)
-                    );
-                    conn.head_len = w.len;
-                    conn.head_sent = 0;
-                    conn.body_sent = 0;
-                    conn.phase = Phase::Sending;
-                }
+                let mut w = SliceWriter {
+                    buf: &mut conn.head,
+                    len: 0,
+                };
+                let _ = write!(
+                    w,
+                    "HTTP/1.1 {status} {}\r\nContent-Type: {ct}\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n",
+                    reason(status)
+                );
+                conn.head_len = w.len;
+                conn.head_sent = 0;
+                conn.body_sent = 0;
+                conn.phase = Phase::Sending;
             }
-            if conn.phase == Phase::Sending {
-                if conn.head_sent < conn.head_len {
-                    conn.head_sent += sock.send(&conn.head[conn.head_sent..conn.head_len]);
-                }
-                if conn.head_sent == conn.head_len {
-                    match conn.body {
-                        Body::Empty => conn.body_sent = usize::MAX,
-                        Body::Static(b) => conn.body_sent += sock.send(&b[conn.body_sent..]),
-                        Body::Scratch(n) => {
-                            conn.body_sent += sock.send(&conn.scratch[conn.body_sent..n])
-                        }
-                        Body::Generated { len, producer, arg } => {
-                            let mut piece = [0u8; 256];
-                            while conn.body_sent < len {
-                                let room =
-                                    sock.send_space().min(piece.len()).min(len - conn.body_sent);
-                                if room == 0 {
-                                    break;
-                                }
-                                let got = producer(arg, conn.body_sent, &mut piece[..room]);
-                                if got == 0 {
-                                    // The generator ran dry early: stop here rather than hang.
-                                    conn.body_sent = len;
-                                    break;
-                                }
-                                conn.body_sent += sock.send(&piece[..got]);
+        }
+        if conn.phase == Phase::Sending {
+            if conn.head_sent < conn.head_len {
+                conn.head_sent += sock.send(&conn.head[conn.head_sent..conn.head_len]);
+            }
+            if conn.head_sent == conn.head_len {
+                match conn.body {
+                    Body::Empty => conn.body_sent = usize::MAX,
+                    Body::Static(b) => {
+                        // A stream takes a little at a time (a TLS record, a TCP buffer): keep going while it takes data.
+                        while conn.body_sent < b.len() {
+                            let took = sock.send(&b[conn.body_sent..]);
+                            if took == 0 {
+                                break;
                             }
+                            conn.body_sent += took;
+                            sock.pump();
                         }
                     }
-                    let total = match conn.body {
-                        Body::Empty => 0,
-                        Body::Static(b) => b.len(),
-                        Body::Scratch(n) => n,
-                        Body::Generated { len, .. } => len,
-                    };
-                    if conn.body_sent == usize::MAX || conn.body_sent >= total {
-                        sock.close();
-                        conn.phase = Phase::Closing;
+                    Body::Scratch(n) => {
+                        while conn.body_sent < n {
+                            let took = sock.send(&conn.scratch[conn.body_sent..n]);
+                            if took == 0 {
+                                break;
+                            }
+                            conn.body_sent += took;
+                            sock.pump();
+                        }
                     }
+                    Body::Generated { len, producer, arg } => {
+                        let mut piece = [0u8; 256];
+                        while conn.body_sent < len {
+                            let room = sock.send_space().min(piece.len()).min(len - conn.body_sent);
+                            if room == 0 {
+                                break;
+                            }
+                            let got = producer(arg, conn.body_sent, &mut piece[..room]);
+                            if got == 0 {
+                                // The generator ran dry early: stop here rather than hang.
+                                conn.body_sent = len;
+                                break;
+                            }
+                            let took = sock.send(&piece[..got]);
+                            conn.body_sent += took;
+                            if took < got {
+                                // The stream took less than was made: the producer is called again from the new offset.
+                                break;
+                            }
+                            sock.pump();
+                        }
+                    }
+                }
+                let total = match conn.body {
+                    Body::Empty => 0,
+                    Body::Static(b) => b.len(),
+                    Body::Scratch(n) => n,
+                    Body::Generated { len, .. } => len,
+                };
+                if conn.body_sent == usize::MAX || conn.body_sent >= total {
+                    sock.close();
+                    conn.phase = Phase::Closing;
                 }
             }
         }
+        sock.pump();
     }
 }
 

@@ -54,6 +54,7 @@
   - [3. Sound](tutorials/apps/03-audio.md)
   - [4. An SD card and files](tutorials/apps/04-sd.md)
   - [5. Ethernet and a web server](tutorials/apps/05-network.md)
+  - [6. HTTPS with a self-signed certificate](tutorials/apps/06-https.md)
 
 # Reference
 
@@ -74,6 +75,8 @@
 - [hardroxide-audio](reference/audio.md)
 - [hardroxide-fat](reference/fat.md)
 - [hardroxide-net](reference/net.md)
+- [hardroxide-crypto](reference/crypto.md)
+- [hardroxide-tls](reference/tls.md)
 - [hardroxide-ip](reference/ip.md)
   - [AXI GPIO](reference/ip-gpio.md)
   - [HLS IP](reference/ip-hls.md)

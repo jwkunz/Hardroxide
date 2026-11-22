@@ -243,10 +243,16 @@ version = "2.5.0"
 dependencies = [
  "anyhow",
  "clap",
+ "hardroxide-crypto",
  "hardroxide-gen",
  "hardroxide-hwh",
+ "hardroxide-tls",
  "zip",
 ]
+
+[[package]]
+name = "hardroxide-crypto"
+version = "2.5.0"
 
 [[package]]
 name = "hardroxide-dma"
@@ -350,6 +356,14 @@ dependencies = [
  "hardroxide-irq",
  "hardroxide-mmio",
  "hardroxide-ps7",
+]
+
+[[package]]
+name = "hardroxide-tls"
+version = "2.5.0"
+dependencies = [
+ "hardroxide-crypto",
+ "hardroxide-net",
 ]
 
 [[package]]

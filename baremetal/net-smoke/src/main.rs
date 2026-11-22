@@ -6,7 +6,9 @@
 #![no_main]
 
 use hardroxide_mmio::{Mmio, MmioBackend, PhysMem};
+use hardroxide_crypto::Drbg;
 use hardroxide_net::http::Server;
+use hardroxide_tls::{Config as TlsConfig, HttpsServer};
 use hardroxide_net::{Config, Stack, StaticConfig};
 use hardroxide_ps7::gem::{DMA_REGION_BYTES, Gem};
 use hardroxide_ps7::{clocks, console, map, println, time};
@@ -53,7 +55,11 @@ fn pattern(arg: u32, offset: usize, out: &mut [u8]) -> usize {
     out.len()
 }
 
-type Net = Stack<Gem<hardroxide_mmio::PhysRegion>, 4, 1, 4096>;
+type Net = Stack<Gem<hardroxide_mmio::PhysRegion>, 8, 1, 4096>;
+
+/// The throwaway test identity (see fixtures/tls/README.md): never use it for anything real.
+static TEST_CERT: &[u8] = include_bytes!("../../../fixtures/tls/test-cert.der");
+static TEST_KEY: &[u8; 32] = include_bytes!("../../../fixtures/tls/test-key.bin");
 
 fn main() -> ! {
     platform_init();
@@ -83,6 +89,16 @@ fn main() -> ! {
     let mut net: Net = Stack::new(gem, config, ms());
     let mut server: Server<3, 2048, 1024> = Server::new(80, 0);
     net.tcp(3).listen(9); // a plain TCP echo, for a quick check
+    // HTTPS on port 443 over sockets 4 to 7. The random bytes come from a generator fed with the clock (this smoke test has no better source).
+    let mut drbg = Drbg::new(b"net-smoke: not a real seed");
+    drbg.add_entropy(&ms().to_le_bytes());
+    let tls_config = TlsConfig::p256(TEST_CERT, *TEST_KEY);
+    
+    let mut random = || {
+        drbg.add_entropy(&time::now_ns().to_le_bytes());
+        drbg.bytes64()
+    };
+    let mut https: HttpsServer<4, 2048, 1024> = HttpsServer::new(443, 4, &tls_config, &mut random);
     net.udp(0).bind(7);
     let mut announced = false;
     let mut hits = 0u32;
@@ -107,6 +123,16 @@ fn main() -> ! {
                 }
                 _ => res.text(404, "text/plain", format_args!("not found: {}\n", req.path)),
             }
+        });
+        https.poll(&mut net, &mut random, |req, res| match (req.method, req.path) {
+            ("GET", "/") => res.text(200, "text/plain", format_args!("hello over TLS 1.3 from the board\n")),
+            ("GET", "/big") => res.generated(200, "application/octet-stream", 100_000, pattern, 5),
+            ("POST", "/echo") => {
+                let n = req.body.len().min(res.scratch().len());
+                res.scratch()[..n].copy_from_slice(&req.body[..n]);
+                res.scratch_body(200, "application/octet-stream", n);
+            }
+            _ => res.text(404, "text/plain", format_args!("not found: {}\n", req.path)),
         });
         // UDP echo.
         let mut buf = [0u8; 512];

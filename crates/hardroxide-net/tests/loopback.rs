@@ -644,3 +644,33 @@ fn a_busy_server_stays_silent_to_extra_syns_and_serves_them_on_retry() {
         client.tcp(waiting).state()
     );
 }
+
+#[test]
+fn a_peer_that_never_finishes_closing_does_not_hold_a_socket_forever() {
+    let (pa, pb) = wire(0);
+    let mut client: S = Stack::new(pa, cfg(A), 0);
+    let mut board: S = Stack::new(pb, cfg(B), 0);
+    board.tcp(0).listen(80);
+    client.tcp_connect(0, 42000, B, 80);
+    for t in 0..100 {
+        client.poll(t);
+        board.poll(t);
+    }
+    assert!(board.tcp(0).is_established());
+    // The board closes; the client acknowledges but never closes its own side.
+    board.tcp(0).close();
+    for t in 100..300 {
+        client.poll(t);
+        board.poll(t);
+    }
+    assert_eq!(board.tcp(0).state(), State::FinWait2);
+    for t in 300..11_000 {
+        client.poll(t);
+        board.poll(t);
+    }
+    assert!(
+        board.tcp(0).is_closed(),
+        "gave up after the timeout, not {:?}",
+        board.tcp(0).state()
+    );
+}

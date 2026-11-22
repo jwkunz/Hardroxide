@@ -10,13 +10,14 @@ Generate Rust HAL crates from Vivado XSA files
 Usage: hardroxide <COMMAND>
 
 Commands:
-  generate  Generate a HAL crate from an XSA
-  update    Refresh an existing generated crate from a new XSA
-  inspect   Print a summary of an XSA: instances, addresses, clocks, hashes
-  run       Run a bare-metal program on a board over JTAG (needs the Vitis tools)
-  package   Build a BOOT.BIN that starts a bare-metal program on its own from SD or QSPI (needs the Vitis tools)
-  doctor    Check that the host can drive a board: Vitis tools, JTAG cable access, console port
-  help      Print this message or the help of the given subcommand(s)
+  generate   Generate a HAL crate from an XSA
+  update     Refresh an existing generated crate from a new XSA
+  inspect    Print a summary of an XSA: instances, addresses, clocks, hashes
+  run        Run a bare-metal program on a board over JTAG (needs the Vitis tools)
+  package    Build a BOOT.BIN that starts a bare-metal program on its own from SD or QSPI (needs the Vitis tools)
+  make-cert  Make a self-signed TLS certificate and private key for the HTTPS examples
+  doctor     Check that the host can drive a board: Vitis tools, JTAG cable access, console port
+  help       Print this message or the help of the given subcommand(s)
 
 Options:
   -h, --help     Print help
@@ -199,6 +200,55 @@ the XSA's bitstream and the program. Copy the file to the root of a FAT-formatte
 board's boot jumper to SD and power-cycle. `--fsbl` uses a loader you built yourself. Needs the Vitis
 tools (`xsct`, `bootgen`); without them the command says so and stops. The program must be linked for the DDR (the default
 `link.ld`); the FSBL copies it there. See [Running bare metal](../guide/baremetal.md#booting-on-its-own).
+
+## `make-cert`
+
+```text
+$ hardroxide make-cert --help
+Make a self-signed TLS certificate and private key for the HTTPS examples.
+
+Writes cert.der, cert.pem and key.bin (the 32-byte private key) to the output directory. The default key type, ECDSA P-256, is the one browsers accept; Ed25519 works with curl and OpenSSL only. The key comes from the operating system's random source (/dev/urandom). Include the names and addresses the board will be reached at.
+
+Usage: hardroxide make-cert [OPTIONS] --name <NAME>
+
+Options:
+      --name <NAME>
+          Common name (also the DNS name unless --dns or --ip is given)
+
+      --dns <DNS>
+          A DNS name for the certificate (repeatable)
+
+      --ip <IP>
+          An IPv4 address for the certificate (repeatable)
+
+      --days <DAYS>
+          Days the certificate is valid for
+          
+          [default: 3650]
+
+      --key-type <KEY_TYPE>
+          Key type
+
+          Possible values:
+          - p256:    ECDSA with P-256 (browsers accept it)
+          - ed25519: Ed25519 (curl and OpenSSL accept it, browsers do not)
+          
+          [default: p256]
+
+  -o, --out <OUT>
+          Output directory (created if needed)
+          
+          [default: .]
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+Makes the certificate and private key the HTTPS examples need, with the same crypto the TLS server uses (`hardroxide-crypto`), so the tool and the server share one implementation, and
+the result is checked against OpenSSL (`cargo test -p hardroxide-cli --test make_cert`: OpenSSL parses it and verifies its signature; `curl` trusts it as a CA, by DNS name and by IP address,
+and refuses a name it does not carry). `key.bin` is the private key (the 32-byte P-256 scalar, or the Ed25519 seed): keep it secret, embed it in the program that serves HTTPS, and never publish it.
+The certificate carries the subject alternative names that browsers require (they ignore the common name), is marked as not a CA, for digital signatures and for TLS servers. A self-signed
+certificate is still self-signed: a browser warns until you tell it to trust it (the printed SHA-256 fingerprint is what to compare).
 
 ## `doctor`
 

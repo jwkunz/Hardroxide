@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-Applications on the PYNQ base overlay, versions 2.2 to 2.5 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
-version is 2.5.0, not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
+Applications on the PYNQ base overlay, versions 2.2 to 2.6 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
+version is 2.5.0 (2.6 is in progress on a branch), not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
 
 ### HDMI output and graphics (2.2)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
@@ -48,6 +48,18 @@ version is 2.5.0, not yet released (the release waits for the rest of the exampl
 - Fixed on the board: the PS preset left the Ethernet pins, the MDIO pins and the MAC clock unconfigured (Vivado reset them to EMIO when the preset was applied one key at a time); the preset is now applied in two passes
   and the base overlay's `ps7_init` was regenerated (the other board fixtures were not).
 - Fixed by testing against `curl`: a busy server ignores extra SYNs instead of resetting them; a finished connection no longer holds a server socket in `TIME-WAIT`.
+
+### HTTPS with a self-signed certificate (2.6)
+- `hardroxide-crypto` (new): SHA-256, SHA-512, HMAC-SHA-256, HKDF, ChaCha20-Poly1305, X25519, Ed25519, ECDSA on P-256 (RFC 6979 deterministic nonces, constant-time arithmetic) and a random bit generator. `no_std`, no allocation, no dependencies.
+  Tested against OpenSSL and Python's `cryptography` on more than 800 random vectors (P-256 signatures byte for byte equal to OpenSSL's) and the RFC examples. **Home-made and unaudited.**
+- `hardroxide-tls` (new): a TLS 1.3 server (one cipher suite, ChaCha20-Poly1305; X25519; ECDSA P-256 or Ed25519 certificates; no resumption, client authentication or HelloRetryRequest) and `HttpsServer`, the HTTP server over TLS.
+  Tested against `openssl s_client`, `curl` and Microsoft Edge.
+- `hardroxide-net`: the HTTP server works over any `Stream` (a TCP socket or a TLS connection); TCP gives up a connection stuck in `FIN-WAIT-2` after 10 seconds.
+- `hardroxide make-cert`: a self-signed certificate and private key (P-256 by default, Ed25519 optional) with the names browsers require; `curl` verifies it fully, OpenSSL verifies its signature.
+- `apps/base`: `net_https` (bare metal, with a seed file on the SD card for the generator), `rt_https` (RTOS, beside a 10 ms control loop); `fixtures/tls/` holds a throwaway test identity.
+- Verified on a PYNQ-Z2 cabled to a PC: HTTPS (TLS 1.3) to `curl`, `openssl s_client` and Edge; 10.9 handshakes+requests/s (83 ms each: two X25519 at 26 ms and one ECDSA signature at 22 ms); 489 TLS requests in 40 s with the 10 ms control loop's worst deviation at 2 us.
+  Open: Firefox and Safari, an interactive browser session, the strength of the random numbers (**weak**: the Zynq has no hardware generator), hours of traffic.
+- Found by a browser: Chromium offers no Ed25519 signatures, so the first (Ed25519-only) server was refused; ECDSA P-256 was added.
 
 ### Tooling
 - `scripts/test-board.sh` also runs the video and audio programs (audio loopback with `HRX_AUDIO_LOOPBACK=1`).

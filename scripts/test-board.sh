@@ -24,9 +24,9 @@ gen() {
   for extra in "$@"; do cp "$extra"/*.rs "$dir/examples/"; done
   if [ "$#" -gt 0 ] && [[ "$*" == apps/* ]]; then
     # The applications use library crates a generated crate does not depend on, and embed a WAV file.
-    (cd "$dir" && for c in gfx fat net; do cargo add -q --dev --path "$OLDPWD/crates/hardroxide-$c" || exit 1; done \
+    (cd "$dir" && for c in gfx fat net crypto tls; do cargo add -q --dev --path "$OLDPWD/crates/hardroxide-$c" || exit 1; done \
       && for c in video audio; do cargo add -q --dev --path "$OLDPWD/crates/hardroxide-$c" --no-default-features || exit 1; done \
-      && sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml && cp "$OLDPWD/apps/base/data/chime.wav" examples/) || return 1
+      && sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml && cp "$OLDPWD"/apps/base/data/chime.wav "$OLDPWD"/apps/base/data/test-cert.der "$OLDPWD"/apps/base/data/test-key.bin examples/) || return 1
   fi
   (cd "$dir" && cargo build -q --release --examples 2>&1) || return 1
 }
@@ -96,6 +96,7 @@ gen base-audio fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremeta
     if [ "${HRX_NET:-0}" = 1 ]; then
       run_check "base/net_ping (link, DHCP or fallback address)" base-audio net_ping fixtures/board/pynq_base_overlay.xsa 40 "NET PING READY"
       run_check "base/net_web (link, address, server up)" base-audio net_web fixtures/board/pynq_base_overlay.xsa 40 "NET WEB READY"
+      run_check "base/net_https (TLS 1.3 server up)" base-audio net_https fixtures/board/pynq_base_overlay.xsa 45 "NET HTTPS READY"
     fi
     # SD card: ERASES the card in the slot, so it runs only when HRX_SD_SERIAL names that card (the serial number
     # `sd_info` prints, for example 0x2df43e3b); the format test refuses any other card that holds data.

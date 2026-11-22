@@ -14,6 +14,8 @@ const INITIAL_RTO_MS: u64 = 400;
 const MAX_RTO_MS: u64 = 4000;
 const MAX_RETRIES: u8 = 8;
 const TIME_WAIT_MS: u64 = 2000;
+/// How long to wait in FIN-WAIT-2 for the peer's FIN before giving the connection up (a peer that never closes must not hold a socket).
+const FIN_WAIT_2_MS: u64 = 10_000;
 
 fn seq_lt(a: u32, b: u32) -> bool {
     (a.wrapping_sub(b) as i32) < 0
@@ -421,7 +423,10 @@ impl<const N: usize> TcpSocket<N> {
         self.snd_wnd = u32::from(t.window);
         if self.fin_acked {
             match self.state {
-                State::FinWait1 => self.state = State::FinWait2,
+                State::FinWait1 => {
+                    self.state = State::FinWait2;
+                    self.time_wait_until = now + FIN_WAIT_2_MS;
+                }
                 State::Closing => self.enter_time_wait(now),
                 State::LastAck => {
                     self.state = State::Closed;
@@ -500,7 +505,7 @@ impl<const N: usize> TcpSocket<N> {
             self.state = State::Closed;
             return Some(seg);
         }
-        if self.state == State::TimeWait && now >= self.time_wait_until {
+        if matches!(self.state, State::TimeWait | State::FinWait2) && now >= self.time_wait_until {
             self.state = State::Closed;
         }
         if matches!(self.state, State::Closed | State::Listen) {

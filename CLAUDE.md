@@ -31,7 +31,7 @@ Bare-metal/RTOS crates run on core 0 with no OS (`crates/hardroxide-ps7`, `crate
 dependencies); `hardroxide run`/`package`/`doctor` drive the board with the Vitis tools (JTAG boot mode for `run`).
 Their tests: `scripts/test-qemu.sh`, `cargo test -p hardroxide-gen --test baremetal` and `--test apps`, the board
 regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and applications in `apps/` (built by the
-`apps` test against the generated crate; plan in ADR 0004, versions 2.1 to 2.7). `main` carries 2.6.0 (2.7, the integrated application, is on a branch).
+`apps` test against the generated crate; plan in ADR 0004, versions 2.1 to 2.7). `main` carries 2.7.0, released.
 
 ## Current state and next step
 
@@ -51,10 +51,8 @@ fails if signatures, help text or links drift. Guide examples are compile-tested
 (`cargo test -p hardroxide-gen --test guide`; tag blocks
 `rust,ignore,fixture=<name>`, `# ` lines are hidden setup).
 
-**Next step:** finish 2.7 (the integrated application, the soak run, the documentation pass), then the release: no tags or releases until all
-the examples are done (maintainer's decision); `main` carries 2.6.0 unreleased, 2.0.0 and 2.1.0 are tagged, nothing is on crates.io (publishing needs the maintainer's token, `docs/release.md`). Ideas
-recorded for later: a hardware random source in the PL (the TLS random bytes are weak), faster field arithmetic or PL accelerators for the TLS handshake (80 ms of the core today), HDMI input capture, the other board fixtures' `ps7_init` regenerated
-with the Ethernet and 1.8 V bank fixes, `fsck.fat` on a board-formatted card. See `docs/05-roadmap.md`.
+**Next step:** 2.7.0 is released (tag `v2.7.0` and a GitHub release; 2.0.0 and 2.1.0 are tagged too; nothing is on crates.io, publishing needs the maintainer's token, `docs/release.md`). ADR 0004's plan is complete. Open items, recorded in `docs/05-roadmap.md` ("After 2.7"): a hardware random source in the PL (the TLS
+random bytes are weak), faster public-key arithmetic or PL accelerators (a TLS handshake is about 80 ms of the core), HDMI input capture, regenerating the other board fixtures' `ps7_init`, `fsck.fat` on a board-formatted card, listening to the audio, an interactive browser session, a longer soak, an independent review of the crypto and TLS.
 
 On a board: stop anything using the PL before the first `load()` (it refuses if a
 driver is bound to a PL address; reprogramming under one froze the CPU), and

@@ -5,7 +5,7 @@ members = ["crates/*"]
 exclude = ["baremetal", "work"]
 
 [workspace.package]
-version = "2.6.0"
+version = "2.7.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Numerius Engineering LLC <numerius.engineering@gmail.com>"]
@@ -22,17 +22,17 @@ libc = "0.2"
 sha2 = "0.10"
 clap = { version = "4", features = ["derive"] }
 anyhow = "1"
-hardroxide-hwh = { path = "crates/hardroxide-hwh", version = "2.6.0" }
-hardroxide-mmio = { path = "crates/hardroxide-mmio", version = "2.6.0", default-features = false }
-hardroxide-fpga = { path = "crates/hardroxide-fpga", version = "2.6.0", default-features = false }
-hardroxide-gen = { path = "crates/hardroxide-gen", version = "2.6.0" }
-hardroxide-dma = { path = "crates/hardroxide-dma", version = "2.6.0", default-features = false }
-hardroxide-irq = { path = "crates/hardroxide-irq", version = "2.6.0", default-features = false }
-hardroxide-ip = { path = "crates/hardroxide-ip", version = "2.6.0", default-features = false }
-hardroxide-tls = { path = "crates/hardroxide-tls", version = "2.6.0" }
-hardroxide-crypto = { path = "crates/hardroxide-crypto", version = "2.6.0" }
-hardroxide-net = { path = "crates/hardroxide-net", version = "2.6.0" }
-hardroxide-audio = { path = "crates/hardroxide-audio", version = "2.6.0", default-features = false }
-hardroxide-ps7 = { path = "crates/hardroxide-ps7", version = "2.6.0", default-features = false }
-hardroxide-rt = { path = "crates/hardroxide-rt", version = "2.6.0" }
+hardroxide-hwh = { path = "crates/hardroxide-hwh", version = "2.7.0" }
+hardroxide-mmio = { path = "crates/hardroxide-mmio", version = "2.7.0", default-features = false }
+hardroxide-fpga = { path = "crates/hardroxide-fpga", version = "2.7.0", default-features = false }
+hardroxide-gen = { path = "crates/hardroxide-gen", version = "2.7.0" }
+hardroxide-dma = { path = "crates/hardroxide-dma", version = "2.7.0", default-features = false }
+hardroxide-irq = { path = "crates/hardroxide-irq", version = "2.7.0", default-features = false }
+hardroxide-ip = { path = "crates/hardroxide-ip", version = "2.7.0", default-features = false }
+hardroxide-tls = { path = "crates/hardroxide-tls", version = "2.7.0" }
+hardroxide-crypto = { path = "crates/hardroxide-crypto", version = "2.7.0" }
+hardroxide-net = { path = "crates/hardroxide-net", version = "2.7.0" }
+hardroxide-audio = { path = "crates/hardroxide-audio", version = "2.7.0", default-features = false }
+hardroxide-ps7 = { path = "crates/hardroxide-ps7", version = "2.7.0", default-features = false }
+hardroxide-rt = { path = "crates/hardroxide-rt", version = "2.7.0" }
 embedded-hal = "1"

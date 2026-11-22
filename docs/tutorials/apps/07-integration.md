@@ -4,7 +4,7 @@
 
 > **Status: run on a PYNQ-Z2 (2026-11-21).** An HTTPS dashboard controls the HDMI graphics, the audio and the LEDs while a 10 ms control loop keeps its deadline, with a live per-task processor monitor. With three HTTPS clients,
 > a processor burner, display mode changes and audio start and stop at once, the control loop's worst deviation was **4 microseconds over 5,179 releases**. **Not run:** listening to the audio (the counters say it played, 0 underruns, but this
-> tutorial was written without anyone at the headphones), an interactive browser session, and HDMI input capture (section 8). The soak results are in section 7.
+> tutorial was written without anyone at the headphones), an interactive browser session, and HDMI input capture (section 8). A 17-minute soak is in section 7 (the plan was two hours).
 
 The whole stack of this series in one RTOS program, [`apps/base/rtos/rt_station.rs`](../../../apps/base/rtos/rt_station.rs): the kernel ([RTOS 1](../rtos/01-control-loop.md)), the HDMI pipeline ([Applications 2](02-hdmi.md)), the codec ([Applications 3](03-audio.md)), the SD card
 ([Applications 4](04-sd.md)), the network and TLS ([Applications 5](05-network.md) and [6](06-https.md)), sharing one 650 MHz core.
@@ -102,7 +102,20 @@ network tasks share a priority, so they take turns while a handshake runs (the d
 
 ## 7. The soak
 
-SOAK_RESULTS
+A Python script (`soak.py`, in the history of this work, not kept in the repository) ran against `rt_station` on the board for **17 minutes**: a random mix of status requests, screen grabs, LED, display-mode, audio and burner commands, one request
+every 0.2 to 1.5 seconds, and bursts of six concurrent TLS handshakes, logging the status once a minute.
+
+| After 17 minutes | |
+|---|---|
+| requests | 1,202 served, **0 failed**, 55 bursts of six concurrent handshakes |
+| control loop | 105,866 releases, worst deviation **4 us** (4 us in every one of the 17 minutes) |
+| audio | 51,692,831 frames written, **0 underruns** |
+| display | 66,164 frames |
+| processor | idle 39 %, network 10.5 %, burner 36 % (when it was on), display 2.1 %, audio and tick interrupts 10.5 % |
+| stack use | every task's high-water mark **identical in the first and the last minute** (the network task 153,748 bytes, the rest under 700), so nothing grew |
+
+**This is shorter than planned**: the plan was two hours, the method of the 2.0 benchmark, and the run was stopped at 17 minutes when the release was due. A leak or a drift that takes longer than that to show would not have been seen; the separate two-hour run of
+the bare kernel (726,197 releases of a 10 ms task, none missed, the worst 10.2 us late, [RTOS reference](../../reference/rt.md#measured)) predates the network, the display and the audio interrupt.
 
 ## 8. What was not done
 

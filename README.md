@@ -46,7 +46,7 @@ Documentation: <https://jwkunz.github.io/Hardroxide/> (book at `/book/`, API ref
 
 ## Status
 
-Version 2.6 (2.7 in progress). Validated on a **PYNQ-Z2** (PYNQ 3.1, kernel 6.6): bitstream
+Version 2.7. Validated on a **PYNQ-Z2** (PYNQ 3.1, kernel 6.6): bitstream
 loading, PL clocks, GPIO, HLS (scalar and pointer arguments), DMA, Timer, IIC,
 SPI (internal loopback), UART, BRAM, FIFO, interrupts (including through an AXI
 interrupt controller), and a crate generated from the PYNQ base overlay. The

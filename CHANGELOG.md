@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 2.7.0 (2026-11-21)
 
-Applications on the PYNQ base overlay, versions 2.2 to 2.6 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
-version is 2.6.0, not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
+The rest of the applications on the PYNQ base overlay, versions 2.2 to 2.7 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md), released together (2.2 to 2.6 were merged one by one without a release). Every item was verified on a PYNQ-Z2; the open
+items are listed with each. **The networking, TLS and cryptography are home-made and have had no outside review: read the [security statement](docs/reference/tls.md#security-statement) before trusting them.** Not published to crates.io (that needs the maintainer's token).
 
 ### HDMI output and graphics (2.2)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
@@ -61,8 +61,21 @@ version is 2.6.0, not yet released (the release waits for the rest of the exampl
   Open: Firefox and Safari, an interactive browser session, the strength of the random numbers (**weak**: the Zynq has no hardware generator), hours of traffic.
 - Found by a browser: Chromium offers no Ed25519 signatures, so the first (Ed25519-only) server was refused; ECDSA P-256 was added.
 
+### Integration (2.7)
+- `hardroxide-rt`: per-task statistics (`task_info`, `TaskInfo`, `TaskState`, `irq_ticks`, `cpu_total_ticks`): processor time charged at every context switch from a global-timer timestamp, interrupt time counted separately, a stack high-water mark scanned outside the critical section.
+- `hardroxide-ps7`: the global timer's periodic comparator interrupt (`GlobalTimer::start_periodic_interrupt` and friends).
+- `hardroxide-audio`: `pump::Pump`, a lock-free frame ring and the interrupt's service routine: playback beside other work (this is the RTOS audio that 2.3 lacked).
+- `apps/base`: `rt_audio` (the pump beside a control loop and a processor hog) and `rt_station` (everything at once: an HTTPS dashboard that controls HDMI graphics, audio from the SD card and the LEDs, with a live task monitor, while a 10 ms control loop runs).
+- Verified on a PYNQ-Z2: with three HTTPS clients, a processor burner, display mode changes and audio start and stop at once, the control loop's worst deviation was 4 us over 5,179 releases and the audio pump wrote 2.5 million frames with no underruns; a **17-minute soak** (planned: two hours): 1,202 requests, 0 failed, 105,866 control
+  releases, worst 4 us, 51.7 million audio frames, 0 underruns, no growth in any task's stack use. The pump costs 10.4 % of the processor. Open: **the audio was never listened to**, HDMI input capture (not done), an interactive browser session, a longer soak.
+- Found by the integration: the first processor accounting (sampling at the tick) was wrong; asking for statistics scanned a 256 KiB stack with interrupts masked (a 409 us delay); a polling loop with no sleep used 87 % of the processor; a status panel painted in one of two buffers flickered.
+- Documentation: [What each library can and cannot do](docs/reference/libraries.md), tutorials "Applications 5 to 7", a pass over the entry points, four fixed anchors and four rustdoc warnings.
+
 ### Tooling
-- `scripts/test-board.sh` also runs the video and audio programs (audio loopback with `HRX_AUDIO_LOOPBACK=1`).
+- `scripts/test-board.sh` also runs the video, audio, RTOS audio, SD (`HRX_SD_SERIAL`, a card that may be erased) and network and HTTPS programs (`HRX_NET=1`); audio loopback with `HRX_AUDIO_LOOPBACK=1`. **It had silently skipped the video and audio programs since 2.2** (its build of all applications failed without the extra
+  crates); it now adds them first.
+- `scripts/test-qemu.sh` also runs the SD card (with `fsck.fat` on the image it wrote) and the network stack, HTTP and HTTPS against real `curl`, `openssl s_client` and Python sockets under QEMU. `scripts/check-no-std.sh` covers the new crates.
+- `fixtures/scripts/make_board_scripts.py`: the PS preset is applied in two passes (Vivado reset the Ethernet pins and clock when the peripheral was enabled after them) and carries the MIO bank voltages (1.8 V for the SD card, Ethernet and USB); the base overlay's `ps7_init` was regenerated, the other board fixtures were not.
 
 ## 2.1.0
 

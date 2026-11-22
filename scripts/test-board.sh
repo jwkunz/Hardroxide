@@ -22,6 +22,12 @@ gen() {
   rm -rf "$dir"
   "$HRX" generate "$xsa" --platform "$platform" -o "$dir" --name design_1 --hardroxide-path "$PWD" >/dev/null || return 1
   for extra in "$@"; do cp "$extra"/*.rs "$dir/examples/"; done
+  if [ "$#" -gt 0 ] && [[ "$*" == apps/* ]]; then
+    # The applications use library crates a generated crate does not depend on, and embed a WAV file.
+    (cd "$dir" && for c in gfx fat net; do cargo add -q --dev --path "$OLDPWD/crates/hardroxide-$c" || exit 1; done \
+      && for c in video audio; do cargo add -q --dev --path "$OLDPWD/crates/hardroxide-$c" --no-default-features || exit 1; done \
+      && sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml && cp "$OLDPWD/apps/base/data/chime.wav" examples/) || return 1
+  fi
   (cd "$dir" && cargo build -q --release --examples 2>&1) || return 1
 }
 
@@ -78,12 +84,18 @@ gen base-rtvideo fixtures/board/pynq_base_overlay.xsa rtos apps/base/rtos && {
 # Audio (and, with HRX_SD_SERIAL set, the SD card programs): plays a short tune (headphones optional) and checks the codec comes up; with HRX_AUDIO_LOOPBACK=1 and a cable
 # from HPH OUT to LINE IN it also plays and records a 1 kHz tone.
 gen base-audio fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremetal && {
-  (cd "$WORK/base-audio" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-gfx" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-video" --no-default-features && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-audio" --no-default-features && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-fat" && cp "$OLDPWD/apps/base/data/chime.wav" examples/ && cargo build -q --release --examples 2>&1) && {
+  (cd "$WORK/base-audio" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-gfx" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-video" --no-default-features && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-audio" --no-default-features && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-fat" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-net" && sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml && cp "$OLDPWD/apps/base/data/chime.wav" examples/ && cargo build -q --release --examples 2>&1) && {
     run_check "base/audio_tone (codec up, no missed samples)" base-audio audio_tone fixtures/board/pynq_base_overlay.xsa 14 "chord: 58593 frames, 0 missed"
     run_check "base/audio_wav" base-audio audio_wav fixtures/board/pynq_base_overlay.xsa 14 "pass 2: 97661 frames played, 0 missed"
     if [ "${HRX_AUDIO_LOOPBACK:-0}" = 1 ]; then
       run_check "base/audio_loopback_test (cable HPH OUT to LINE IN)" base-audio audio_loopback_test fixtures/board/pynq_base_overlay.xsa 12 "LOOPBACK OK"
       run_check "base/audio_record_test (cable HPH OUT to LINE IN)" base-audio audio_record_test fixtures/board/pynq_base_overlay.xsa 14 "RECORD/PLAYBACK OK"
+    fi
+    # Network: needs the Ethernet cable to a PC (or a router) and, for the web server, `curl`; set HRX_NET=1. The address comes
+    # from DHCP or is 192.168.2.100 after eight seconds (a PC port at 192.168.2.1/24).
+    if [ "${HRX_NET:-0}" = 1 ]; then
+      run_check "base/net_ping (link, DHCP or fallback address)" base-audio net_ping fixtures/board/pynq_base_overlay.xsa 40 "NET PING READY"
+      run_check "base/net_web (link, address, server up)" base-audio net_web fixtures/board/pynq_base_overlay.xsa 40 "NET WEB READY"
     fi
     # SD card: ERASES the card in the slot, so it runs only when HRX_SD_SERIAL names that card (the serial number
     # `sd_info` prints, for example 0x2df43e3b); the format test refuses any other card that holds data.

@@ -20,12 +20,15 @@ panic-handler = []
 default-irq-entry = []
 # The default supervisor-call entry (reports it as unhandled). The kernel supplies its own.
 default-svc-entry = []
+# `impl hardroxide_net::Device for Gem`, so the network stack can run on the Ethernet MAC.
+net = ["dep:hardroxide-net"]
 
 [dependencies]
 hardroxide-mmio = { workspace = true, features = ["physmem"] }
 hardroxide-irq.workspace = true
 embedded-hal.workspace = true
 thiserror.workspace = true
+hardroxide-net = { workspace = true, optional = true }
 
 [dev-dependencies]
 hardroxide-mmio = { workspace = true, features = ["std"] }

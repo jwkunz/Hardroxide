@@ -72,11 +72,13 @@ fn applications_build() {
         let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
         // The applications use the library crates beyond what a generated crate depends on.
         manifest.push_str(&format!(
-            "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\nhardroxide-audio = {{ path = {:?}, default-features = false }}\nhardroxide-fat = {{ path = {:?} }}\n\n[workspace]\n",
+            "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\nhardroxide-audio = {{ path = {:?}, default-features = false }}\nhardroxide-fat = {{ path = {:?} }}\nhardroxide-net = {{ path = {:?} }}\nhardroxide-ps7 = {{ path = {:?}, default-features = false, features = [\"net\"] }}\n\n[workspace]\n",
             root().join("crates/hardroxide-gfx"),
             root().join("crates/hardroxide-video"),
             root().join("crates/hardroxide-audio"),
-            root().join("crates/hardroxide-fat")
+            root().join("crates/hardroxide-fat"),
+            root().join("crates/hardroxide-net"),
+            root().join("crates/hardroxide-ps7")
         ));
         std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();
         let out = Command::new(env!("CARGO"))

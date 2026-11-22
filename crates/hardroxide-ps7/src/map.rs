@@ -17,6 +17,10 @@ pub const SDIO0_BASE: usize = 0xE010_0000;
 pub const SDIO1_BASE: usize = 0xE010_1000;
 pub const SDIO_SIZE: usize = 0x1000;
 
+pub const GEM0_BASE: usize = 0xE000_B000;
+pub const GEM1_BASE: usize = 0xE000_C000;
+pub const GEM_SIZE: usize = 0x1000;
+
 /// Base of the Cortex-A9 MPCore private peripherals (`PERIPHBASE`).
 pub const PERIPH_BASE: usize = 0xF8F0_0000;
 /// Snoop control unit.

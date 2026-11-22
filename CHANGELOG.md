@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-Applications on the PYNQ base overlay, versions 2.2, 2.3 and 2.4 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
-version is 2.4.0, not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
+Applications on the PYNQ base overlay, versions 2.2 to 2.5 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md); the workspace
+version is 2.4.0 (2.5 is in progress on a branch), not yet released (the release waits for the rest of the examples). Verified on a PYNQ-Z2; the open items are listed.
 
 ### HDMI output and graphics (2.2)
 - `hardroxide-ip`: `AxiVdma` (read channel, park-mode double buffering), `VideoTimingController` (generator) and `AxiDynclk` (the
@@ -37,6 +37,17 @@ version is 2.4.0, not yet released (the release waits for the rest of the exampl
   Open: the board-formatted card has not been through `fsck.fat` on a PC; SDSC cards, the second controller and the RTOS flavor are not covered.
 - Fixed on the board: the PS configuration put MIO bank 1 (SD card, Ethernet, USB) at 3.3 V instead of the PYNQ-Z2's 1.8 V, so every SD command timed out (the board preset now carries
   `PCW_PRESET_BANK0_VOLTAGE`/`PCW_PRESET_BANK1_VOLTAGE` and all board build scripts were regenerated); the CID's product name and serial were decoded one byte early.
+
+### Ethernet and a web server (2.5)
+- `hardroxide-ps7`: `gem`, the Gigabit Ethernet MAC (Cadence GEM): descriptor rings, polled frames, MDIO and PHY autonegotiation, link speed and clock; its `net` feature implements the network stack's `Device`.
+- `hardroxide-net` (new): our own IPv4 stack: Ethernet, ARP, ICMP echo, UDP, a DHCP client with a static fallback, TCP (retransmission, windows, several connections) and an HTTP/1.1 server. `no_std`, no allocation, no dependencies.
+  Tested against itself over a lossy virtual wire, against 30,000 random frames, and under QEMU against real `curl` and Python sockets.
+- `apps/base`: `net_ping`, `net_udp`, `net_web` (bare metal) and `rt_net` (a web server beside a 10 ms control loop on the RTOS).
+- Verified on a PYNQ-Z2 cabled to a PC: link at 1000 Mbit/s, DHCP, ping at 0.28 ms, about 3,200 web requests/s, and 21,879 requests in 35 s with the control loop's worst deviation staying at 1 us.
+  Open: a browser, 10 and 100 Mbit/s links, a router in between, hours of traffic.
+- Fixed on the board: the PS preset left the Ethernet pins, the MDIO pins and the MAC clock unconfigured (Vivado reset them to EMIO when the preset was applied one key at a time); the preset is now applied in two passes
+  and the base overlay's `ps7_init` was regenerated (the other board fixtures were not).
+- Fixed by testing against `curl`: a busy server ignores extra SYNs instead of resetting them; a finished connection no longer holds a server socket in `TIME-WAIT`.
 
 ### Tooling
 - `scripts/test-board.sh` also runs the video and audio programs (audio loopback with `HRX_AUDIO_LOOPBACK=1`).

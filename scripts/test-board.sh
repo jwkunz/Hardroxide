@@ -76,6 +76,15 @@ gen base-video fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremeta
     && run_check "base/video_demo (starts and runs)" base-video video_demo fixtures/board/pynq_base_overlay.xsa 30 "animated frames in"
 }
 
+# RTOS audio: the interrupt-driven pump beside a control loop and a processor hog; checks frames were written without underruns.
+gen base-rtaudio fixtures/board/pynq_base_overlay.xsa rtos apps/base/rtos && {
+  run_check "base/rt_audio (interrupt pump, no underruns)" base-rtaudio rt_audio fixtures/board/pynq_base_overlay.xsa 20 "0 underruns"
+  # Everything at once: needs the cable for the web part; it checks the program comes up (the station's address line).
+  if [ "${HRX_NET:-0}" = 1 ]; then
+    run_check "base/rt_station (HTTPS, display, audio, control loop)" base-rtaudio rt_station fixtures/board/pynq_base_overlay.xsa 45 "control:"
+  fi
+}
+
 gen base-rtvideo fixtures/board/pynq_base_overlay.xsa rtos apps/base/rtos && {
   (cd "$WORK/base-rtvideo" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-gfx" && cargo add -q --dev --path "$OLDPWD/crates/hardroxide-video" --no-default-features && cargo build -q --release --examples 2>&1) \
     && run_check "base/rt_video (60 fps by interrupt)" base-rtvideo rt_video fixtures/board/pynq_base_overlay.xsa 12 "frame interval worst deviation"

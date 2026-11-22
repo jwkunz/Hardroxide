@@ -11,11 +11,28 @@ use crate::port;
 use crate::sched::{FOREVER, ObjId, Sched, TaskId};
 use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
-use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use hardroxide_mmio::{MmioBackend, PhysMem};
 use hardroxide_ps7::{cp15, gic::Gic, irq, map, timer::PrivateTimer};
 
 static mut SCHED: Sched = Sched::new();
+/// The global timer's count (low word) when processor time was last charged, and the time spent in interrupt handlers, in timer ticks.
+static LAST_STAMP: AtomicU32 = AtomicU32::new(0);
+static IRQ_TICKS: AtomicU64 = AtomicU64::new(0);
+
+/// The global timer's low count word: one device read, wrapping every 13 s at 325 MHz (intervals between uses are far shorter).
+#[inline(always)]
+fn stamp() -> u32 {
+    // SAFETY: a read of the Cortex-A9 global timer's counter register, which the time source keeps running.
+    unsafe { core::ptr::read_volatile(map::GLOBAL_TIMER_BASE as *const u32) }
+}
+
+/// Charge the processor time since the last charge to the running task.
+fn charge_until(s: &mut Sched, now: u32) {
+    let dt = now.wrapping_sub(LAST_STAMP.load(Ordering::Relaxed));
+    s.charge(u64::from(dt));
+    LAST_STAMP.store(now, Ordering::Relaxed);
+}
 static TICK_HZ: AtomicU32 = AtomicU32::new(0);
 static STARTED: AtomicU32 = AtomicU32::new(0);
 
@@ -96,8 +113,103 @@ pub fn spawn(
     if stack.len() < 512 {
         return Err(Error::StackTooSmall);
     }
+    let (base, len) = (stack.as_ptr() as usize, stack.len());
     let sp = port::init_frame(stack, entry, task_returned);
-    cs(|s| s.add_task(name, prio, sp)).ok_or(Error::NoSlot)
+    cs(|s| {
+        let id = s.add_task(name, prio, sp)?;
+        s.set_stack(id, base, len);
+        Some(id)
+    })
+    .ok_or(Error::NoSlot)
+}
+
+/// What a task is doing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TaskState {
+    /// Running now (the task that asked, if it asks about itself).
+    Running,
+    /// Ready to run, waiting for a more urgent task to finish or sleep.
+    Ready,
+    /// Sleeping for a time.
+    Delayed,
+    /// Waiting for a semaphore, a mutex, a queue or an interrupt.
+    Blocked,
+}
+
+/// A snapshot of one task, for a monitor.
+#[derive(Debug, Clone, Copy)]
+pub struct TaskInfo {
+    /// The task's slot (0 is the idle task).
+    pub slot: usize,
+    pub name: &'static str,
+    /// The effective priority (raised while it holds a mutex others want).
+    pub priority: u8,
+    pub state: TaskState,
+    /// Processor time this task has used, in timer ticks (the peripheral clock, [`hardroxide_ps7::clocks::periph_hz`]; 325 MHz on the PYNQ-Z2),
+    /// charged at every context switch. Interrupt handlers' time is counted separately ([`irq_ticks`]), not charged to the task they interrupted.
+    /// A task's share of the processor is `run_ticks / cpu_total_ticks()`.
+    pub run_ticks: u64,
+    pub stack_size: usize,
+    /// How much of the stack has been used at most: the stack is zero-filled and the mark is the first byte from the far end that
+    /// has been written, so it is an estimate (a task that wrote zeros there is not seen).
+    pub stack_used: usize,
+}
+
+/// Processor time spent in interrupt handlers and the kernel's interrupt path since the kernel started, in timer ticks.
+pub fn irq_ticks() -> u64 {
+    IRQ_TICKS.load(Ordering::Relaxed)
+}
+
+/// All the processor time accounted for: every task's run time plus the interrupt time (the sum to divide a share by).
+pub fn cpu_total_ticks() -> u64 {
+    let tasks: u64 = cs(|s| s.tasks.iter().map(|t| t.ticks_run).sum());
+    tasks + irq_ticks()
+}
+
+/// The slots a task can occupy (`0..task_slots()`; slot 0 is the idle task).
+pub fn task_slots() -> usize {
+    crate::sched::MAX_TASKS
+}
+
+/// A snapshot of the task in `slot`, or `None` if the slot is free.
+///
+/// The task's fields are copied with interrupts masked, but the stack scan (which can take hundreds of microseconds for a big stack) runs with
+/// interrupts on, so asking for statistics never delays an interrupt or a more urgent task.
+pub fn task_info(slot: usize) -> Option<TaskInfo> {
+    let (name, priority, state, run_ticks, base, len) = cs(|s| {
+        let t = s.tasks.get(slot)?;
+        let state = match t.state {
+            crate::sched::State::Free => return None,
+            _ if slot == s.current => TaskState::Running,
+            crate::sched::State::Ready => TaskState::Ready,
+            crate::sched::State::Delayed => TaskState::Delayed,
+            crate::sched::State::Blocked => TaskState::Blocked,
+        };
+        Some((
+            t.name,
+            t.prio,
+            state,
+            t.ticks_run,
+            t.stack_base,
+            t.stack_len,
+        ))
+    })?;
+    let stack_used = if len == 0 {
+        0
+    } else {
+        // SAFETY: the stack of a live task is a `'static` byte array that this scan only reads (a task running meanwhile may write it; the answer is a snapshot).
+        let bytes = unsafe { core::slice::from_raw_parts(base as *const u8, len) };
+        len - bytes.iter().take_while(|&&b| b == 0).count()
+    };
+    Some(TaskInfo {
+        slot,
+        name,
+        priority,
+        state,
+        run_ticks,
+        stack_size: len,
+        stack_used,
+    })
 }
 
 extern "C" fn dummy() -> ! {
@@ -112,8 +224,12 @@ extern "C" fn dummy() -> ! {
 pub fn start(periph_hz: u64, tick_hz: u32) -> ! {
     TICK_HZ.store(tick_hz, Ordering::Relaxed);
     let idle_stack = crate::task_stack!(1024).expect("kernel started twice");
+    let (idle_base, idle_len) = (idle_stack.as_ptr() as usize, idle_stack.len());
     let idle_sp = port::init_frame(idle_stack, idle, dummy);
-    cs(|s| s.init_idle(idle_sp));
+    cs(|s| {
+        s.init_idle(idle_sp);
+        s.set_stack(0, idle_base, idle_len);
+    });
     // SAFETY: the GIC and private-timer windows belong to the kernel tick from here on.
     let be = unsafe { PhysMem::new() };
     let gic = Gic::new(
@@ -131,6 +247,7 @@ pub fn start(periph_hz: u64, tick_hz: u32) -> ! {
     gic.enable(map::ppi::PRIVATE_TIMER).expect("gic");
     let per_tick = (periph_hz / u64::from(tick_hz.max(1))) as u32;
     timer.start_periodic(per_tick).expect("timer");
+    LAST_STAMP.store(stamp(), Ordering::Relaxed);
     STARTED.store(1, Ordering::Release);
     let first = cs(|s| {
         s.schedule();
@@ -154,7 +271,9 @@ fn switch(sp: usize, force: bool) -> usize {
 #[unsafe(no_mangle)]
 extern "C" fn hrx_rt_svc(sp: usize) -> usize {
     // A blocking call or an explicit yield: always reschedule.
+    let now = stamp();
     cs(|s| {
+        charge_until(s, now);
         s.tasks[s.current].sp = sp;
         s.schedule();
         s.tasks[s.current].sp
@@ -163,6 +282,7 @@ extern "C" fn hrx_rt_svc(sp: usize) -> usize {
 
 #[unsafe(no_mangle)]
 extern "C" fn hrx_rt_irq(sp: usize) -> usize {
+    let t_in = stamp();
     // SAFETY: the GIC and private-timer windows are used only by the interrupt path.
     let be = unsafe { PhysMem::new() };
     let (Ok(d), Ok(c)) = (
@@ -193,6 +313,11 @@ extern "C" fn hrx_rt_irq(sp: usize) -> usize {
         }
         let _ = gic.end_of_interrupt(id);
     }
+    // The running task is charged up to the moment the interrupt came, and the interrupt's own time goes to its own account.
+    let t_out = stamp();
+    cs(|s| charge_until(s, t_in));
+    IRQ_TICKS.fetch_add(u64::from(t_out.wrapping_sub(t_in)), Ordering::Relaxed);
+    LAST_STAMP.store(t_out, Ordering::Relaxed);
     switch(sp, tick_switch)
 }
 

@@ -12,6 +12,13 @@ pub type Result<T> = core::result::Result<T, MmioError>;
 const GT_COUNT_LO: usize = 0x00;
 const GT_COUNT_HI: usize = 0x04;
 const GT_CTRL: usize = 0x08;
+const GT_STATUS: usize = 0x0C;
+const GT_COMP_LO: usize = 0x10;
+const GT_COMP_HI: usize = 0x14;
+const GT_AUTO_INC: usize = 0x18;
+const GT_COMP_ENABLE: u32 = 1 << 1;
+const GT_IRQ_ENABLE: u32 = 1 << 2;
+const GT_AUTO_INCREMENT: u32 = 1 << 3;
 // Private timer.
 const PT_LOAD: usize = 0x00;
 const PT_COUNT: usize = 0x04;
@@ -31,6 +38,41 @@ impl<R: Mmio> GlobalTimer<R> {
     /// Start counting (a no-op if it already runs; the count is not reset).
     pub fn enable(&self) -> Result<()> {
         self.regs.modify32(GT_CTRL, |v| v | 1)
+    }
+
+    /// Raise the global timer interrupt (PPI 27, [`crate::map::ppi::GLOBAL_TIMER`]) every `period` timer ticks, forever: the comparator
+    /// is set `period` ticks ahead and its auto-increment keeps adding `period`, so the interrupts do not drift. The timer must be enabled
+    /// ([`GlobalTimer::enable`]). The interrupt handler calls [`GlobalTimer::clear_event`]; the GIC enables the interrupt.
+    pub fn start_periodic_interrupt(&self, period: u32) -> Result<()> {
+        // Turn the comparator off while it is reprogrammed.
+        self.regs.modify32(GT_CTRL, |v| {
+            v & !(GT_COMP_ENABLE | GT_IRQ_ENABLE | GT_AUTO_INCREMENT)
+        })?;
+        let next = self.count()? + u64::from(period);
+        self.regs.write32(GT_COMP_LO, next as u32)?;
+        self.regs.write32(GT_COMP_HI, (next >> 32) as u32)?;
+        self.regs.write32(GT_AUTO_INC, period)?;
+        self.regs.write32(GT_STATUS, 1)?;
+        self.regs.modify32(GT_CTRL, |v| {
+            v | 1 | GT_COMP_ENABLE | GT_IRQ_ENABLE | GT_AUTO_INCREMENT
+        })
+    }
+
+    /// Stop the periodic interrupt (the counter keeps running).
+    pub fn stop_periodic_interrupt(&self) -> Result<()> {
+        self.regs.modify32(GT_CTRL, |v| {
+            v & !(GT_COMP_ENABLE | GT_IRQ_ENABLE | GT_AUTO_INCREMENT)
+        })
+    }
+
+    /// Clear the comparator's event flag (call it in the interrupt handler).
+    pub fn clear_event(&self) -> Result<()> {
+        self.regs.write32(GT_STATUS, 1)
+    }
+
+    /// Whether the comparator has matched since the flag was last cleared.
+    pub fn event_pending(&self) -> Result<bool> {
+        Ok(self.regs.read32(GT_STATUS)? & 1 != 0)
     }
 
     /// The 64-bit count, read consistently across the two halves.
@@ -157,5 +199,35 @@ mod tests {
         assert_eq!(be.peek(0xF8F0_0608), 0);
         t.clear_interrupt().unwrap();
         assert_eq!(be.peek(0xF8F0_060C), 1);
+    }
+}
+
+#[cfg(test)]
+mod comparator_tests {
+    use super::*;
+    use hardroxide_mmio::{MmioBackend, MockBackend};
+
+    #[test]
+    fn the_periodic_interrupt_programs_the_comparator_and_auto_increment() {
+        let be = MockBackend::new();
+        let t = GlobalTimer::new(be.map(0xF8F0_0200, 0x20).unwrap());
+        be.poke(0xF8F0_0200, 1000); // the counter reads 1000
+        t.start_periodic_interrupt(6656).unwrap();
+        assert_eq!(be.peek(0xF8F0_0210), 1000 + 6656);
+        assert_eq!(be.peek(0xF8F0_0214), 0);
+        assert_eq!(be.peek(0xF8F0_0218), 6656);
+        assert_eq!(
+            be.peek(0xF8F0_0208) & 0b1111,
+            0b1111,
+            "timer, comparator, interrupt and auto-increment on"
+        );
+        // The comparator carries into the high word when it passes 2^32.
+        be.poke(0xF8F0_0200, 0xFFFF_FF00);
+        t.start_periodic_interrupt(0x1000).unwrap();
+        assert_eq!(be.peek(0xF8F0_0210), 0x0F00);
+        assert_eq!(be.peek(0xF8F0_0214), 1);
+        t.stop_periodic_interrupt().unwrap();
+        assert_eq!(be.peek(0xF8F0_0208) & 0b1110, 0);
+        assert_eq!(be.peek(0xF8F0_0208) & 1, 1, "the counter keeps running");
     }
 }

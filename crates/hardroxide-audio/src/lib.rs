@@ -3,6 +3,7 @@
 //! * [`adau1761`]: the codec chip, configured over I2C (works over any `embedded-hal` I2C bus).
 //! * [`wav`]: parse WAV files in memory, write a header.
 //! * [`tone`]: a sine oscillator, notes with a click-free envelope, MIDI pitches.
+//! * [`pump`]: an interrupt-driven pump (a lock-free frame ring and the interrupt's service routine) for playing beside other work.
 //! * [`resample`]: linear resampling of a frame stream.
 //! * [`io`]: moving frames through the overlay's I2S controller ([`hardroxide_ip::audio`]):
 //!   playback, recording, pass-through, and mixing helpers.
@@ -14,6 +15,7 @@
 
 pub mod adau1761;
 pub mod io;
+pub mod pump;
 pub mod resample;
 pub mod tone;
 pub mod wav;

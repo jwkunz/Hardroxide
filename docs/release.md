@@ -18,7 +18,7 @@ irreversible (a crate version can be yanked but not deleted).
 5. **Publish.** All 17 crates, in dependency order (a crate must be on the index before one that depends on it can be published):
    `hardroxide-mmio`, `-hwh`, `-irq`, `-crypto`, `-net`, `-gfx`, `-dma`, `-fat`, `-fpga`, `-ps7`, `-tls`, `-gen`, `-ip`, `-rt`, `-audio`, `-video`, `-cli`.
    Log in with `cargo login` (a token scoped to `publish-new` and `publish-update` for `hardroxide*`, with a short expiry; never paste a token into a chat or a file in the repository).
-   **crates.io limits new crates to a burst of five, then one every ten minutes**, so a first release of 17 takes about two hours: publish one crate at a time (`cargo publish -p <crate>`) and, on a rate-limit
+   **crates.io limits how fast new crates can be published (at the time of writing a burst of five, then one every ten minutes; check its current policy)**, so a first release of 17 takes about two hours: publish one crate at a time (`cargo publish -p <crate>`) and, on a rate-limit
    error, wait for the time it names and go on. (`cargo publish --workspace` does the ordering but stops at the first error.) Publishing is irreversible: check the dry run first.
 6. **Tag.** `git tag -a v2.0.0 -m "2.0.0" && git push origin v2.0.0`, and create
    a GitHub release from the changelog.

@@ -79,3 +79,27 @@ pub fn scale(f: Frame, gain: u32) -> Frame
 **Moving samples.** `play`, `record` and `pass_through` poll the controller once per sample, so they must run every ~20.5 us: on bare metal a loop that does nothing else,
 under the kernel an interrupt or a dedicated task. `Stats { frames, missed }` reports how many frames moved and how many sample ticks were missed because the loop came back
 too late. `play_record` plays and records in the same loop (the controller is full duplex), which with a cable from the output to the input records what was played. A stopped controller (no I2S clock) ends the loop instead of hanging it. `mix` adds two frames saturating at 24 bits; `scale(frame, gain)` multiplies by `gain / 256`.
+
+## The interrupt-driven pump (`pump`)
+
+```rust,ignore
+pub struct Pump<const N: usize>
+pub const fn new() -> Self
+pub fn len(&self) -> usize
+pub fn is_empty(&self) -> bool
+pub fn space(&self) -> usize
+pub fn push(&self, f: Frame) -> bool
+pub fn flush(&self)
+pub fn set_muted(&self, muted: bool)
+pub fn service<R: Mmio>(&self, ctrl: &AudioCodecCtrl<R>) -> bool
+pub fn serviced(&self) -> u32
+pub fn underruns(&self) -> u32
+```
+
+The controller holds one frame and has no FIFO, so the polling `play` above needs the whole processor. `Pump<N>` (`N` a power of two) lets a task and an interrupt share the work: a task keeps a lock-free ring of
+frames full with `push` (it returns `false` when the ring is full, which is the cue to sleep a few milliseconds), and a timer interrupt calls `service(&ctrl)`, which asks the controller whether a sample tick has come and,
+if so, clears it and writes the next frame (silence if the ring is empty, counted as an `underruns`). It is `Sync` (everything is atomic: one producer task, one consumer interrupt), so a `static PUMP: Pump<4096>` is all it takes.
+Call `service` at least twice per sample period (20.5 us): [`ps7::timer::GlobalTimer::start_periodic_interrupt`](ps7.md#timers-and-time-source) at 3328 ticks of the 325 MHz peripheral clock gives 97.656 kHz, exactly twice the sample rate.
+`set_muted` plays silence while still draining the ring (so the audio stays in step), `flush` discards the queue (producer side, between pushes). The program is `apps/base/rtos/rt_audio.rs`; on a PYNQ-Z2 the interrupts cost **10.4% of the processor**
+(97.7 thousand a second), the feeding task 1.1%, and 1.47 million frames over 30 seconds were written with 0 underruns beside a control loop (worst deviation 3 us) and a processor hog. The ratio of frames written to sample periods
+counted by the processor's clock was a constant -17 ppm (the codec's clock against the processor's), which is a clock difference, not missed samples: a missed sample would be a jump. **Heard through headphones: not yet.**

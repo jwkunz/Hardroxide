@@ -31,7 +31,7 @@ impl Xsa {
 }
 
 impl Xsa {
-    /// The raw `.bin` for `fpga_manager` (see [`BitFile::to_bin_swapped`]).
+    /// The raw `.bin` for `fpga_manager` (see `BitFile::to_bin_swapped`).
     pub fn bin(&self) -> Result<Vec<u8>, Error> {
         Ok(crate::BitFile::parse(&self.bit)?.to_bin_swapped()?)
     }

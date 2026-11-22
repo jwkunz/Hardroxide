@@ -78,7 +78,8 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 > everything is recorded in [Verification gaps](08-verification-gaps.md). Zynq-7000
 > only; Vivado 2025.2 is the version exercised on hardware. Bare metal and RTOS (new in 2.0): the PS support
 > crate, the kernel, the MMU and caches, the generated crates, `hardroxide run` and DMA have been run on a PYNQ-Z2 and
-> under QEMU; booting a `hardroxide package` image from SD has not been tried on hardware yet.
+> under QEMU; booting a `hardroxide package` image from SD has not been tried on hardware yet. Applications on the PYNQ base overlay (new in 2.1 to 2.7): HDMI graphics, audio, an SD card with FAT32, Ethernet with our own TCP/IP, HTTPS with our own
+> TLS 1.3 and an integrated RTOS application have been run on a PYNQ-Z2 (see the [application tutorials](tutorials/apps/index.md)); the networking and cryptography are home-made and have had no outside review.
 
 ## Crates
 
@@ -90,12 +91,18 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 | [`hardroxide-fpga`](reference/fpga.md) | Bitstream loading and PL clocks |
 | [`hardroxide-dma`](reference/dma.md) | DMA buffers (`DmaBuffer`, udmabuf) |
 | [`hardroxide-irq`](reference/irq.md) | UIO interrupt waiting, blocking and async |
-| [`hardroxide-ps7`](reference/ps7.md) | Zynq-7000 bare-metal support: startup, GIC, timers, UART, MMU and caches |
+| [`hardroxide-ps7`](reference/ps7.md) | Zynq-7000 bare-metal support: startup, GIC, timers, UART, MMU and caches, I2C, the SD host controller, the Ethernet MAC |
 | [`hardroxide-rt`](reference/rt.md) | Real-time kernel for the Cortex-A9 |
 | [`hardroxide-video`](reference/video.md) | HDMI output for the PYNQ base overlay: modes and bring-up |
 | [`hardroxide-gfx`](reference/gfx.md) | A small 2D graphics library over a pixel buffer |
-| [`hardroxide-audio`](reference/audio.md) | Audio for the base overlay: the ADAU1761 codec, WAV, tones, playback and recording |
+| [`hardroxide-audio`](reference/audio.md) | Audio for the base overlay: the ADAU1761 codec, WAV, tones, playback and recording, an interrupt-driven pump |
+| [`hardroxide-fat`](reference/fat.md) | A FAT32 file system over a block device (an SD card) |
+| [`hardroxide-net`](reference/net.md) | A small IPv4 stack: ARP, ICMP, UDP, DHCP, TCP and an HTTP/1.1 server |
+| [`hardroxide-crypto`](reference/crypto.md) | SHA-2, HMAC, HKDF, ChaCha20-Poly1305, X25519, Ed25519, ECDSA P-256 (home-made, unaudited) |
+| [`hardroxide-tls`](reference/tls.md) | A TLS 1.3 server and HTTPS (home-made, unaudited) |
 | [`hardroxide-ip`](reference/ip.md) | Drivers: GPIO, HLS, DMA, Timer, IIC, SPI, interrupt controller, BRAM, UART Lite, AXI4-Stream FIFO |
 | `hardroxide-cli` | The `hardroxide` binary ([CLI](reference/cli.md)) |
+
+What each of these can and cannot do, and how it was checked, is on one page: [What each library can and cannot do](reference/libraries.md).
 
 License: MIT OR Apache-2.0 (see `LICENSE-MIT`, `LICENSE-APACHE`). Copyright (c) 2026 Numerius Engineering LLC.

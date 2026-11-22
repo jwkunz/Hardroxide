@@ -1,7 +1,7 @@
 //! The scheduling policy: which task runs, who is waiting for what, and for how long.
 //!
 //! Pure data and logic with no hardware access, so it is unit-tested on the host. The
-//! Cortex-A9 port ([`crate::port`]) switches stacks; the kernel ([`crate::kernel`]) wraps
+//! Cortex-A9 port (`port`) switches stacks; the kernel (`kernel`) wraps
 //! these operations in critical sections and yields when they say another task should run.
 //!
 //! Priorities: **a higher number is more urgent**. Task 0 is the idle task (priority 0) and
@@ -40,6 +40,11 @@ pub struct Tcb {
     pub timed_out: bool,
     seq: u64,
     pub name: &'static str,
+    /// Time this task has run, in timer ticks (charged at every context switch).
+    pub ticks_run: u64,
+    /// Where the task's stack is (for the high-water mark); zero for the idle task's slot until set.
+    pub stack_base: usize,
+    pub stack_len: usize,
 }
 
 const FREE_TCB: Tcb = Tcb {
@@ -52,6 +57,9 @@ const FREE_TCB: Tcb = Tcb {
     timed_out: false,
     seq: 0,
     name: "",
+    ticks_run: 0,
+    stack_base: 0,
+    stack_len: 0,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,6 +140,17 @@ impl Sched {
             ..FREE_TCB
         };
         Some(id)
+    }
+
+    /// Charge `ticks` of processor time to the running task.
+    pub fn charge(&mut self, ticks: u64) {
+        self.tasks[self.current].ticks_run += ticks;
+    }
+
+    /// Record where task `id`'s stack is.
+    pub fn set_stack(&mut self, id: TaskId, base: usize, len: usize) {
+        self.tasks[id].stack_base = base;
+        self.tasks[id].stack_len = len;
     }
 
     /// Mark the current task finished and free its slot.
@@ -383,6 +402,31 @@ mod tests {
         let mut s = Sched::new();
         s.init_idle(0);
         s
+    }
+
+    #[test]
+    fn processor_time_is_charged_to_the_running_task() {
+        let mut s = sched();
+        let a = s.add_task("a", 5, 0).unwrap();
+        let b = s.add_task("b", 3, 0).unwrap();
+        s.schedule(); // a runs
+        s.charge(30);
+        s.delay_current(100); // a sleeps; b runs
+        s.schedule();
+        s.charge(70);
+        s.delay_current(100); // b sleeps too: the idle task runs
+        s.schedule();
+        s.charge(5);
+        assert_eq!(
+            (
+                s.tasks[a].ticks_run,
+                s.tasks[b].ticks_run,
+                s.tasks[IDLE].ticks_run
+            ),
+            (30, 70, 5)
+        );
+        s.set_stack(a, 0x1000, 512);
+        assert_eq!((s.tasks[a].stack_base, s.tasks[a].stack_len), (0x1000, 512));
     }
 
     #[test]

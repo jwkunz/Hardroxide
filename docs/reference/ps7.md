@@ -146,6 +146,19 @@ registers it with [`hardroxide_mmio::time`](mmio.md#time), after which every dri
 timeouts work. The 32-bit private timer (PPI 29) is a down-counter with an optional
 periodic interrupt, intended for the kernel tick.
 
+The global timer's **comparator interrupt** (PPI 27, `map::ppi::GLOBAL_TIMER`) is a periodic interrupt that does not disturb the kernel tick (which uses the private timer):
+
+```rust,ignore
+pub fn start_periodic_interrupt(&self, period: u32) -> Result<()>
+pub fn stop_periodic_interrupt(&self) -> Result<()>
+pub fn clear_event(&self) -> Result<()>
+pub fn event_pending(&self) -> Result<bool>
+```
+
+`start_periodic_interrupt(period)` sets the comparator `period` timer ticks ahead and its auto-increment to `period`, so the interrupts come exactly every `period` ticks with no drift (the handler calls `clear_event`; the GIC enables PPI 27 and `irq::register` installs the handler). Under the RTOS the kernel's interrupt path dispatches it.
+It drives the audio pump at 97.656 kHz (3328 ticks of 325 MHz).
+
+
 ## Testing
 
 ```console

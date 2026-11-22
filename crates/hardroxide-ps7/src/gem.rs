@@ -479,7 +479,7 @@ mod tests {
     fn the_layout_fits_and_is_aligned() {
         assert_eq!(RX_BUFS % 64, 0);
         assert!(FRAME_BUF.is_multiple_of(64));
-        assert!(DMA_REGION_BYTES < 1 << 20, "a 1 MiB section holds it");
+        const { assert!(DMA_REGION_BYTES < 1 << 20, "a 1 MiB section holds it") };
     }
 
     #[test]

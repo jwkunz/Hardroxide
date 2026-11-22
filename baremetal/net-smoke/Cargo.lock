@@ -9,26 +9,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
 
 [[package]]
+name = "hardroxide-crypto"
+version = "2.5.0"
+
+[[package]]
 name = "hardroxide-irq"
-version = "2.4.0"
+version = "2.5.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "hardroxide-mmio"
-version = "2.4.0"
+version = "2.5.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "hardroxide-net"
-version = "2.4.0"
+version = "2.5.0"
 
 [[package]]
 name = "hardroxide-ps7"
-version = "2.4.0"
+version = "2.5.0"
 dependencies = [
  "embedded-hal",
  "hardroxide-irq",
@@ -38,12 +42,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-tls"
+version = "2.5.0"
+dependencies = [
+ "hardroxide-crypto",
+ "hardroxide-net",
+]
+
+[[package]]
 name = "net-smoke"
 version = "0.0.0"
 dependencies = [
+ "hardroxide-crypto",
  "hardroxide-mmio",
  "hardroxide-net",
  "hardroxide-ps7",
+ "hardroxide-tls",
 ]
 
 [[package]]

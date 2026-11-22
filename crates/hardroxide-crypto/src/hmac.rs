@@ -25,7 +25,10 @@ impl HmacSha256 {
         }
         let mut inner = Sha256::new();
         inner.update(&ipad);
-        HmacSha256 { inner, outer_key: opad }
+        HmacSha256 {
+            inner,
+            outer_key: opad,
+        }
     }
 
     pub fn update(&mut self, data: &[u8]) {
@@ -51,7 +54,11 @@ pub fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
 /// HKDF-Extract: the pseudorandom key from a salt and input keying material.
 pub fn hkdf_extract(salt: &[u8], ikm: &[u8]) -> [u8; 32] {
     // An empty salt is a string of zeros as long as the hash.
-    if salt.is_empty() { hmac_sha256(&[0u8; SHA256_LEN], ikm) } else { hmac_sha256(salt, ikm) }
+    if salt.is_empty() {
+        hmac_sha256(&[0u8; SHA256_LEN], ikm)
+    } else {
+        hmac_sha256(salt, ikm)
+    }
 }
 
 /// HKDF-Expand: fill `okm` (at most 255 x 32 bytes) from a pseudorandom key and context `info`.

@@ -31,7 +31,13 @@ pub fn seal(key: &[u8; 32], nonce: &[u8; 12], aad: &[u8], data: &mut [u8]) -> [u
 
 /// Check the tag and, if it is right, decrypt `data` in place and return `true`. On a wrong tag `data` is left as it was (still
 /// ciphertext) and the result is `false`.
-pub fn open(key: &[u8; 32], nonce: &[u8; 12], aad: &[u8], data: &mut [u8], tag_in: &[u8; 16]) -> bool {
+pub fn open(
+    key: &[u8; 32],
+    nonce: &[u8; 12],
+    aad: &[u8],
+    data: &mut [u8],
+    tag_in: &[u8; 16],
+) -> bool {
     let expected = tag(key, nonce, aad, data);
     if !constant_time_eq(&expected, tag_in) {
         return false;

@@ -9,4 +9,5 @@
 pub mod https;
 mod server;
 
-pub use server::{Alert, Config, TlsError, TlsServer, IN_CAP, OUT_CAP};
+pub use https::{HttpsServer, TlsStream};
+pub use server::{Alert, Config, IN_CAP, OUT_CAP, TlsError, TlsServer};

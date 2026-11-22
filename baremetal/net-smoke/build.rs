@@ -13,7 +13,7 @@ fn main() {
         .replace("@STACK_ABT@", "0x400")
         .replace("@STACK_UND@", "0x400")
         .replace("@STACK_SVC@", "0x1000")
-        .replace("@STACK_SYS@", "0x40000");
+        .replace("@STACK_SYS@", "0x100000");
     assert!(
         !script.contains('@'),
         "unfilled placeholder in the linker script"

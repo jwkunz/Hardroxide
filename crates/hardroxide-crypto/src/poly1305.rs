@@ -15,8 +15,20 @@ impl Poly1305 {
     pub fn new(key: &[u8; 32]) -> Self {
         let le = |i: usize| u32::from_le_bytes([key[i], key[i + 1], key[i + 2], key[i + 3]]);
         // r, clamped, in five 26-bit limbs.
-        let r = [le(0) & 0x3ff_ffff, (le(3) >> 2) & 0x3ff_ff03, (le(6) >> 4) & 0x3ff_c0ff, (le(9) >> 6) & 0x3f0_3fff, (le(12) >> 8) & 0x00f_ffff];
-        Poly1305 { r, h: [0; 5], pad: [le(16), le(20), le(24), le(28)], buf: [0; 16], buf_len: 0 }
+        let r = [
+            le(0) & 0x3ff_ffff,
+            (le(3) >> 2) & 0x3ff_ff03,
+            (le(6) >> 4) & 0x3ff_c0ff,
+            (le(9) >> 6) & 0x3f0_3fff,
+            (le(12) >> 8) & 0x00f_ffff,
+        ];
+        Poly1305 {
+            r,
+            h: [0; 5],
+            pad: [le(16), le(20), le(24), le(28)],
+            buf: [0; 16],
+            buf_len: 0,
+        }
     }
 
     fn block(&mut self, m: &[u8; 16], hibit: u32) {
@@ -29,7 +41,13 @@ impl Poly1305 {
         h[2] += (le(6) >> 4) & 0x3ff_ffff;
         h[3] += (le(9) >> 6) & 0x3ff_ffff;
         h[4] += (le(12) >> 8) | hibit;
-        let (h0, h1, h2, h3, h4) = (u64::from(h[0]), u64::from(h[1]), u64::from(h[2]), u64::from(h[3]), u64::from(h[4]));
+        let (h0, h1, h2, h3, h4) = (
+            u64::from(h[0]),
+            u64::from(h[1]),
+            u64::from(h[2]),
+            u64::from(h[3]),
+            u64::from(h[4]),
+        );
         let m = |a: u64, b: u32| a * u64::from(b);
         let d0 = m(h0, r0) + m(h1, s4) + m(h2, s3) + m(h3, s2) + m(h4, s1);
         let mut d1 = m(h0, r1) + m(h1, r0) + m(h2, s4) + m(h3, s3) + m(h4, s2);

@@ -103,7 +103,7 @@ cargo build --release --features qemu
 OUT4=$(mktemp)
 trap 'rm -f "$OUT" "$OUT2" "$OUT3" "$OUT4" "$IMG" "$IMG.part"' EXIT
 "${RUN[@]}" -M xilinx-zynq-a9 -m 512 -display none -serial stdio -serial null -monitor none \
-  -nic "user,model=cadence_gem,mac=02:48:52:58:00:01,hostfwd=tcp:127.0.0.1:18080-:80,hostfwd=tcp:127.0.0.1:18009-:9,hostfwd=udp:127.0.0.1:18007-:7" \
+  -nic "user,model=cadence_gem,mac=02:48:52:58:00:01,hostfwd=tcp:127.0.0.1:18080-:80,hostfwd=tcp:127.0.0.1:18009-:9,hostfwd=tcp:127.0.0.1:18443-:443,hostfwd=udp:127.0.0.1:18007-:7" \
   -kernel target/armv7a-none-eabihf/release/net-smoke >"$OUT4" 2>&1 &
 QPID=$!
 fail=0
@@ -184,6 +184,45 @@ while len(got) < len(data) and time.time() - t0 < 60:
         pass
 s.close()
 check("TCP echo of 100000 bytes", got == data, "got %d bytes" % len(got))
+# ---- HTTPS (TLS 1.3, ChaCha20-Poly1305, X25519, an Ed25519 certificate) ----
+S = "https://127.0.0.1:18443"
+def curl(*args, **kw):
+    return subprocess.run(["curl", "-sk", "-m", "30", "--tlsv1.3", *args], capture_output=True, **kw)
+r = curl("-w", "\n%{http_code}", S + "/")
+page = r.stdout.decode()
+check("HTTPS GET / with curl", page.startswith("hello over TLS 1.3 from the board") and page.rstrip().endswith("200"), repr(page[:80]) + " curl: " + r.stderr.decode()[:200] + " rc=%d" % r.returncode)
+code = curl("-o", "/dev/null", "-w", "%{http_code}", S + "/nothing").stdout.decode()
+check("HTTPS 404", code == "404", code)
+body = curl(S + "/big").stdout
+check("HTTPS 100000 byte download is exact", body == expected(100000), "got %d bytes" % len(body))
+echo = curl("--data-binary", "@-", "-H", "Content-Type: application/octet-stream", S + "/echo", input=payload).stdout
+check("HTTPS POST body echoed", echo == payload, "got %d bytes" % len(echo))
+bad = sum(curl("-o", "/dev/null", "-w", "%{http_code}", S + "/").stdout.decode() != "200" for _ in range(30))
+check("30 HTTPS requests in a row (a new handshake each)", bad == 0, "%d failed" % bad)
+ps = [subprocess.Popen(["curl", "-sk", "-m", "60", "--tlsv1.3", "-o", "/dev/null", "-w", "%{http_code}", S + "/"], stdout=subprocess.PIPE, text=True) for _ in range(6)]
+codes = [p.communicate()[0] for p in ps]
+check("6 concurrent HTTPS requests (4 sockets)", all(c == "200" for c in codes), str(codes))
+# OpenSSL's own client: the negotiated parameters.
+sc = subprocess.run(["openssl", "s_client", "-connect", "127.0.0.1:18443", "-tls1_3", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256", "-brief", "-ign_eof"],
+                    input=b"GET / HTTP/1.0\r\n\r\n", capture_output=True, timeout=60)
+txt = (sc.stdout + sc.stderr).decode()
+check("openssl s_client: TLS 1.3, ChaCha20-Poly1305, an ed25519 signature, X25519", all(w in txt for w in ("TLSv1.3", "TLS_CHACHA20_POLY1305_SHA256", "ed25519", "X25519")) and "hello over TLS" in txt, txt[-300:])
+# A client that offers only AES-GCM is refused with an alert; the server is unharmed.
+sc = subprocess.run(["openssl", "s_client", "-connect", "127.0.0.1:18443", "-tls1_3", "-ciphersuites", "TLS_AES_128_GCM_SHA256"], input=b"", capture_output=True, timeout=60)
+check("a client without ChaCha20-Poly1305 is refused", b"alert" in sc.stderr + sc.stdout or b"handshake failure" in sc.stderr + sc.stdout, (sc.stderr + sc.stdout).decode()[-200:])
+# Garbage to the TLS port, and a connection that sends nothing, must not stop the server.
+g = socket.create_connection(("127.0.0.1", 18443), timeout=10)
+g.sendall(b"GET / HTTP/1.1\r\nHost: x\r\n\r\n" + bytes(range(256)) * 4)
+time.sleep(1)
+g.close()
+idle = socket.create_connection(("127.0.0.1", 18443), timeout=10)
+r = curl("-w", "\n%{http_code}", S + "/")
+page = r.stdout.decode()
+idle.close()
+check("garbage and an idle connection do not stop the TLS server", page.rstrip().endswith("200"), repr(page[:80]) + " curl: " + r.stderr.decode()[:200] + " rc=%d" % r.returncode)
+# Plain HTTP still works beside it.
+page = subprocess.run(["curl", "-s", "-m", "10", "http://127.0.0.1:18080/"], capture_output=True, text=True).stdout
+check("plain HTTP still served", "hello from the board" in page, page[:80])
 sys.exit(0 if ok else 1)
 PY
 fi

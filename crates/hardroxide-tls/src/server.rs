@@ -1,7 +1,8 @@
 //! The TLS 1.3 server state machine.
 
 use hardroxide_crypto::{
-    HmacSha256, Sha256, constant_time_eq, ed25519_public, ed25519_sign_with_public, hkdf_expand, hkdf_extract, open, seal, sha256, x25519, x25519_public,
+    HmacSha256, Sha256, constant_time_eq, ed25519_public, ed25519_sign_with_public, hkdf_expand,
+    hkdf_extract, open, seal, sha256, x25519, x25519_public,
 };
 
 /// The most record bytes (header and payload) the server takes in. A longer record is refused with `record_overflow`.
@@ -67,7 +68,11 @@ pub struct Config<'a> {
 impl<'a> Config<'a> {
     /// `certificate` is the DER X.509 certificate (its key must be the Ed25519 key of `seed`). Computes the public key once.
     pub fn new(certificate: &'a [u8], seed: [u8; 32]) -> Self {
-        Config { certificate, public: ed25519_public(&seed), seed }
+        Config {
+            certificate,
+            public: ed25519_public(&seed),
+            seed,
+        }
     }
     pub fn public_key(&self) -> &[u8; 32] {
         &self.public
@@ -215,6 +220,17 @@ impl<'a> TlsServer<'a> {
     pub fn failure(&self) -> Option<TlsError> {
         self.error
     }
+    /// We have queued our `close_notify`.
+    pub fn close_sent(&self) -> bool {
+        self.sent_close
+    }
+    /// The handshake has not finished and has not failed.
+    pub fn is_handshaking(&self) -> bool {
+        matches!(
+            self.state,
+            State::WaitClientHello | State::WaitClientFinished
+        )
+    }
     /// The peer sent `close_notify`: no more data will arrive.
     pub fn peer_closed(&self) -> bool {
         self.peer_closed
@@ -231,7 +247,11 @@ impl<'a> TlsServer<'a> {
     }
     /// How many bytes of input [`TlsServer::feed`] would take now.
     pub fn input_space(&self) -> usize {
-        if self.state == State::Failed { 0 } else { IN_CAP - self.in_len }
+        if self.state == State::Failed {
+            0
+        } else {
+            IN_CAP - self.in_len
+        }
     }
     /// Application bytes waiting to be read.
     pub fn app_len(&self) -> usize {
@@ -242,7 +262,9 @@ impl<'a> TlsServer<'a> {
         if self.state != State::Connected || self.sent_close {
             return 0;
         }
-        (OUT_CAP - self.out_len).saturating_sub(5 + 1 + 16).min(RECORD_PLAINTEXT)
+        (OUT_CAP - self.out_len)
+            .saturating_sub(5 + 1 + 16)
+            .min(RECORD_PLAINTEXT)
     }
 
     /// Give the server bytes from the network; returns how many it took (fewer than `data.len()` if its buffer is full:
@@ -266,7 +288,10 @@ impl<'a> TlsServer<'a> {
             }
             let len = usize::from(u16::from_be_bytes([self.input[3], self.input[4]]));
             if 5 + len > IN_CAP {
-                self.fail(TlsError { alert: Alert::RecordOverflow, reason: "record too large" });
+                self.fail(TlsError {
+                    alert: Alert::RecordOverflow,
+                    reason: "record too large",
+                });
                 return;
             }
             if self.in_len < 5 + len {
@@ -382,10 +407,17 @@ impl<'a> TlsServer<'a> {
             State::WaitClientFinished | State::Connected => {
                 if content_type == CT_CCS && self.state == State::WaitClientFinished {
                     // The compatibility change_cipher_spec: a single byte 1, ignored.
-                    return if len == 1 && self.input[5] == 1 { Ok(()) } else { err(Alert::UnexpectedMessage, "bad change_cipher_spec") };
+                    return if len == 1 && self.input[5] == 1 {
+                        Ok(())
+                    } else {
+                        err(Alert::UnexpectedMessage, "bad change_cipher_spec")
+                    };
                 }
                 if content_type == CT_ALERT {
-                    return err(Alert::UnexpectedMessage, "plaintext alert after the handshake began");
+                    return err(
+                        Alert::UnexpectedMessage,
+                        "plaintext alert after the handshake began",
+                    );
                 }
                 if content_type != CT_APPDATA {
                     return err(Alert::UnexpectedMessage, "expected a protected record");
@@ -400,11 +432,20 @@ impl<'a> TlsServer<'a> {
         if len < 16 + 1 {
             return err(Alert::DecodeError, "short protected record");
         }
-        let keys = self.read_keys.as_mut().ok_or(TlsError { alert: Alert::InternalError, reason: "no read keys" })?;
+        let keys = self.read_keys.as_mut().ok_or(TlsError {
+            alert: Alert::InternalError,
+            reason: "no read keys",
+        })?;
         let (nonce, key) = (keys.nonce(), keys.key);
         let header: [u8; 5] = self.input[..5].try_into().unwrap();
         let tag: [u8; 16] = self.input[5 + len - 16..5 + len].try_into().unwrap();
-        if !open(&key, &nonce, &header, &mut self.input[5..5 + len - 16], &tag) {
+        if !open(
+            &key,
+            &nonce,
+            &header,
+            &mut self.input[5..5 + len - 16],
+            &tag,
+        ) {
             return err(Alert::BadRecordMac, "record authentication failed");
         }
         self.read_keys.as_mut().unwrap().seq += 1;
@@ -437,7 +478,10 @@ impl<'a> TlsServer<'a> {
                     err(Alert::UnexpectedMessage, "the peer sent an alert")
                 }
             }
-            (State::Connected, CT_HANDSHAKE) => err(Alert::UnexpectedMessage, "post-handshake messages (KeyUpdate and the like) are not supported"),
+            (State::Connected, CT_HANDSHAKE) => err(
+                Alert::UnexpectedMessage,
+                "post-handshake messages (KeyUpdate and the like) are not supported",
+            ),
             _ => err(Alert::UnexpectedMessage, "unexpected protected record"),
         }
     }
@@ -449,22 +493,35 @@ impl<'a> TlsServer<'a> {
         if rec.len() < 4 || rec[0] != HS_CLIENT_HELLO {
             return err(Alert::UnexpectedMessage, "expected a ClientHello");
         }
-        let body_len = (usize::from(rec[1]) << 16) | (usize::from(rec[2]) << 8) | usize::from(rec[3]);
+        let body_len =
+            (usize::from(rec[1]) << 16) | (usize::from(rec[2]) << 8) | usize::from(rec[3]);
         if 4 + body_len != rec.len() {
-            return err(Alert::DecodeError, "a ClientHello split over records (or trailing bytes) is not supported");
+            return err(
+                Alert::DecodeError,
+                "a ClientHello split over records (or trailing bytes) is not supported",
+            );
         }
         let hello = Hello::parse(&rec[4..])?;
         if !hello.cipher_ok {
-            return err(Alert::HandshakeFailure, "the client does not offer TLS_CHACHA20_POLY1305_SHA256");
+            return err(
+                Alert::HandshakeFailure,
+                "the client does not offer TLS_CHACHA20_POLY1305_SHA256",
+            );
         }
         if !hello.version_ok {
             return err(Alert::ProtocolVersion, "the client does not offer TLS 1.3");
         }
         if !hello.sigalg_ok {
-            return err(Alert::HandshakeFailure, "the client does not accept Ed25519 signatures");
+            return err(
+                Alert::HandshakeFailure,
+                "the client does not accept Ed25519 signatures",
+            );
         }
         let Some(client_share) = hello.x25519_share else {
-            return err(Alert::HandshakeFailure, "no X25519 key share (HelloRetryRequest is not supported)");
+            return err(
+                Alert::HandshakeFailure,
+                "no X25519 key share (HelloRetryRequest is not supported)",
+            );
         };
         let mut session_id = [0u8; 32];
         session_id[..hello.session_id.len()].copy_from_slice(hello.session_id);
@@ -584,7 +641,11 @@ impl<'a> TlsServer<'a> {
         self.server_finished_transcript = self.transcript.clone().finish();
 
         // Our application traffic keys start now; the client's follow its Finished.
-        let server_ap = derive_secret(&self.master_secret, b"s ap traffic", &self.server_finished_transcript);
+        let server_ap = derive_secret(
+            &self.master_secret,
+            b"s ap traffic",
+            &self.server_finished_transcript,
+        );
         // (The write keys switch after the Finished above was queued with the handshake keys.)
         self.write_keys = Some(Keys::from_secret(&server_ap));
         self.state = State::WaitClientFinished;
@@ -605,7 +666,11 @@ impl<'a> TlsServer<'a> {
         if !constant_time_eq(&expected, &msg[4..]) {
             return err(Alert::DecryptError, "the client's Finished does not verify");
         }
-        let client_ap = derive_secret(&self.master_secret, b"c ap traffic", &self.server_finished_transcript);
+        let client_ap = derive_secret(
+            &self.master_secret,
+            b"c ap traffic",
+            &self.server_finished_transcript,
+        );
         self.read_keys = Some(Keys::from_secret(&client_ap));
         wipe(&mut self.client_hs_secret);
         wipe(&mut self.master_secret);
@@ -665,12 +730,20 @@ impl<'a> Hello<'a> {
             return err(Alert::IllegalParameter, "session id too long");
         }
         let suites = r.vec16()?;
-        let cipher_ok = suites.chunks_exact(2).any(|c| u16::from_be_bytes([c[0], c[1]]) == CIPHER_CHACHA20_POLY1305);
+        let cipher_ok = suites
+            .chunks_exact(2)
+            .any(|c| u16::from_be_bytes([c[0], c[1]]) == CIPHER_CHACHA20_POLY1305);
         let compression = r.vec8()?;
         if !compression.contains(&0) {
             return err(Alert::IllegalParameter, "no null compression offered");
         }
-        let mut h = Hello { session_id, cipher_ok, version_ok: false, sigalg_ok: false, x25519_share: None };
+        let mut h = Hello {
+            session_id,
+            cipher_ok,
+            version_ok: false,
+            sigalg_ok: false,
+            x25519_share: None,
+        };
         let mut exts = Reader(r.vec16()?);
         while !exts.0.is_empty() {
             let (ty, data) = (exts.u16()?, exts.vec16()?);
@@ -679,12 +752,16 @@ impl<'a> Hello<'a> {
                 // supported_versions: a one-byte-length list of versions.
                 0x002b => {
                     let list = d.vec8()?;
-                    h.version_ok = list.chunks_exact(2).any(|c| u16::from_be_bytes([c[0], c[1]]) == VERSION_TLS13);
+                    h.version_ok = list
+                        .chunks_exact(2)
+                        .any(|c| u16::from_be_bytes([c[0], c[1]]) == VERSION_TLS13);
                 }
                 // signature_algorithms.
                 0x000d => {
                     let list = d.vec16()?;
-                    h.sigalg_ok = list.chunks_exact(2).any(|c| u16::from_be_bytes([c[0], c[1]]) == SIGALG_ED25519);
+                    h.sigalg_ok = list
+                        .chunks_exact(2)
+                        .any(|c| u16::from_be_bytes([c[0], c[1]]) == SIGALG_ED25519);
                 }
                 // key_share: a list of (group, key).
                 0x0033 => {

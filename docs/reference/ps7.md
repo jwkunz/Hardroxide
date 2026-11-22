@@ -242,3 +242,51 @@ seated, a dead card or one that is not an SD card).
 > **Verified on a PYNQ-Z2** with a SanDisk 16 GB and a 32 GB SDHC card (see [Verification gaps](../08-verification-gaps.md)): initialisation at 25 MHz on four bits,
 > raw transfers of 1, 4 and 64 blocks, and 4 MiB files at about 1.6 MB/s written and 7.4 MB/s read. A Netac 8 GB microSD did not answer on the board or in a PC's card
 > reader, so it was not usable (the card or its adapter). Not run: 1-bit buses, SDSC cards, the second controller, cards that need a voltage switch (UHS).
+
+## Ethernet MAC (`gem`)
+
+```rust,ignore
+pub const RX_DESCRIPTORS: usize = 32
+pub const TX_DESCRIPTORS: usize = 16
+pub const FRAME_BUF: usize = 1536
+pub const DMA_REGION_BYTES: usize = TX_BUFS + TX_DESCRIPTORS * FRAME_BUF
+pub enum GemError
+pub struct Link
+pub fn negotiated(advertise_1000: u16, status_1000: u16, advertise: u16, partner: u16) -> Link
+pub struct Gem<R: Mmio>
+pub unsafe fn new(regs: R, dma_base: usize, mac: [u8; 6]) -> Self
+pub fn regs(&self) -> &R
+pub fn mac(&self) -> [u8; 6]
+pub fn link(&self) -> Option<Link>
+pub fn phy_address(&self) -> Option<u8>
+pub fn frame_counts(&self) -> Result<(u32, u32), GemError>
+pub fn init(&mut self) -> Result<(), GemError>
+pub fn mdio_read(&self, phy: u8, reg: u8) -> Result<u16, GemError>
+pub fn mdio_write(&self, phy: u8, reg: u8, value: u16) -> Result<(), GemError>
+pub fn find_phy(&mut self) -> Result<u8, GemError>
+pub fn link_up(&mut self, slcr: &impl Mmio, timeout_ms: u64) -> Result<Link, GemError>
+pub fn set_speed(&self, slcr: &impl Mmio, link: Link) -> Result<(), GemError>
+pub fn receive(&mut self, buf: &mut [u8]) -> Option<usize>
+pub fn transmit(&mut self, frame: &[u8]) -> bool
+```
+
+`hardroxide_ps7::gem`: the Zynq's Gigabit Ethernet MACs (`map::GEM0_BASE`, `0xE000_B000`; `GEM1_BASE` is `0xE000_C000`), a Cadence GEM, in polled mode: descriptor rings
+(32 receive, 16 transmit) with a 1536-byte buffer each, whole frames in and out, the management interface (MDIO) and autonegotiation. Enable the crate's `net`
+feature and `Gem` implements [`hardroxide_net::Device`](net.md), so the network stack runs on it.
+
+`Gem::new(regs, dma_base, mac)` is `unsafe`: the rings and buffers live in the `DMA_REGION_BYTES` (about 75 KiB) at `dma_base`, which must be 64-byte aligned,
+**not cached** (use [`mem::set_non_cacheable`](#memory-mmu-caches-l2-mem) on the section) and not used for anything else, because the MAC's DMA reads and writes it. `init` resets the
+MAC, sets up the rings, the station address (one specific-address filter plus broadcast) and the MDIO clock; `link_up(slcr, timeout_ms)` finds the PHY (the first address
+that answers), restarts autonegotiation, waits for the link, reads the negotiated speed and duplex (`negotiated` is the pure function of the PHY's registers), sets the MAC's mode and
+the transmit clock (`GEM0_CLK_CTRL`: 125, 25 or 2.5 MHz from the 1000 MHz IO PLL) through the SLCR, and turns the receiver and transmitter on. `receive` copies out the next
+frame (the FCS is removed by the MAC) and gives the descriptor back; `transmit` queues a frame (the MAC adds the FCS and pads short frames) and returns `false` if every
+descriptor is busy. There are no interrupts, no jumbo frames, no VLAN, no checksum offload and no hardware timestamps; the PHY is driven through the standard IEEE registers.
+
+> **Board requirements found on the PYNQ-Z2:** the PS must be configured for Ethernet 0 (`ps7_init` sets MIO 16 to 27 to RGMII, MIO 52 and 53 to the management interface, the MAC clock to
+> the IO PLL, and MIO bank 1 to 1.8 V, see [SD card](#sd-card-controller)). The preset script that generates this had a bug: Vivado resets a peripheral's pin group when the peripheral is
+> enabled, and the preset's settings are applied one at a time in alphabetical order, so Ethernet 0 came out as EMIO with an external clock and the MAC's pins stayed unconnected (every MDIO
+> read returned 0). The preset is now applied in two passes and `fixtures/board/pynq_base_overlay.xsa` was rebuilt; the other board fixtures were not (they have no use for Ethernet yet).
+> The PHY is a Realtek RTL8211E that answers at MDIO addresses 0 and 1 (ID `0x001cc915`); it negotiates 1000 Mbit/s full duplex with a PC's port.
+>
+> **Verified on a PYNQ-Z2** (see [Verification gaps](../08-verification-gaps.md)): link at 1000 Mbit/s full duplex, DHCP from a PC, `ping` at 0.28 ms, the web server at about 3,200 requests/s. Not run: 10 and 100 Mbit/s
+> links (the speed paths are written but untested on a board), half duplex, the second MAC, a cable unplugged and replugged while running (the link is not monitored after `link_up`).

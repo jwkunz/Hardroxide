@@ -1,7 +1,7 @@
 //! The scheduling policy: which task runs, who is waiting for what, and for how long.
 //!
 //! Pure data and logic with no hardware access, so it is unit-tested on the host. The
-//! Cortex-A9 port ([`crate::port`]) switches stacks; the kernel ([`crate::kernel`]) wraps
+//! Cortex-A9 port (`port`) switches stacks; the kernel (`kernel`) wraps
 //! these operations in critical sections and yields when they say another task should run.
 //!
 //! Priorities: **a higher number is more urgent**. Task 0 is the idle task (priority 0) and

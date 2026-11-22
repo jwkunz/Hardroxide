@@ -2,7 +2,7 @@
 //! transmit of whole frames, the management interface (MDIO) to the PHY, and link bring-up with autonegotiation.
 //!
 //! The rings and the frame buffers live in one region of memory given to [`Gem::new`]; it must not be cached (see
-//! [`crate::mem::set_non_cacheable`]) because the MAC's DMA reads and writes it behind the processor's back. Everything is
+//! `mem::set_non_cacheable`) because the MAC's DMA reads and writes it behind the processor's back. Everything is
 //! polled: there are no interrupts. The register layout and the descriptor format are those of the Cadence GEM as the
 //! Zynq-7000 technical reference manual describes them.
 //!

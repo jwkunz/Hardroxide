@@ -192,12 +192,12 @@ impl Modulus {
     }
 
     /// Into Montgomery form.
-    const fn to_mont(&self, a: &U256) -> U256 {
+    const fn encode(&self, a: &U256) -> U256 {
         self.mul(a, &self.r2)
     }
 
     /// Out of Montgomery form.
-    const fn from_mont(&self, a: &U256) -> U256 {
+    const fn decode(&self, a: &U256) -> U256 {
         let one = [1, 0, 0, 0, 0, 0, 0, 0];
         self.mul(a, &one)
     }
@@ -271,8 +271,8 @@ impl Point {
 
     fn generator() -> Point {
         Point {
-            x: FP.to_mont(&GX_LIMBS),
-            y: FP.to_mont(&GY_LIMBS),
+            x: FP.encode(&GX_LIMBS),
+            y: FP.encode(&GY_LIMBS),
             z: FP.one,
         }
     }
@@ -353,20 +353,20 @@ impl Point {
     }
 
     /// The affine coordinates (x, y) out of Montgomery form; `None` for the point at infinity.
-    fn to_affine(&self) -> Option<(U256, U256)> {
+    fn affine(&self) -> Option<(U256, U256)> {
         if is_zero(&self.z) {
             return None;
         }
         let zi = FP.inv(&self.z);
         Some((
-            FP.from_mont(&FP.mul(&self.x, &zi)),
-            FP.from_mont(&FP.mul(&self.y, &zi)),
+            FP.decode(&FP.mul(&self.x, &zi)),
+            FP.decode(&FP.mul(&self.y, &zi)),
         ))
     }
 }
 
 /// b in Montgomery form, computed at compile time.
-const FB_MONT: U256 = FP_CONST.to_mont(&B_LIMBS);
+const FB_MONT: U256 = FP_CONST.encode(&B_LIMBS);
 const FP_CONST: Modulus = Modulus::new(P_LIMBS);
 
 /// Whether `private` is a valid private key: 1 <= d < n.
@@ -380,7 +380,7 @@ pub fn p256_public(private: &[u8; 32]) -> Option<[u8; 65]> {
     if !p256_private_is_valid(private) {
         return None;
     }
-    let (x, y) = Point::generator().mul(&from_be(private)).to_affine()?;
+    let (x, y) = Point::generator().mul(&from_be(private)).affine()?;
     let mut out = [0u8; 65];
     out[0] = 4;
     out[1..33].copy_from_slice(&to_be(&x));
@@ -438,7 +438,7 @@ pub fn ecdsa_p256_sign(private: &[u8; 32], hash: &[u8; 32]) -> Option<[u8; 64]> 
     let d = from_be(private);
     let z = hash_to_scalar(hash);
     let k = rfc6979_nonce(private, hash);
-    let (x1, _) = Point::generator().mul(&k).to_affine()?;
+    let (x1, _) = Point::generator().mul(&k).affine()?;
     // r = x1 mod n
     let (xs, borrow) = sbb(&x1, &N_LIMBS);
     let r = select(borrow, &x1, &xs);
@@ -448,13 +448,13 @@ pub fn ecdsa_p256_sign(private: &[u8; 32], hash: &[u8; 32]) -> Option<[u8; 64]> 
     // s = k^-1 (z + r d) mod n, in Montgomery form modulo n.
     let (n, rm, dm, zm, km) = (
         &FN,
-        FN.to_mont(&r),
-        FN.to_mont(&d),
-        FN.to_mont(&z),
-        FN.to_mont(&k),
+        FN.encode(&r),
+        FN.encode(&d),
+        FN.encode(&z),
+        FN.encode(&k),
     );
     let t = n.add(&zm, &n.mul(&rm, &dm));
-    let s = n.from_mont(&n.mul(&n.inv(&km), &t));
+    let s = n.decode(&n.mul(&n.inv(&km), &t));
     if is_zero(&s) {
         return None;
     }
@@ -502,7 +502,7 @@ pub fn ecdsa_p256_verify(public: &[u8; 65], hash: &[u8; 32], sig: &[u8; 64]) -> 
         return false;
     }
     // The point must be on the curve: y^2 = x^3 - 3x + b.
-    let (xm, ym) = (FP.to_mont(&qx), FP.to_mont(&qy));
+    let (xm, ym) = (FP.encode(&qx), FP.encode(&qy));
     let x2 = FP.mul(&xm, &xm);
     let x3 = FP.mul(&x2, &xm);
     let three_x = FP.add(&FP.add(&xm, &xm), &xm);
@@ -519,16 +519,16 @@ pub fn ecdsa_p256_verify(public: &[u8; 65], hash: &[u8; 32], sig: &[u8; 64]) -> 
     }
     let z = hash_to_scalar(hash);
     let n = &FN;
-    let w = n.inv(&n.to_mont(&s));
-    let u1 = n.from_mont(&n.mul(&n.to_mont(&z), &w));
-    let u2 = n.from_mont(&n.mul(&n.to_mont(&r), &w));
+    let w = n.inv(&n.encode(&s));
+    let u1 = n.decode(&n.mul(&n.encode(&z), &w));
+    let u2 = n.decode(&n.mul(&n.encode(&r), &w));
     let q = Point {
         x: xm,
         y: ym,
         z: FP.one,
     };
     let sum = Point::generator().mul(&u1).add(&q.mul(&u2));
-    let Some((x1, _)) = sum.to_affine() else {
+    let Some((x1, _)) = sum.affine() else {
         return false;
     };
     let (xs, borrow) = sbb(&x1, &N_LIMBS);

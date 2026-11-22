@@ -96,6 +96,7 @@ gen base-audio fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremeta
     if [ "${HRX_NET:-0}" = 1 ]; then
       run_check "base/net_ping (link, DHCP or fallback address)" base-audio net_ping fixtures/board/pynq_base_overlay.xsa 40 "NET PING READY"
       run_check "base/net_web (link, address, server up)" base-audio net_web fixtures/board/pynq_base_overlay.xsa 40 "NET WEB READY"
+      run_check "base/net_https (TLS 1.3 server up)" base-audio net_https fixtures/board/pynq_base_overlay.xsa 45 "NET HTTPS READY"
     fi
     # SD card: ERASES the card in the slot, so it runs only when HRX_SD_SERIAL names that card (the serial number
     # `sd_info` prints, for example 0x2df43e3b); the format test refuses any other card that holds data.

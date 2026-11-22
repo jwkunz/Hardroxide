@@ -14,10 +14,12 @@ irreversible (a crate version can be yanked but not deleted).
    of each `hardroxide-*` entry under `[workspace.dependencies]`; update
    `CHANGELOG.md`.
 4. **Dry run.** `cargo publish --workspace --dry-run` packages and builds every
-   crate against the others as they will appear on crates.io.
-5. **Publish.** `cargo publish --workspace` publishes in dependency order
-   (`hwh`, `mmio`, `fpga`, `dma`, `irq`, `ps7`, `rt`, `ip`, `gen`, `cli`). It needs a
-   crates.io API token (`cargo login`).
+   crate against the others as they will appear on crates.io (it does not need a token). A crate's README and `repository` and `homepage` fields are fixed for that version once published, so check them here.
+5. **Publish.** All 17 crates, in dependency order (a crate must be on the index before one that depends on it can be published):
+   `hardroxide-mmio`, `-hwh`, `-irq`, `-crypto`, `-net`, `-gfx`, `-dma`, `-fat`, `-fpga`, `-ps7`, `-tls`, `-gen`, `-ip`, `-rt`, `-audio`, `-video`, `-cli`.
+   Log in with `cargo login` (a token scoped to `publish-new` and `publish-update` for `hardroxide*`, with a short expiry; never paste a token into a chat or a file in the repository).
+   **crates.io limits new crates to a burst of five, then one every ten minutes**, so a first release of 17 takes about two hours: publish one crate at a time (`cargo publish -p <crate>`) and, on a rate-limit
+   error, wait for the time it names and go on. (`cargo publish --workspace` does the ordering but stops at the first error.) Publishing is irreversible: check the dry run first.
 6. **Tag.** `git tag -a v2.0.0 -m "2.0.0" && git push origin v2.0.0`, and create
    a GitHub release from the changelog.
 7. **Docs.** The `docs` workflow deploys the landing page, the book (`/book/`) and rustdoc (`/api/`) to GitHub Pages on every push

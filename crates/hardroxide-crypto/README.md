@@ -1,5 +1,8 @@
 # hardroxide-crypto
 
+> **Warning: home-made and unaudited.** This cryptography library was written for education and for trusted networks. It matches test vectors and interoperates with OpenSSL, curl and a browser, but nobody outside this project has reviewed it,
+> its timing behaviour has not been measured, and the Zynq-7000 has no random number generator, so the quality of anything built on it depends entirely on the randomness you supply. Do not use it to protect anything valuable. See the [security policy](https://github.com/jwkunz/Hardroxide/blob/main/SECURITY.md).
+
 Cryptographic primitives written for [Hardroxide](https://github.com/jwkunz/Hardroxide), for the TLS 1.3 server of the `hardroxide-tls` crate: SHA-256 and SHA-512, HMAC-SHA-256,
 HKDF, ChaCha20-Poly1305 (RFC 8439), X25519 (RFC 7748) and Ed25519 (RFC 8032). `no_std`, no allocation, no dependencies.
 

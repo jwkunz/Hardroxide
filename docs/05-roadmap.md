@@ -74,6 +74,13 @@ Accepted in [ADR 0004](decisions/0004-base-overlay-applications.md): the PYNQ ba
 graphics library on the HDMI output (2.2), WAV playback and recording (2.3), an SD card and FAT32 (2.4, board-verified, merged), Ethernet and a web
 server (2.5, board-verified, merged), HTTPS with a self-signed certificate (2.6, board-verified, merged), and an integrated application (2.7), one minor version each, each with board-verified acceptance tests. Later: PL accelerators for the TLS hot spots and a hardware random number generator (see the ADR).
 
+## After 2.7
+
+Not scheduled, recorded so they are not forgotten: a **hardware random source** in the PL (a ring-oscillator or the XADC noise) for TLS, whose random bytes are weak today ([TLS reference](reference/tls.md#where-the-random-bytes-come-from)); **faster
+public-key arithmetic** or PL accelerators for the TLS handshake (about 80 ms of the single core); **HDMI input capture** (the VDMA write channel and the overlay's HDMI receiver); regenerating the **other board fixtures' `ps7_init`** with the Ethernet and 1.8 V
+bank fixes; `fsck.fat` on a card the board formatted; listening to the audio pump; an interactive browser session and Firefox and Safari against the HTTPS server; an independent review of the cryptography and the TLS code; and the older items under "Not started" above
+(UltraScale+, SMP, HLS stream ports, scatter-gather DMA).
+
 ## Documentation site
 
 The mdBook (`book.toml`, `src = "docs"`) is the authoritative documentation

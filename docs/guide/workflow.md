@@ -77,7 +77,7 @@ can develop and unit-test most logic **without a board** against the mock backen
 The board's cores are 32-bit ARM Linux: build for `armv7-unknown-linux-gnueabihf`
 with a cross linker (`rustup target add ...`, `apt install gcc-arm-linux-gnueabihf`).
 [`scripts/board/run.sh`](../reference/scripts.md) does build, copy and run in one
-step. See [Getting started](getting-started.md#build-for-the-board).
+step. See [Getting started](getting-started.md#build-for-the-board-linux-flavor).
 
 ## 6. Prepare the board and run
 

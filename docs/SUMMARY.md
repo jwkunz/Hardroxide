@@ -55,9 +55,11 @@
   - [4. An SD card and files](tutorials/apps/04-sd.md)
   - [5. Ethernet and a web server](tutorials/apps/05-network.md)
   - [6. HTTPS with a self-signed certificate](tutorials/apps/06-https.md)
+  - [7. Everything at once](tutorials/apps/07-integration.md)
 
 # Reference
 
+- [What each library can and cannot do](reference/libraries.md)
 - [CLI](reference/cli.md)
 - [Generated crate](reference/generated-crate.md)
 - [Bare-metal crate](reference/baremetal.md)

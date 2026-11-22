@@ -37,18 +37,21 @@ Documentation: <https://jwkunz.github.io/Hardroxide/> (book at `/book/`, API ref
   controller, interrupt controller and AXI4-Stream FIFO (with `embedded-hal` 1.0
   where it fits), generated wrappers for Vitis HLS kernels (including pointer
   arguments), and raw register windows for everything else.
+- Applications on the PYNQ-Z2's base overlay, all with their own libraries and no third-party code: **HDMI graphics**, **audio** (WAV, tones, recording, an interrupt-driven pump), an **SD card with FAT32**,
+  **Ethernet with a TCP/IP stack and web server**, **HTTPS with TLS 1.3** (a home-made, unaudited implementation) and an **integrated RTOS application** that serves a dashboard over TLS while a 10 ms control loop
+  keeps its deadline. Seven tutorials under "Applications".
 - `hardroxide inspect` shows what a design will become before you generate;
   `hardroxide update` swaps in a rebuilt bitstream without touching the Rust
   source when the interface did not change.
 
 ## Status
 
-Version 2.0. Validated on a **PYNQ-Z2** (PYNQ 3.1, kernel 6.6): bitstream
+Version 2.6 (2.7 in progress). Validated on a **PYNQ-Z2** (PYNQ 3.1, kernel 6.6): bitstream
 loading, PL clocks, GPIO, HLS (scalar and pointer arguments), DMA, Timer, IIC,
 SPI (internal loopback), UART, BRAM, FIFO, interrupts (including through an AXI
 interrupt controller), and a crate generated from the PYNQ base overlay. The
 bare-metal and RTOS flavors (PS support, kernel, MMU and caches, DMA, a 10 ms control loop) on the same board and under
-QEMU. The results, and what is still unchecked, are in
+QEMU, and the applications listed above (HDMI, audio, SD, Ethernet, HTTPS to curl, OpenSSL and Edge). The results, and what is still unchecked, are in
 [`docs/08-verification-gaps.md`](docs/08-verification-gaps.md).
 
 Limits: Zynq-7000 only (UltraScale+ designs are refused with a clear error),

@@ -119,6 +119,25 @@ at most 10.2 us late (mean 1.06 us) over 726,197 releases with none missed, and 
 task within 5.4 us (mean 3.95 us). Details and limits: [Verification gaps](../08-verification-gaps.md); the program is
 `baremetal/rt-jitter`.
 
+## Statistics
+
+```rust,ignore
+pub enum TaskState
+pub struct TaskInfo
+pub fn task_slots() -> usize
+pub fn task_info(slot: usize) -> Option<TaskInfo>
+pub fn irq_ticks() -> u64
+pub fn cpu_total_ticks() -> u64
+```
+
+For a monitor page or a console report. `task_info(slot)` for each slot in `0..task_slots()` (slot 0 is the idle task; `None` for a free slot) gives a task's `name`, `priority` (the effective one, raised by priority inheritance),
+`state` (`Running`, `Ready`, `Delayed` or `Blocked`), `run_ticks`, `stack_size` and `stack_used`. **`run_ticks` is processor time in timer ticks (the peripheral clock, 325 MHz on the PYNQ-Z2), charged at every context switch from a timestamp of the
+global timer**, not sampled at the kernel tick: a sampling counter was tried first and was wrong, because a task released by the tick is not yet running when the tick samples, so a 10 ms control task showed 0% and the
+processor hog 99%. The time spent in **interrupt handlers and the kernel's interrupt path** is counted separately (`irq_ticks`) and is not charged to the task that was interrupted, so a 97 kHz audio interrupt shows as 10% of the processor on
+its own line. A task's share is `run_ticks / cpu_total_ticks()` (the sum of every task's time and the interrupt time). `stack_used` is a high-water mark: stacks start zero-filled and the mark is the first byte from the far end that has been written,
+so it is an estimate (a task that wrote zeros there is not seen) and costs a scan of the stack, which `task_info` does **with interrupts on** (it first copies the task's fields inside the critical section; scanning a 256 KiB stack with
+interrupts masked delayed the control loop by 409 us the first time it was written). Measured on a PYNQ-Z2 with an audio interrupt at 97.656 kHz, a 720p display, a TLS web server and a processor hog together: the 10 ms control task's worst deviation stayed at 4 us ([Verification gaps](../08-verification-gaps.md)).
+
 ## Not yet
 
 Event flags and task notifications, software timers, task suspend/delete from other tasks, GIC-priority-mask critical

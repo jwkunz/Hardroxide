@@ -31,7 +31,7 @@ Bare-metal/RTOS crates run on core 0 with no OS (`crates/hardroxide-ps7`, `crate
 dependencies); `hardroxide run`/`package`/`doctor` drive the board with the Vitis tools (JTAG boot mode for `run`).
 Their tests: `scripts/test-qemu.sh`, `cargo test -p hardroxide-gen --test baremetal` and `--test apps`, the board
 regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and applications in `apps/` (built by the
-`apps` test against the generated crate; plan in ADR 0004, versions 2.1 to 2.7). `main` carries 2.0.
+`apps` test against the generated crate; plan in ADR 0004, versions 2.1 to 2.7). `main` carries 2.6.0 (2.7, the integrated application, is on a branch).
 
 ## Current state and next step
 
@@ -40,7 +40,8 @@ snapshots, mock-MMIO tests, compile-tested guide examples, armv7 emulation tests
 and the drivers were **validated on a PYNQ-Z2 on 2026-11-16**; results and the
 bugs that validation found are in `docs/08-verification-gaps.md`. Crates: hwh,
 mmio, fpga, dma, irq, ip (GPIO, HLS, DMA, Timer, IIC, SPI, INTC, BRAM, UART,
-FIFO), gen, cli. On-board test programs are in `fixtures/board_tests/`; real
+FIFO, audio, VDMA, VTC, dynclk), gen, cli; for bare metal and the RTOS: ps7, rt; the applications on the PYNQ base
+overlay (ADR 0004): video, gfx, audio, fat, net, crypto, tls (`docs/reference/libraries.md` says what each can and cannot do). On-board test programs are in `fixtures/board_tests/`; real
 third-party designs (PYNQ overlays) are in `fixtures/real/`.
 
 **The mdBook (`docs/`, deployed by `.github/workflows/pages.yml`) is the
@@ -50,10 +51,10 @@ fails if signatures, help text or links drift. Guide examples are compile-tested
 (`cargo test -p hardroxide-gen --test guide`; tag blocks
 `rust,ignore,fixture=<name>`, `# ` lines are hidden setup).
 
-**Next step:** the 2.0.0 release (`docs/release.md`; publishing needs the maintainer's
-crates.io token) once the multi-hour `baremetal/rt-jitter` run is recorded in
-`docs/08-verification-gaps.md`. After that see `docs/05-roadmap.md` (SD boot check, SMP,
-UltraScale+, HLS stream ports, scatter-gather, an automated board regression script).
+**Next step:** finish 2.7 (the integrated application, the soak run, the documentation pass), then the release: no tags or releases until all
+the examples are done (maintainer's decision); `main` carries 2.6.0 unreleased, 2.0.0 and 2.1.0 are tagged, nothing is on crates.io (publishing needs the maintainer's token, `docs/release.md`). Ideas
+recorded for later: a hardware random source in the PL (the TLS random bytes are weak), faster field arithmetic or PL accelerators for the TLS handshake (80 ms of the core today), HDMI input capture, the other board fixtures' `ps7_init` regenerated
+with the Ethernet and 1.8 V bank fixes, `fsck.fat` on a board-formatted card. See `docs/05-roadmap.md`.
 
 On a board: stop anything using the PL before the first `load()` (it refuses if a
 driver is bound to a PL address; reprogramming under one froze the CPU), and
@@ -65,7 +66,7 @@ the same interrupt line.
 - Generated driver constructors may only use values from
   `hardroxide_hwh::Instance::driver_config()` (it is hashed into the interface
   hash; anything else would go stale on a bitstream-only `hardroxide update`).
-- The runtime crates (`mmio`, `fpga`, `dma`, `irq`, `ip`) must stay `no_std`-capable: new code that needs the OS goes behind the `std` feature, and `scripts/check-no-std.sh` (CI) builds them for `armv7a-none-eabihf`. Timeouts use `hardroxide_mmio::time`, never `std::time`.
+- The runtime crates (`mmio`, `fpga`, `dma`, `irq`, `ip`, and the application libraries `gfx`, `video`, `audio`, `fat`, `net`, `crypto`, `tls`) must stay `no_std`-capable: new code that needs the OS goes behind the `std` feature, and `scripts/check-no-std.sh` (CI) builds them for `armv7a-none-eabihf`. Timeouts use `hardroxide_mmio::time`, never `std::time`.
 - `scripts/test-armv7.sh` runs the runtime crates' tests as armv7 binaries
   under `qemu-arm` (uses the Vitis-bundled gcc/qemu if no system ones; CI too).
 

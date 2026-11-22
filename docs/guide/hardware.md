@@ -61,7 +61,7 @@ Building on the board itself failed: `make modules_prepare` there recursed
 forever because the packaged tree lacks the full Kbuild files.
 
 Building and copying binaries is covered in
-[Getting started](getting-started.md#build-for-the-board).
+[Getting started](getting-started.md#build-for-the-board-linux-flavor).
 
 ## First contact: `board_check`
 

@@ -11,7 +11,7 @@ needed), **UNVERIFIED** (needs the board), **DESIGN-GAP** (known incomplete).
 
 Prerequisites on the board: stock PYNQ-Z2 image, root shell, and either a Rust
 toolchain on the board or a cross-compile
-([Getting started](guide/getting-started.md#build-for-the-board)). Record
+([Getting started](guide/getting-started.md#build-for-the-board-linux-flavor)). Record
 `uname -a`, `ldd --version` and the PYNQ image version here.
 
 ## Verified offline

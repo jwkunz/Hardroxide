@@ -16,3 +16,4 @@ boot mode. Do [Bare metal 1](../baremetal/01-jtag.md) first.
 | 4 | [An SD card and files](04-sd.md) | the SD host controller, the block trait, FAT32, a data logger, WAV and BMP files from the card |
 | 5 | [Ethernet and a web server](05-network.md) | the Ethernet MAC, our own TCP/IP stack, ping, UDP, a web server on bare metal and beside a 10 ms control loop on the RTOS |
 | 6 | [HTTPS with a self-signed certificate](06-https.md) | TLS 1.3 written from scratch, ECDSA P-256 and Ed25519, certificates with `make-cert`, the random-number problem, a browser loading the page, TLS beside a control loop |
+| 7 | [Everything at once](07-integration.md) | the kernel, HDMI, audio by interrupt, the card, the network and TLS on one core; a per-task processor monitor; the interactions that only show up together |

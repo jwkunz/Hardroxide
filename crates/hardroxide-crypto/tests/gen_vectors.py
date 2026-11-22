@@ -9,6 +9,8 @@ from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature, Prehashed
 
 rnd = random.Random(0x4852584C)
 def rb(n): return bytes(rnd.getrandbits(8) for _ in range(n))
@@ -76,5 +78,36 @@ for i in range(70):
     k = Ed25519PrivateKey.from_private_bytes(seed)
     m = rb([0, 1, 2, 32, 64, 100, 129, 500, 1000][i % 9] if i < 40 else rnd.randrange(0, 400))
     out.append('    ("%s", "%s", "%s", "%s"),' % (h(seed), h(k.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)), h(m), h(k.sign(m))))
+out.append("];")
+
+# P-256: (private, uncompressed public)
+def p256_key():
+    while True:
+        d = int.from_bytes(rb(32), "big")
+        if 1 <= d < 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551:
+            return d
+def pub65(k): return k.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+out.append("")
+out.append("pub const P256KEYS: &[(&str, &str)] = &[")
+for d in [1, 2, 3, 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632550] + [p256_key() for _ in range(60)]:
+    k = ec.derive_private_key(d, ec.SECP256R1())
+    out.append('    ("%064x", "%s"),' % (d, h(pub65(k))))
+out.append("];\n")
+# (private, sha256 digest, deterministic RFC 6979 signature r||s)
+out.append("pub const ECDSA_DET: &[(&str, &str, &str)] = &[")
+for i in range(70):
+    d = p256_key(); k = ec.derive_private_key(d, ec.SECP256R1())
+    m = rb(rnd.randrange(0, 200)); dig = hashlib.sha256(m).digest()
+    sig = k.sign(dig, ec.ECDSA(Prehashed(hashes.SHA256()), deterministic_signing=True))
+    r, s_ = decode_dss_signature(sig)
+    out.append('    ("%064x", "%s", "%064x%064x"),' % (d, h(dig), r, s_))
+out.append("];\n")
+# (public, digest, ordinary randomised signature r||s) for the verifier
+out.append("pub const ECDSA_RANDOM: &[(&str, &str, &str)] = &[")
+for i in range(40):
+    d = p256_key(); k = ec.derive_private_key(d, ec.SECP256R1())
+    dig = hashlib.sha256(rb(rnd.randrange(0, 100))).digest()
+    r, s_ = decode_dss_signature(k.sign(dig, ec.ECDSA(Prehashed(hashes.SHA256()))))
+    out.append('    ("%s", "%s", "%064x%064x"),' % (h(pub65(k)), h(dig), r, s_))
 out.append("];")
 print("\n".join(out))

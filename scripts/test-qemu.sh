@@ -206,7 +206,7 @@ check("6 concurrent HTTPS requests (4 sockets)", all(c == "200" for c in codes),
 sc = subprocess.run(["openssl", "s_client", "-connect", "127.0.0.1:18443", "-tls1_3", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256", "-brief", "-ign_eof"],
                     input=b"GET / HTTP/1.0\r\n\r\n", capture_output=True, timeout=60)
 txt = (sc.stdout + sc.stderr).decode()
-check("openssl s_client: TLS 1.3, ChaCha20-Poly1305, an ed25519 signature, X25519", all(w in txt for w in ("TLSv1.3", "TLS_CHACHA20_POLY1305_SHA256", "ed25519", "X25519")) and "hello over TLS" in txt, txt[-300:])
+check("openssl s_client: TLS 1.3, ChaCha20-Poly1305, an ECDSA P-256 signature, X25519", all(w in txt for w in ("TLSv1.3", "TLS_CHACHA20_POLY1305_SHA256", "ecdsa_secp256r1_sha256", "X25519")) and "hello over TLS" in txt, txt[-300:])
 # A client that offers only AES-GCM is refused with an alert; the server is unharmed.
 sc = subprocess.run(["openssl", "s_client", "-connect", "127.0.0.1:18443", "-tls1_3", "-ciphersuites", "TLS_AES_128_GCM_SHA256"], input=b"", capture_output=True, timeout=60)
 check("a client without ChaCha20-Poly1305 is refused", b"alert" in sc.stderr + sc.stdout or b"handshake failure" in sc.stderr + sc.stdout, (sc.stderr + sc.stdout).decode()[-200:])

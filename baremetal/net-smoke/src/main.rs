@@ -6,7 +6,7 @@
 #![no_main]
 
 use hardroxide_mmio::{Mmio, MmioBackend, PhysMem};
-use hardroxide_crypto::{Drbg, ed25519_public};
+use hardroxide_crypto::Drbg;
 use hardroxide_net::http::Server;
 use hardroxide_tls::{Config as TlsConfig, HttpsServer};
 use hardroxide_net::{Config, Stack, StaticConfig};
@@ -59,7 +59,7 @@ type Net = Stack<Gem<hardroxide_mmio::PhysRegion>, 8, 1, 4096>;
 
 /// The throwaway test identity (see fixtures/tls/README.md): never use it for anything real.
 static TEST_CERT: &[u8] = include_bytes!("../../../fixtures/tls/test-cert.der");
-static TEST_SEED: &[u8; 32] = include_bytes!("../../../fixtures/tls/test-seed.bin");
+static TEST_KEY: &[u8; 32] = include_bytes!("../../../fixtures/tls/test-key.bin");
 
 fn main() -> ! {
     platform_init();
@@ -92,8 +92,8 @@ fn main() -> ! {
     // HTTPS on port 443 over sockets 4 to 7. The random bytes come from a generator fed with the clock (this smoke test has no better source).
     let mut drbg = Drbg::new(b"net-smoke: not a real seed");
     drbg.add_entropy(&ms().to_le_bytes());
-    let tls_config = TlsConfig::new(TEST_CERT, *TEST_SEED);
-    assert_eq!(tls_config.public_key(), &ed25519_public(TEST_SEED));
+    let tls_config = TlsConfig::p256(TEST_CERT, *TEST_KEY);
+    
     let mut random = || {
         drbg.add_entropy(&time::now_ns().to_le_bytes());
         drbg.bytes64()

@@ -1,8 +1,9 @@
 //! The TLS 1.3 server state machine.
 
 use hardroxide_crypto::{
-    HmacSha256, Sha256, constant_time_eq, ed25519_public, ed25519_sign_with_public, hkdf_expand,
-    hkdf_extract, open, seal, sha256, x25519, x25519_public,
+    HmacSha256, Sha256, constant_time_eq, ecdsa_p256_sign, ed25519_public,
+    ed25519_sign_with_public, hkdf_expand, hkdf_extract, open, p256_public, seal, sha256,
+    sig_to_der, x25519, x25519_public,
 };
 
 /// The most record bytes (header and payload) the server takes in. A longer record is refused with `record_overflow`.
@@ -17,6 +18,7 @@ const RECORD_PLAINTEXT: usize = 1300;
 const CIPHER_CHACHA20_POLY1305: u16 = 0x1303;
 const GROUP_X25519: u16 = 0x001d;
 const SIGALG_ED25519: u16 = 0x0807;
+const SIGALG_ECDSA_P256_SHA256: u16 = 0x0403;
 const VERSION_TLS13: u16 = 0x0304;
 
 const CT_ALERT: u8 = 21;
@@ -58,24 +60,65 @@ fn err<T>(alert: Alert, reason: &'static str) -> Result<T, TlsError> {
     Err(TlsError { alert, reason })
 }
 
-/// The server's identity: a DER certificate with an Ed25519 key, and that key's seed.
+/// The private key behind the server's certificate.
+enum Key {
+    Ed25519 { seed: [u8; 32], public: [u8; 32] },
+    P256 { private: [u8; 32] },
+}
+
+/// The server's identity: a DER certificate and the private key it certifies. Chromium-based browsers offer only ECDSA P-256 (and RSA) signatures,
+/// so a certificate for them must be [`Config::p256`]; `curl` and OpenSSL accept either.
 pub struct Config<'a> {
     certificate: &'a [u8],
-    seed: [u8; 32],
-    public: [u8; 32],
+    key: Key,
 }
 
 impl<'a> Config<'a> {
-    /// `certificate` is the DER X.509 certificate (its key must be the Ed25519 key of `seed`). Computes the public key once.
-    pub fn new(certificate: &'a [u8], seed: [u8; 32]) -> Self {
+    /// An Ed25519 certificate: `certificate` is the DER X.509 certificate whose key is the Ed25519 key of `seed`. Computes the public key once.
+    pub fn ed25519(certificate: &'a [u8], seed: [u8; 32]) -> Self {
         Config {
             certificate,
-            public: ed25519_public(&seed),
-            seed,
+            key: Key::Ed25519 {
+                public: ed25519_public(&seed),
+                seed,
+            },
         }
     }
-    pub fn public_key(&self) -> &[u8; 32] {
-        &self.public
+
+    /// An ECDSA P-256 certificate: `certificate` is the DER X.509 certificate whose key is the P-256 key with the 32-byte big-endian `private` scalar.
+    /// Panics if `private` is not a valid key (1 to n-1).
+    pub fn p256(certificate: &'a [u8], private: [u8; 32]) -> Self {
+        assert!(
+            p256_public(&private).is_some(),
+            "not a valid P-256 private key"
+        );
+        Config {
+            certificate,
+            key: Key::P256 { private },
+        }
+    }
+
+    /// The signature algorithm the certificate's key signs with (a TLS SignatureScheme code).
+    pub fn signature_scheme(&self) -> u16 {
+        match self.key {
+            Key::Ed25519 { .. } => SIGALG_ED25519,
+            Key::P256 { .. } => SIGALG_ECDSA_P256_SHA256,
+        }
+    }
+
+    /// Sign the CertificateVerify content: returns the signature bytes and their count (at most 72).
+    fn sign(&self, content: &[u8]) -> ([u8; 72], usize) {
+        match &self.key {
+            Key::Ed25519 { seed, public } => {
+                let mut out = [0u8; 72];
+                out[..64].copy_from_slice(&ed25519_sign_with_public(seed, public, content));
+                (out, 64)
+            }
+            Key::P256 { private } => {
+                let sig = ecdsa_p256_sign(private, &sha256(content)).expect("the key was checked");
+                sig_to_der(&sig)
+            }
+        }
     }
 }
 
@@ -511,10 +554,15 @@ impl<'a> TlsServer<'a> {
         if !hello.version_ok {
             return err(Alert::ProtocolVersion, "the client does not offer TLS 1.3");
         }
-        if !hello.sigalg_ok {
+        let needed = if self.config.signature_scheme() == SIGALG_ED25519 {
+            1
+        } else {
+            2
+        };
+        if hello.sigalgs & needed == 0 {
             return err(
                 Alert::HandshakeFailure,
-                "the client does not accept Ed25519 signatures",
+                "the client does not accept signatures of the certificate's key type",
             );
         }
         let Some(client_share) = hello.x25519_share else {
@@ -615,15 +663,16 @@ impl<'a> TlsServer<'a> {
         to_sign[64..97].copy_from_slice(b"TLS 1.3, server CertificateVerify");
         to_sign[97] = 0;
         to_sign[98..].copy_from_slice(&self.transcript.clone().finish());
-        let sig = ed25519_sign_with_public(&self.config.seed, &self.config.public, &to_sign);
-        let mut cv = [0u8; 4 + 2 + 2 + 64];
+        let (sig, sig_len) = self.config.sign(&to_sign);
+        let mut cv = [0u8; 4 + 2 + 2 + 72];
         cv[0] = HS_CERTIFICATE_VERIFY;
-        cv[1..4].copy_from_slice(&((2 + 2 + 64) as u32).to_be_bytes()[1..]);
-        cv[4..6].copy_from_slice(&SIGALG_ED25519.to_be_bytes());
-        cv[6..8].copy_from_slice(&64u16.to_be_bytes());
-        cv[8..].copy_from_slice(&sig);
-        self.transcript.update(&cv);
-        self.queue_record(CT_HANDSHAKE, &cv);
+        cv[1..4].copy_from_slice(&((2 + 2 + sig_len) as u32).to_be_bytes()[1..]);
+        cv[4..6].copy_from_slice(&self.config.signature_scheme().to_be_bytes());
+        cv[6..8].copy_from_slice(&(sig_len as u16).to_be_bytes());
+        cv[8..8 + sig_len].copy_from_slice(&sig[..sig_len]);
+        let cv = &cv[..8 + sig_len];
+        self.transcript.update(cv);
+        self.queue_record(CT_HANDSHAKE, cv);
 
         // Finished: HMAC over the transcript with the server's finished key.
         let mut finished_key = [0u8; 32];
@@ -685,7 +734,7 @@ struct Hello<'a> {
     session_id: &'a [u8],
     cipher_ok: bool,
     version_ok: bool,
-    sigalg_ok: bool,
+    sigalgs: u8, // bit 0: Ed25519 offered, bit 1: ECDSA P-256 with SHA-256 offered
     x25519_share: Option<[u8; 32]>,
 }
 
@@ -741,7 +790,7 @@ impl<'a> Hello<'a> {
             session_id,
             cipher_ok,
             version_ok: false,
-            sigalg_ok: false,
+            sigalgs: 0,
             x25519_share: None,
         };
         let mut exts = Reader(r.vec16()?);
@@ -759,9 +808,13 @@ impl<'a> Hello<'a> {
                 // signature_algorithms.
                 0x000d => {
                     let list = d.vec16()?;
-                    h.sigalg_ok = list
-                        .chunks_exact(2)
-                        .any(|c| u16::from_be_bytes([c[0], c[1]]) == SIGALG_ED25519);
+                    for c in list.chunks_exact(2) {
+                        match u16::from_be_bytes([c[0], c[1]]) {
+                            SIGALG_ED25519 => h.sigalgs |= 1,
+                            SIGALG_ECDSA_P256_SHA256 => h.sigalgs |= 2,
+                            _ => {}
+                        }
+                    }
                 }
                 // key_share: a list of (group, key).
                 0x0033 => {

@@ -24,9 +24,9 @@ gen() {
   for extra in "$@"; do cp "$extra"/*.rs "$dir/examples/"; done
   if [ "$#" -gt 0 ] && [[ "$*" == apps/* ]]; then
     # The applications use library crates a generated crate does not depend on, and embed a WAV file.
-    (cd "$dir" && for c in gfx fat net; do cargo add -q --dev --path "$OLDPWD/crates/hardroxide-$c" || exit 1; done \
+    (cd "$dir" && for c in gfx fat net crypto tls; do cargo add -q --dev --path "$OLDPWD/crates/hardroxide-$c" || exit 1; done \
       && for c in video audio; do cargo add -q --dev --path "$OLDPWD/crates/hardroxide-$c" --no-default-features || exit 1; done \
-      && sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml && cp "$OLDPWD/apps/base/data/chime.wav" examples/) || return 1
+      && sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml && cp "$OLDPWD"/apps/base/data/chime.wav "$OLDPWD"/apps/base/data/test-cert.der "$OLDPWD"/apps/base/data/test-key.bin examples/) || return 1
   fi
   (cd "$dir" && cargo build -q --release --examples 2>&1) || return 1
 }

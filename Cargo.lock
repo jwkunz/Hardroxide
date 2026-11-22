@@ -243,8 +243,10 @@ version = "2.5.0"
 dependencies = [
  "anyhow",
  "clap",
+ "hardroxide-crypto",
  "hardroxide-gen",
  "hardroxide-hwh",
+ "hardroxide-tls",
  "zip",
 ]
 

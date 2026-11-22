@@ -1,3 +1,4 @@
+mod cert;
 mod host;
 
 use anyhow::{Context, Result};
@@ -15,6 +16,14 @@ use std::path::PathBuf;
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum KeyType {
+    /// ECDSA with P-256 (browsers accept it).
+    P256,
+    /// Ed25519 (curl and OpenSSL accept it, browsers do not).
+    Ed25519,
 }
 
 #[derive(Subcommand)]
@@ -89,6 +98,31 @@ enum Cmd {
         /// Leave the bitstream out (the design has no PL, or the program loads it).
         #[arg(long)]
         no_pl: bool,
+    },
+    /// Make a self-signed TLS certificate and private key for the HTTPS examples.
+    ///
+    /// Writes cert.der, cert.pem and key.bin (the 32-byte private key) to the output directory. The default key
+    /// type, ECDSA P-256, is the one browsers accept; Ed25519 works with curl and OpenSSL only. The key comes from the
+    /// operating system's random source (/dev/urandom). Include the names and addresses the board will be reached at.
+    MakeCert {
+        /// Common name (also the DNS name unless --dns or --ip is given).
+        #[arg(long)]
+        name: String,
+        /// A DNS name for the certificate (repeatable).
+        #[arg(long)]
+        dns: Vec<String>,
+        /// An IPv4 address for the certificate (repeatable).
+        #[arg(long)]
+        ip: Vec<String>,
+        /// Days the certificate is valid for.
+        #[arg(long, default_value_t = 3650)]
+        days: u32,
+        /// Key type.
+        #[arg(long, value_enum, default_value_t = KeyType::P256)]
+        key_type: KeyType,
+        /// Output directory (created if needed).
+        #[arg(short, long, default_value = ".")]
+        out: PathBuf,
     },
     /// Check that the host can drive a board: Vitis tools, JTAG cable access, console port.
     Doctor {
@@ -178,6 +212,58 @@ fn main() -> Result<()> {
             fsbl: fsbl.as_deref(),
             no_pl,
         })?,
+        Cmd::MakeCert {
+            name,
+            dns,
+            ip,
+            days,
+            key_type,
+            out,
+        } => {
+            let ips = ip
+                .iter()
+                .map(|s| {
+                    let p: Vec<u8> = s.split('.').filter_map(|x| x.parse().ok()).collect();
+                    <[u8; 4]>::try_from(p).map_err(|_| anyhow::anyhow!("not an IPv4 address: {s}"))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let opts = cert::CertOptions {
+                common_name: name,
+                dns_names: dns,
+                ips,
+                days,
+                algorithm: match key_type {
+                    KeyType::P256 => cert::Algorithm::P256,
+                    KeyType::Ed25519 => cert::Algorithm::Ed25519,
+                },
+                now_unix: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)?
+                    .as_secs(),
+            };
+            let mut random = |buf: &mut [u8]| -> Result<()> {
+                use std::io::Read;
+                std::fs::File::open("/dev/urandom")
+                    .and_then(|mut f| f.read_exact(buf))
+                    .context("reading /dev/urandom (make-cert needs a Unix host)")
+            };
+            let c = cert::make_cert(&opts, &mut random)?;
+            std::fs::create_dir_all(&out)?;
+            std::fs::write(out.join("cert.der"), &c.der)?;
+            std::fs::write(out.join("cert.pem"), cert::pem(&c.der, "CERTIFICATE"))?;
+            std::fs::write(out.join("key.bin"), c.key)?;
+            println!(
+                "wrote {0}/cert.der, {0}/cert.pem and {0}/key.bin (the private key: keep it secret)",
+                out.display()
+            );
+            println!(
+                "SHA-256 fingerprint: {}",
+                c.sha256_fingerprint
+                    .iter()
+                    .map(|b| format!("{b:02X}"))
+                    .collect::<Vec<_>>()
+                    .join(":")
+            );
+        }
         Cmd::Doctor { tty } => {
             let checks = host::doctor(&tty);
             let mut bad = 0;

@@ -66,7 +66,7 @@ fn serve_one(
     let listener = listener.try_clone().unwrap();
     std::thread::spawn(move || {
         let (cert, seed) = identity();
-        let config = Config::new(cert, *seed);
+        let config = Config::ed25519(cert, *seed);
         let (mut sock, _) = listener.accept().unwrap();
         sock.set_read_timeout(Some(Duration::from_millis(20)))
             .unwrap();
@@ -258,7 +258,7 @@ fn a_client_without_chacha_or_ed25519_is_refused_with_an_alert() {
 #[test]
 fn garbage_and_tampered_records_fail_cleanly() {
     let (cert, seed) = identity();
-    let config = Config::new(cert, *seed);
+    let config = Config::ed25519(cert, *seed);
     // Noise as a first record.
     let mut tls = TlsServer::new(&config, random64());
     tls.feed(&[0x17, 3, 3, 0, 5, 1, 2, 3, 4, 5]);
@@ -297,4 +297,215 @@ fn garbage_and_tampered_records_fail_cleanly() {
             off += n;
         }
     }
+}
+
+/// A self-signed ECDSA P-256 certificate made by OpenSSL: (DER certificate, 32-byte private scalar).
+fn p256_identity() -> &'static (Vec<u8>, [u8; 32]) {
+    static ID: OnceLock<(Vec<u8>, [u8; 32])> = OnceLock::new();
+    ID.get_or_init(|| {
+        let dir: PathBuf =
+            std::env::temp_dir().join(format!("hrx-tls-test-p256-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (key, cert) = (dir.join("key.pem"), dir.join("cert.pem"));
+        let st = Command::new("openssl")
+            .args([
+                "req",
+                "-x509",
+                "-newkey",
+                "ec",
+                "-pkeyopt",
+                "ec_paramgen_curve:prime256v1",
+                "-nodes",
+                "-keyout",
+            ])
+            .arg(&key)
+            .arg("-out")
+            .arg(&cert)
+            .args(["-subj", "/CN=hardroxide-p256.local", "-days", "3650"])
+            .output()
+            .expect("openssl must be installed to run this test");
+        assert!(
+            st.status.success(),
+            "{}",
+            String::from_utf8_lossy(&st.stderr)
+        );
+        let der = Command::new("openssl")
+            .args(["x509", "-outform", "DER", "-in"])
+            .arg(&cert)
+            .output()
+            .unwrap()
+            .stdout;
+        // SEC1 ECPrivateKey: 30 77 02 01 01 04 20 <32 bytes> ...
+        let sec1 = Command::new("openssl")
+            .args(["ec", "-outform", "DER", "-in"])
+            .arg(&key)
+            .output()
+            .unwrap()
+            .stdout;
+        assert_eq!(&sec1[..7], &[0x30, 0x77, 0x02, 0x01, 0x01, 0x04, 0x20]);
+        let private: [u8; 32] = sec1[7..39].try_into().unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        (der, private)
+    })
+}
+
+/// Serve one connection with a P-256 certificate (a trimmed copy of `serve_one`).
+fn serve_one_p256(
+    listener: &TcpListener,
+    body: &'static [u8],
+) -> std::thread::JoinHandle<Result<(), String>> {
+    let listener = listener.try_clone().unwrap();
+    std::thread::spawn(move || {
+        let (cert, key) = p256_identity();
+        let config = Config::p256(cert, *key);
+        let (mut sock, _) = listener.accept().unwrap();
+        sock.set_read_timeout(Some(Duration::from_millis(20)))
+            .unwrap();
+        let mut tls = TlsServer::new(&config, random64());
+        let mut request = Vec::new();
+        let mut responded = false;
+        let t0 = std::time::Instant::now();
+        let mut buf = [0u8; 2048];
+        while t0.elapsed() < Duration::from_secs(20) {
+            match sock.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let mut off = 0;
+                    while off < n {
+                        let took = tls.feed(&buf[off..n]);
+                        if took == 0 {
+                            break;
+                        }
+                        off += took;
+                    }
+                }
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::WouldBlock
+                        || e.kind() == std::io::ErrorKind::TimedOut => {}
+                Err(_) => break,
+            }
+            if let Some(e) = tls.failure() {
+                sock.write_all(tls.pending_output()).ok();
+                return Err(format!("{e:?}"));
+            }
+            let n = tls.recv(&mut buf);
+            request.extend_from_slice(&buf[..n]);
+            if tls.is_connected() && !responded && request.windows(4).any(|w| w == b"\r\n\r\n") {
+                responded = true;
+                let mut all = format!("HTTP/1.0 200 OK\r\nContent-Length: {}\r\n\r\n", body.len())
+                    .into_bytes();
+                all.extend_from_slice(body);
+                let mut off = 0;
+                while off < all.len() {
+                    let took = tls.send(&all[off..]);
+                    off += took;
+                    if took == 0 {
+                        sock.write_all(tls.pending_output()).unwrap();
+                        let n = tls.pending_output().len();
+                        tls.consume_output(n);
+                    }
+                }
+                tls.close();
+            }
+            let out = tls.pending_output().to_vec();
+            if !out.is_empty() {
+                sock.write_all(&out).unwrap();
+                tls.consume_output(out.len());
+            }
+            if responded && tls.pending_output().is_empty() && tls.peer_closed() {
+                break;
+            }
+            if responded && t0.elapsed() > Duration::from_secs(8) {
+                break;
+            }
+        }
+        Ok(())
+    })
+}
+
+#[test]
+fn an_ecdsa_p256_certificate_works_with_openssl_and_curl() {
+    for client in ["openssl", "curl"] {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = serve_one_p256(&listener, b"ecdsa over tls 1.3\n");
+        let text = if client == "openssl" {
+            let mut c = Command::new("openssl")
+                .args([
+                    "s_client",
+                    "-connect",
+                    &format!("127.0.0.1:{port}"),
+                    "-tls1_3",
+                    "-ciphersuites",
+                    "TLS_CHACHA20_POLY1305_SHA256",
+                    "-brief",
+                    "-ign_eof",
+                ])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            c.stdin
+                .as_mut()
+                .unwrap()
+                .write_all(b"GET / HTTP/1.0\r\n\r\n")
+                .unwrap();
+            let o = c.wait_with_output().unwrap();
+            format!(
+                "{}{}",
+                String::from_utf8_lossy(&o.stdout),
+                String::from_utf8_lossy(&o.stderr)
+            )
+        } else {
+            let o = Command::new("curl")
+                .args([
+                    "-s",
+                    "-k",
+                    "-m",
+                    "20",
+                    "--tlsv1.3",
+                    &format!("https://127.0.0.1:{port}/"),
+                ])
+                .output()
+                .unwrap();
+            String::from_utf8_lossy(&o.stdout).to_string()
+        };
+        let r = server.join().unwrap();
+        assert!(r.is_ok(), "{client}: server: {r:?}\n{text}");
+        assert!(text.contains("ecdsa over tls 1.3"), "{client}: {text}");
+        if client == "openssl" {
+            assert!(
+                text.contains("ecdsa_secp256r1_sha256")
+                    || text.contains("ECDSA")
+                    || text.contains("ecdsa"),
+                "{text}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_p256_server_refuses_a_client_that_offers_only_ed25519() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let server = serve_one_p256(&listener, b"x");
+    let mut c = Command::new("openssl")
+        .args([
+            "s_client",
+            "-connect",
+            &format!("127.0.0.1:{port}"),
+            "-tls1_3",
+            "-sigalgs",
+            "ed25519",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    drop(c.stdin.take());
+    let _ = c.wait_with_output().unwrap();
+    let e = server.join().unwrap().expect_err("must fail");
+    assert!(e.contains("HandshakeFailure"), "{e}");
 }

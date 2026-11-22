@@ -321,3 +321,75 @@ fn the_generator_is_deterministic_for_a_seed_and_differs_with_entropy_and_calls(
         "{ones} one bits of 524288"
     );
 }
+
+#[test]
+fn p256_public_keys_match_openssl() {
+    for (d, want) in P256KEYS {
+        let got = p256::p256_public(&arr(d)).unwrap();
+        assert_eq!(hex(&got), *want, "private key {d}");
+    }
+    // Keys outside 1..n are refused.
+    assert!(p256::p256_public(&[0u8; 32]).is_none());
+    assert!(
+        p256::p256_public(&arr(
+            "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"
+        ))
+        .is_none()
+    );
+    assert!(p256::p256_public(&[0xFF; 32]).is_none());
+}
+
+#[test]
+fn ecdsa_p256_signatures_are_byte_for_byte_those_of_openssl_and_verify() {
+    // RFC 6979 appendix A.2.5: P-256 and SHA-256, message "sample".
+    let x = arr::<32>("c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721");
+    let sig = p256::ecdsa_p256_sign(&x, &sha256(b"sample")).unwrap();
+    assert_eq!(
+        hex(&sig),
+        "efd48b2aacb6a8fd1140dd9cd45e81d69d2c877b56aaf991c34d0ea84eaf3716f7cb1c942d657c41d436c7a1b6e29f65f3e900dbb9aff4064dc4ab2f843acda8"
+    );
+    for (d, dig, want) in ECDSA_DET {
+        let (d, dig) = (arr::<32>(d), arr::<32>(dig));
+        let sig = p256::ecdsa_p256_sign(&d, &dig).unwrap();
+        assert_eq!(hex(&sig), *want);
+        let public = p256::p256_public(&d).unwrap();
+        assert!(p256::ecdsa_p256_verify(&public, &dig, &sig));
+        // Tampering: the hash, either half, the key.
+        let mut dig2 = dig;
+        dig2[0] ^= 1;
+        assert!(!p256::ecdsa_p256_verify(&public, &dig2, &sig));
+        for at in [0usize, 31, 32, 63] {
+            let mut s2 = sig;
+            s2[at] ^= 1;
+            assert!(!p256::ecdsa_p256_verify(&public, &dig, &s2), "byte {at}");
+        }
+        let mut p2 = public;
+        p2[40] ^= 1;
+        assert!(
+            !p256::ecdsa_p256_verify(&p2, &dig, &sig),
+            "a point off the curve"
+        );
+    }
+    // Signatures made by OpenSSL with random nonces verify.
+    for (public, dig, sig) in ECDSA_RANDOM {
+        assert!(p256::ecdsa_p256_verify(&arr(public), &arr(dig), &arr(sig)));
+    }
+}
+
+#[test]
+fn der_signatures_have_the_right_shape() {
+    for (_, _, sig) in ECDSA_DET {
+        let sig = arr::<64>(sig);
+        let (der, n) = p256::sig_to_der(&sig);
+        assert_eq!(der[0], 0x30);
+        assert_eq!(usize::from(der[1]) + 2, n);
+        assert!(n <= 72);
+        assert_eq!(der[2], 0x02);
+        // The first integer is r, minimal and positive.
+        let rl = usize::from(der[3]);
+        assert!(der[4] & 0x80 == 0, "r is positive");
+        let r = &der[4..4 + rl];
+        let minimal: Vec<u8> = sig[..32].iter().skip_while(|b| **b == 0).copied().collect();
+        assert!(r.ends_with(&minimal));
+    }
+}

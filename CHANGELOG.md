@@ -17,7 +17,7 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
   controller, parks its second queue, refuses memory above 4 GiB, and can set a TI DP83867 PHY's RGMII delays
   (`Gem::negotiate`, `start`, `mdio_read_extended`, `dp83867_set_delays` are new).
 - `baremetal/net-smoke` and `sd-smoke` build for both processor families; `baremetal/sd-info` reads a card without being able
-  to write it.
+  to write it, and `baremetal/i2c-info` reads the RFSoC 4x2's power monitors.
 - The SD card driver works on UltraScale+ (re-exported as `psu::sd`): it divides the clock as the version 3.00 controllers
   need.
 - `hardroxide-ps7`: a `cpu` module, the common processor operations under the name `hardroxide-psu` also uses.

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The board tests of the Zynq UltraScale+ support, on an RFSoC 4x2 in JTAG boot mode connected by USB (needs Vitis).
 # Volatile: nothing is written to storage. Runs the smoke program (processor system and PL interrupts) with the loopback
-# fixture in the PL, once more without programming the PL (`run --no-pl`), and the kernel's test (baremetal/rt-smoke).
+# fixture in the PL, once more without programming the PL (`run --no-pl`), the kernel's test (baremetal/rt-smoke), and a
+# read-only look at the I2C buses and power monitors (baremetal/i2c-info).
 # The two-hour jitter benchmark (baremetal/rt-jitter) is run by hand.
 # HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
 # HRX_NET=1 adds the Ethernet test (the board cabled to this computer, which serves DHCP on that link).
@@ -63,6 +64,15 @@ need "second (after rearm) true, nothing pending true"
 need "0 broken (preserved)"
 need "RT ALL OK"
 need "EXCEPTION: undefined instruction"
+echo "== I2C (read only)"
+(cd baremetal/i2c-info && cargo build -q --release)
+target/debug/hardroxide run baremetal/i2c-info/target/aarch64-unknown-none/release/i2c-info \
+  --xsa "$XSA" --tty "$TTY" --watch 12 2>&1 | tr -d '\r' | tee "$OUT"
+need "bus 0 at .*: 0x40 0x41 0x42 0x43 0x44 0x45 0x46 0x47 0x48  (9 found, 0 other errors)"
+need "bus 1 at .*0x0d.*0x50 0x58 .*0 other errors"
+need "9 of 9 monitors read"
+need "I2C INFO DONE"
+
 # The SD card: only with HRX_SD_SERIAL naming the card in the slot, WHICH IS ERASED (baremetal/sd-info prints the serial
 # number without writing). The start of what the board wrote comes back over JTAG and is checked with fsck.fat.
 if [ -n "${HRX_SD_SERIAL:-}" ]; then

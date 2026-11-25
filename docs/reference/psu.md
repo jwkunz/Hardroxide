@@ -85,6 +85,13 @@ pub fn without_irq<T>(f: impl FnOnce() -> T) -> T
 pub fn current_el() -> u32
 ```
 
+## I2C (`i2c`)
+
+`hardroxide-ps7`'s [driver](ps7.md), for the controllers at `map::I2C0_BASE` and `I2C1_BASE`, with their input clock
+`clocks::i2c_ref_hz`: `i2c.set_clock(input_hz, 100_000)`. On the RFSoC 4x2 bus 0 carries nine INA220 power monitors
+(`0x40`..`0x48`) and bus 1 a voltage-setting DAC (`0x0d`) and the identity EEPROM (`0x50`, `0x58`);
+`baremetal/i2c-info` reads them without changing anything. QEMU's `xlnx-zcu102` does not model these controllers.
+
 ## SD card (`sd`)
 
 `hardroxide-ps7`'s [driver](ps7.md), for the controllers at `map::SDIO0_BASE` and `SDIO1_BASE`, given

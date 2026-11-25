@@ -20,4 +20,6 @@ cargo build --release --target aarch64-unknown-none --no-default-features $CRATE
 cargo build --release --target aarch64-unknown-none -p hardroxide-ps7 --features net "$@"
 cargo build --release --target aarch64-unknown-none -p hardroxide-psu --features panic-handler "$@"
 cargo build --release --target aarch64-unknown-none -p hardroxide-rt "$@"
+# The programs for Zynq UltraScale+ alone (their emulator has no I2C controllers, so they are only built here).
+(cd baremetal/i2c-info && cargo build --release "$@")
 echo "no_std build ok"

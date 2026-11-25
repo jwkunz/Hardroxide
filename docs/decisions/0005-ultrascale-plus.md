@@ -88,7 +88,7 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 | 1 **Bitstream sprint** | the board preset; XSAs built and committed (`fixtures/rfsoc4x2/`): GPIO (which also serves as the processor-only design), interrupt controller, DMA, peripherals in loopback, two HLS kernels, RF loopback | each programmed and probed **over JTAG** (register reads and writes), independently of our libraries | **yes: before 2026-12-29** |
 | 2 First light (done) | start-up, UART, GIC, timers, MMU; `hardroxide run` for the board | QEMU in CI; console, DDR memory test and interrupts on the board | no |
 | 3 RTOS (done; two-hour run outstanding) | AArch64 kernel port | kernel tests in QEMU and on the board; the jitter benchmark (two hours) | no |
-| 4 Peripherals | SD, Ethernet, I2C; the SD, network and HTTPS programs ported | `fsck.fat` on the card, `curl` and `openssl` interoperability, throughput and handshake figures | no |
+| 4 Peripherals (done) | SD, Ethernet, I2C; the SD, network and HTTPS programs ported | `fsck.fat` on the card, `curl` and `openssl` interoperability, throughput and handshake figures | no |
 | 5 Generator and PL | UltraScale+ in `hwh` and `gen`; PL loading; clocks; DMA and interrupt drivers verified | the step 1 designs driven by generated crates | no (bitstreams exist) |
 | 6 Linux | `--platform linux` on AArch64 PYNQ; documentation | the Linux tutorials re-run on the board | no |
 | **3.0.0** | release and crates.io publication | full regression on both boards | |
@@ -145,7 +145,7 @@ Found and fixed:
 - The AArch64 tick truncated 33,333,333 / 1000 and ran 10 ppm fast; the first benchmark counted every release as on time
   (mean lateness 0 ns). The tick now spreads the remainder, and the benchmark reports early releases.
 
-## Step 4 results so far (2026-11-25)
+## Step 4 results (2026-11-25)
 
 **SD card** (SanDisk 16 GB, erased with the maintainer's permission): the guard refused builds naming no card or another card;
 formatted, written and read back; the start of the card fetched over JTAG passes `fsck.fat` and the 1 MiB file matches byte for
@@ -155,7 +155,14 @@ byte; 1.8 MB/s written and 6 MB/s read in 4 KiB pieces, 11 MB/s in one 31 MiB re
 `scripts/net_check.py` (curl, UDP, TCP, HTTPS with curl and openssl); 18.4 MB/s over HTTP (300 kB downloads, one at a time),
 220 requests/s, 21 new TLS connections/s (47 ms each, median handshake 35 ms; the Zynq-7000 managed 83 ms each).
 
-**I2C**: not yet done.
+**I2C** (read only, `baremetal/i2c-info`): bus 0 answers at the nine INA220 addresses of the board's device tree and all
+nine monitors read, with their power-on configuration (rails of 0.88 to 3.39 V, about 4.4 W together); bus 1 answers at
+`0x0d`, `0x30`, `0x48`, `0x50` and `0x58`, which includes the vendor's voltage DAC and identity EEPROM. The driver is the
+Zynq-7000's, unchanged. Not exercised: writing a device's data (nothing on this board should be written without a reason),
+and QEMU, which does not model the controllers.
+
+Step 4 is complete for the standalone programs; the base-overlay applications wait for the generator (step 5), and those for
+HDMI and audio have no hardware on this board.
 
 ## Risks
 

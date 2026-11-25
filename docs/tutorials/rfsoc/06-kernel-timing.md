@@ -1,4 +1,4 @@
-# RFSoC 4: The real-time kernel
+# RFSoC 6: The kernel's tests and timing
 
 [`hardroxide-rt`](../../reference/rt.md) is the same kernel on both processor families, with the same API.
 `baremetal/rt-smoke` is one program for both.
@@ -43,6 +43,6 @@ No release was missed. The planned two-hour run has not been done.
 - Task stacks need at least 2048 bytes: a saved context, with all the vector registers, is 800 bytes.
 - The tick comes from the 33.333 MHz system counter; periods differ by one count so that the average is exact.
 
-There is no kernel version of the board hardware demo, and no generated RTOS crate, yet.
+There is no generated RTOS crate, and no network program on the kernel for this board, yet.
 
-Next: [network and SD card](05-network-sd.md).
+Next: [network and SD card](07-network-sd.md).

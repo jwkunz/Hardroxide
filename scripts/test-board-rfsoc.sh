@@ -5,7 +5,8 @@
 # base overlay: the smoke program again, the overlay's example (baremetal/base-overlay), the kernel's test
 # (baremetal/rt-smoke), a read-only look at the I2C buses and power monitors (baremetal/i2c-info), and the board's own
 # hardware (baremetal/rfsoc-board: identity, temperatures, power monitors, OLED, clock chips, LEDs; it programs the clock
-# chips, which forget at power-off). What the display shows, the buttons and the switches are for a person to check.
+# chips, which forget at power-off), and the overlay and the board hardware on the kernel (baremetal/rt-base-overlay,
+# rt-board). What the display shows, the buttons and the switches are for a person to check.
 # HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
 # HRX_NET=1 adds the Ethernet test (the board cabled to this computer, which serves DHCP on that link).
 #
@@ -100,6 +101,23 @@ need "address counter read back: Some(10), Some(50), Some(25)"
 need "LMX2594 (DAC): Unlocked"
 need "LMX2594 (DAC): Locked"
 need "BOARD DEMO OK"
+
+echo "== the kernel: a mood light on the base overlay"
+(cd baremetal/rt-base-overlay && cargo build -q --release)
+target/debug/hardroxide run baremetal/rt-base-overlay/target/aarch64-unknown-none/release/rt-base-overlay \
+  --xsa "$XSA" --tty "$TTY" --watch 14 2>&1 | tr -d '\r' | tee "$OUT"
+need "buttons interrupt woke the buttons task: true"
+need "switches interrupt woke the buttons task: true"
+need "RT LIGHTS OK"
+
+echo "== the kernel: the board's hardware"
+(cd baremetal/rt-board && cargo build -q --release)
+target/debug/hardroxide run baremetal/rt-board/target/aarch64-unknown-none/release/rt-board \
+  --xsa "$XSA" --tty "$TTY" --watch 10 2>&1 | tr -d '\r' | tee "$OUT"
+need "clocks: programmed, both synthesizers locked: true"
+need "monitor: [0-9]* updates (0 incomplete)"
+need "follows: true"
+need "RT BOARD OK"
 
 # The SD card: only with HRX_SD_SERIAL naming the card in the slot, WHICH IS ERASED (baremetal/sd-info prints the serial
 # number without writing). The start of what the board wrote comes back over JTAG and is checked with fsck.fat.

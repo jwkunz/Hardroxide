@@ -24,4 +24,6 @@ cargo build --release --target aarch64-unknown-none -p hardroxide-rt "$@"
 (cd baremetal/i2c-info && cargo build --release "$@")
 (cd baremetal/rfsoc-board && cargo build --release "$@")
 (cd baremetal/base-overlay && cargo build --release "$@")
+(cd baremetal/rt-base-overlay && cargo build --release "$@")
+(cd baremetal/rt-board && cargo build --release "$@")
 echo "no_std build ok"

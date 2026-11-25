@@ -68,4 +68,4 @@ temperatures, then each supply, updated twice a second). One processor LED blink
 - **One pin to respect:** `MIO7` goes to the main clock chip's reset. Drive it low, never high
   ([why](../../reference/board.md#clock-chips-tics-lmk04828-lmx2594)).
 
-Next: [the real-time kernel](04-kernel.md).
+Next: [a mood light on the kernel](04-mood-light.md).

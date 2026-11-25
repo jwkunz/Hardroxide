@@ -31,6 +31,8 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
   file turns into an output held low.
 - The RFSoC 4x2's base overlay, ready for bare metal (`fixtures/board/rfsoc4x2_base_overlay.xsa`), its example
   `baremetal/base-overlay`, and preview tutorials for the board that all use it.
+- On the kernel: `baremetal/rt-base-overlay` (a mood light on the base overlay) and `rt-board` (the board's hardware as
+  tasks).
 - Fixed (2.x too): `hardroxide run` showed no console output when loading took longer than the time to watch, as with a
   large bitstream; the watch time now counts from the program's start.
 - Backward compatibility with 2.7.0 is checked in CI (`scripts/check-compat.py`).

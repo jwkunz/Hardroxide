@@ -13,8 +13,10 @@ addresses and serial numbers are replaced.
 | 1 | [First light](01-first-light.md) | set up the board, run a program over JTAG |
 | 2 | [The base overlay](02-base-overlay.md) | the FPGA design: buttons, switches, LEDs and interrupts |
 | 3 | [The board's own hardware](03-board-hardware.md) | identity, temperatures, power monitors, display, clock chips, the processor's LEDs and button |
-| 4 | [The real-time kernel](04-kernel.md) | the kernel on a Cortex-A53, and its timing |
-| 5 | [Network and SD card](05-network-sd.md) | a web and HTTPS server; FAT32, with care |
+| 4 | [A mood light on the kernel](04-mood-light.md) | tasks, priorities, interrupts that wake tasks, periodic work |
+| 5 | [The board's hardware as tasks](05-kernel-board.md) | slow and urgent work together, sharing data safely |
+| 6 | [The kernel's tests and timing](06-kernel-timing.md) | what the kernel guarantees, measured |
+| 7 | [Network and SD card](07-network-sd.md) | a web and HTTPS server; FAT32, with care |
 
 ## One FPGA design: the base overlay
 
@@ -34,8 +36,8 @@ need no Vivado license. Loading it over JTAG takes about half a minute.
 
 1. Set the board's boot mode switch to **JTAG**.
 2. Connect the 12 V supply and the USB port labelled `PROG UART` (JTAG and the console, usually `/dev/ttyUSB1`).
-3. For tutorial 5, an Ethernet cable to a network with a DHCP server (the tests use a direct cable to the host, which
+3. For tutorial 7, an Ethernet cable to a network with a DHCP server (the tests use a direct cable to the host, which
    serves DHCP).
 4. Switch on.
 
-Nothing in tutorials 1 to 4 writes to storage; power-cycling the board undoes everything.
+Nothing in tutorials 1 to 6 writes to storage; power-cycling the board undoes everything.

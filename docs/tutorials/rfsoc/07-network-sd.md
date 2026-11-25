@@ -1,4 +1,4 @@
-# RFSoC 5: Network and SD card
+# RFSoC 7: Network and SD card
 
 The Ethernet and SD drivers are the Zynq-7000's, extended for this family; the [network stack](../../reference/net.md),
 [TLS](../../reference/tls.md) and [file system](../../reference/fat.md) are unchanged.

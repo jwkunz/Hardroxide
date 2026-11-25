@@ -10,10 +10,9 @@
 #![no_std]
 #![no_main]
 
-use core::fmt::Write;
 use core::time::Duration;
 use hardroxide_board::rfsoc4x2 as board;
-use hardroxide_board::us2066::{COLUMNS, Oled};
+use hardroxide_board::us2066::Oled;
 use hardroxide_board::{at24mac, ina220, lmk04828, lmx2594, tics};
 use hardroxide_mmio::time::{Instant, sleep};
 use hardroxide_mmio::{MmioBackend, PhysMem, PhysRegion};
@@ -27,42 +26,16 @@ use ps::sysmon::{self, Sensor};
 #[path = "../../common/platform.rs"]
 mod platform;
 
+#[allow(dead_code)]
+#[path = "../../common/pages.rs"]
+mod pages;
+use pages::{Degrees, Line, PAGES};
+
 ps::entry!(main);
 
 const PS_REF_HZ: u64 = 33_333_333;
 const LMK_FILE: &str = include_str!("../../../fixtures/rfsoc4x2/clocks/LMK04828_245.76.txt");
 const LMX_FILE: &str = include_str!("../../../fixtures/rfsoc4x2/clocks/LMX2594_491.52.txt");
-
-/// A line of the display, written to with `write!`; surplus characters are dropped.
-#[derive(Default)]
-struct Line {
-    text: [u8; COLUMNS],
-    len: usize,
-}
-
-impl Line {
-    fn as_str(&self) -> &str {
-        core::str::from_utf8(&self.text[..self.len]).unwrap_or("?")
-    }
-}
-
-impl Write for Line {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        for b in s.bytes().take(COLUMNS - self.len) {
-            self.text[self.len] = b;
-            self.len += 1;
-        }
-        Ok(())
-    }
-}
-
-macro_rules! line {
-    ($($arg:tt)*) => {{
-        let mut l = Line::default();
-        let _ = write!(l, $($arg)*);
-        l
-    }};
-}
 
 /// Counts what did not behave.
 struct Checks(u32);
@@ -109,16 +82,6 @@ fn spi(n: usize, mode: Mode) -> Spi<PhysRegion> {
     let hz = spi.configure(mode, input, board::SPI_MAX_HZ).unwrap();
     println!("  SPI {n} at {hz} Hz");
     spi
-}
-
-/// Millidegrees as `41.2`.
-struct Degrees(i32);
-
-impl core::fmt::Display for Degrees {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let tenths = (self.0 + 50).div_euclid(100);
-        write!(f, "{}.{}", tenths / 10, (tenths % 10).abs())
-    }
 }
 
 fn identity(c: &mut Checks) -> at24mac::MacAddress {
@@ -301,44 +264,14 @@ fn leds_and_button(c: &mut Checks, gpio: &Gpio<PhysRegion>) {
 /// What page `page` of the display shows.
 fn page(page: usize, mac: at24mac::MacAddress, bus: &mut I2c<PhysRegion>) -> [Line; 2] {
     match page {
-        0 => {
-            let [a, b, c, d, e, f] = mac.0;
-            [
-                line!("RFSoC 4x2"),
-                line!("MAC {a:02x}{b:02x}{c:02x}{d:02x}{e:02x}{f:02x}"),
-            ]
-        }
-        1 => {
-            let [ps_die, pl_die] = temperatures();
-            let shown = |name, t: Option<i32>| match t {
-                Some(t) => line!("{name} die  {} C", Degrees(t)),
-                None => line!("{name} die  --"),
-            };
-            [shown("PS", ps_die), shown("PL", pl_die)]
-        }
+        0 => pages::identity(mac),
+        1 => pages::temperatures(temperatures()),
         n => {
             let rail = board::RAILS[(n - 2) % board::RAILS.len()];
-            let r = ina220::read(bus, rail.address).unwrap();
-            let v = r.bus_millivolts;
-            let ma = r.milliamps(rail.shunt_micro_ohms).max(0);
-            let mw = r.milliwatts(rail.shunt_micro_ohms).max(0);
-            [
-                line!("{}", rail.name),
-                line!(
-                    "{}.{:02}V {}.{:02}A {}.{}W",
-                    v / 1000,
-                    v % 1000 / 10,
-                    ma / 1000,
-                    ma % 1000 / 10,
-                    mw / 1000,
-                    mw % 1000 / 100
-                ),
-            ]
+            pages::rail(rail, ina220::read(bus, rail.address).unwrap())
         }
     }
 }
-
-const PAGES: usize = 2 + board::RAILS.len();
 
 fn main() -> ! {
     platform::init("RFSoC 4x2 board demo");

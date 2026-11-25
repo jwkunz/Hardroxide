@@ -63,8 +63,10 @@
   - [1. First light](tutorials/rfsoc/01-first-light.md)
   - [2. The base overlay](tutorials/rfsoc/02-base-overlay.md)
   - [3. The board's own hardware](tutorials/rfsoc/03-board-hardware.md)
-  - [4. The real-time kernel](tutorials/rfsoc/04-kernel.md)
-  - [5. Network and SD card](tutorials/rfsoc/05-network-sd.md)
+  - [4. A mood light on the kernel](tutorials/rfsoc/04-mood-light.md)
+  - [5. The board's hardware as tasks](tutorials/rfsoc/05-kernel-board.md)
+  - [6. The kernel's tests and timing](tutorials/rfsoc/06-kernel-timing.md)
+  - [7. Network and SD card](tutorials/rfsoc/07-network-sd.md)
 
 # Reference
 

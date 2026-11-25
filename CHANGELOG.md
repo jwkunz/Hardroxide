@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.0.0 (unreleased)
+
+Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale-plus.md)). Zynq-7000 behaviour is unchanged.
+
+- New crate `hardroxide-psu`: bare-metal processor support for the Cortex-A53 (AArch64 at EL3): startup, MMU and caches, GIC,
+  generic timer, clocks, console.
+- `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one.
+- Fixture designs for the RFSoC 4x2, including an RF loopback (`fixtures/rfsoc4x2/`).
+- `hardroxide-ps7`: a `cpu` module, the common processor operations under the name `hardroxide-psu` also uses.
+- `hardroxide-mmio`: the physical-memory backend issues its write barrier on AArch64 too.
+- Backward compatibility with 2.7.0 is checked in CI (`scripts/check-compat.py`).
+
 ## 2.7.0 (2026-11-21)
 
 The rest of the applications on the PYNQ base overlay, versions 2.2 to 2.7 of [ADR 0004](docs/decisions/0004-base-overlay-applications.md), released together (2.2 to 2.6 were merged one by one without a release). Every item was verified on a PYNQ-Z2; the open

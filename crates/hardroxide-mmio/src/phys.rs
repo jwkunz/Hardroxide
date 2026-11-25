@@ -61,7 +61,7 @@ impl PhysRegion {
 #[inline(always)]
 fn barrier() {
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
-    #[cfg(target_arch = "arm")]
+    #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
     // SAFETY: a data synchronisation barrier has no memory-safety effect.
     unsafe {
         core::arch::asm!("dsb sy", options(nostack, preserves_flags))

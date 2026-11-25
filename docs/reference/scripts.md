@@ -10,6 +10,12 @@ environment variables switch on what needs something connected: `HRX_AUDIO_LOOPB
 `HRX_SD_SERIAL=0x...` (a card **that may be erased**, named by the serial number `sd_info` prints: the SD tests format it, and the format program refuses any other card that holds data). `scripts/test-qemu.sh` also runs the SD card (with `fsck.fat` on the image it wrote) and the network stack
 (DHCP, HTTP, HTTPS, UDP and TCP echo, against real `curl`, `openssl s_client` and Python sockets) under QEMU, and needs `dosfstools`, `curl`, `openssl` and Python 3.
 
+## Zynq UltraScale+
+
+`scripts/test-qemu-psu.sh` runs `baremetal/psu-smoke` on QEMU's `xlnx-zcu102` machine (`test-qemu.sh` ends by calling it).
+`scripts/test-board-rfsoc.sh` runs it on an RFSoC 4x2 in JTAG boot mode, with the loopback fixture in the PL and again without
+programming it. The designs themselves are checked without Hardroxide code by `fixtures/rfsoc4x2/scripts/probe.py`.
+
 ## `check-compat.py`: backward compatibility
 
 `scripts/check-compat.py [semver] [generator] [programs]` (all three by default; CI runs it) fails if anything a user of the published release (2.7.0; `COMPAT_BASE` to change it) relies on has changed, which

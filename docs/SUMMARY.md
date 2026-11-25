@@ -71,6 +71,7 @@
 - [hardroxide-dma](reference/dma.md)
 - [hardroxide-irq](reference/irq.md)
 - [hardroxide-ps7](reference/ps7.md)
+- [hardroxide-psu](reference/psu.md)
 - [hardroxide-rt](reference/rt.md)
 - [hardroxide-video](reference/video.md)
 - [hardroxide-gfx](reference/gfx.md)

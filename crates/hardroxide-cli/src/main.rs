@@ -61,10 +61,12 @@ enum Cmd {
     Inspect { xsa: PathBuf },
     /// Run a bare-metal program on a board over JTAG (needs the Vitis tools).
     ///
-    /// Resets the board, runs the XSA's own ps7_init, programs the PL, loads the ELF, starts
-    /// it and shows the UART console. The board must be in JTAG boot mode.
+    /// Resets the board, runs the XSA's own ps7_init (Zynq-7000) or psu_init (Zynq
+    /// UltraScale+), programs the PL, loads the ELF, starts it and shows the UART console. The
+    /// board must be in JTAG boot mode.
     Run {
-        /// The program (an ELF built for armv7a-none-eabihf).
+        /// The program (an ELF built for armv7a-none-eabihf, or aarch64-unknown-none for Zynq
+        /// UltraScale+).
         elf: PathBuf,
         /// The XSA of the design it runs on (supplies ps7_init and the bitstream).
         #[arg(long)]

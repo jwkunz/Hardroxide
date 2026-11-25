@@ -14,13 +14,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-          targets: armv7-unknown-linux-gnueabihf,armv7a-none-eabihf
+          targets: armv7-unknown-linux-gnueabihf,armv7a-none-eabihf,aarch64-unknown-none
       - uses: Swatinem/rust-cache@v2
       - run: sudo apt-get update && sudo apt-get install -y device-tree-compiler gcc-arm-linux-gnueabihf qemu-user qemu-system-arm dosfstools
       - run: cargo fmt --all --check
       - run: cd baremetal/ps7-smoke && cargo fmt --check
       - run: cd baremetal/rt-smoke && cargo fmt --check
       - run: cd baremetal/rt-jitter && cargo fmt --check
+      - run: cd baremetal/psu-smoke && cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - uses: taiki-e/install-action@v2
@@ -32,7 +33,7 @@ jobs:
       - run: cargo check --workspace --target armv7-unknown-linux-gnueabihf
       # The runtime crates must build with no std, no allocator and no OS (bare-metal Cortex-A9).
       - run: scripts/check-no-std.sh
-      # Bare-metal PS support on QEMU's Zynq-7000 machine (startup, GIC, timers, console).
+      # Bare-metal PS support on QEMU's Zynq-7000 and Zynq UltraScale+ machines (startup, GIC, timers, console).
       - run: scripts/test-qemu.sh
       # Backward compatibility with the published release (ADR 0005): public APIs, generated crates, and the release's own programs.
       - run: scripts/check-compat.py

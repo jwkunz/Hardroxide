@@ -350,6 +350,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-psu"
+version = "2.7.0"
+dependencies = [
+ "hardroxide-irq",
+ "hardroxide-mmio",
+ "hardroxide-ps7",
+]
+
+[[package]]
 name = "hardroxide-rt"
 version = "2.7.0"
 dependencies = [

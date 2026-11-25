@@ -122,13 +122,13 @@ model as `generate`, so what it lists is what `generate` produces.
 $ hardroxide run --help
 Run a bare-metal program on a board over JTAG (needs the Vitis tools).
 
-Resets the board, runs the XSA's own ps7_init, programs the PL, loads the ELF, starts it and shows the UART console. The board must be in JTAG boot mode.
+Resets the board, runs the XSA's own ps7_init (Zynq-7000) or psu_init (Zynq UltraScale+), programs the PL, loads the ELF, starts it and shows the UART console. The board must be in JTAG boot mode.
 
 Usage: hardroxide run [OPTIONS] --xsa <XSA> <ELF>
 
 Arguments:
   <ELF>
-          The program (an ELF built for armv7a-none-eabihf)
+          The program (an ELF built for armv7a-none-eabihf, or aarch64-unknown-none for Zynq UltraScale+)
 
 Options:
       --xsa <XSA>
@@ -152,11 +152,13 @@ Options:
 ```
 
 Runs a bare-metal program on a board over JTAG, with the vendor's tools. It resets the
-board, runs the XSA's own `ps7_init.tcl` (read from the XSA at run time), programs the PL
+board, runs the XSA's own `ps7_init.tcl` or, for a Zynq UltraScale+ design, `psu_init.tcl`
+(read from the XSA at run time; which one the XSA has decides the sequence), programs the PL
 from the XSA's bitstream, loads the ELF, starts it and shows the UART console for `--watch`
-seconds; the program keeps running afterwards. The board must be in JTAG boot mode, and the
+seconds; the program keeps running afterwards. On a Zynq UltraScale+ the program starts on
+the first Cortex-A53 at EL3. The board must be in JTAG boot mode, and the
 XSA must come from a design with a board-accurate PS configuration, or the console prints
-nothing. `hw_server` is started if it is not running. If the Vitis tools are not found
+nothing. `package` handles the Zynq-7000 only so far. `hw_server` is started if it is not running. If the Vitis tools are not found
 (`HRX_VITIS`, `XILINX_ROOT`, `PATH`, or a standard install location) the command prints what
 to do and stops. See [Running bare metal](../guide/baremetal.md).
 

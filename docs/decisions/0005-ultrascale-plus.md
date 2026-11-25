@@ -86,7 +86,7 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 |---|---|---|---|
 | 0 Groundwork | this ADR; compatibility checks in CI (`scripts/check-compat.py`); the libraries kept building for AArch64 | all 2.7 checks pass; PYNQ-Z2 regression (waits for the board) | no |
 | 1 **Bitstream sprint** | the board preset; XSAs built and committed (`fixtures/rfsoc4x2/`): GPIO (which also serves as the processor-only design), interrupt controller, DMA, peripherals in loopback, two HLS kernels, RF loopback | each programmed and probed **over JTAG** (register reads and writes), independently of our libraries | **yes: before 2026-12-29** |
-| 2 First light | start-up, UART, GIC, timers, MMU; `hardroxide run` for the board | QEMU in CI; console, DDR memory test and interrupts on the board | no |
+| 2 First light (done) | start-up, UART, GIC, timers, MMU; `hardroxide run` for the board | QEMU in CI; console, DDR memory test and interrupts on the board | no |
 | 3 RTOS | AArch64 kernel port | kernel tests in QEMU and on the board; the jitter benchmark (two hours) | no |
 | 4 Peripherals | SD, Ethernet, I2C; the SD, network and HTTPS programs ported | `fsck.fat` on the card, `curl` and `openssl` interoperability, throughput and handshake figures | no |
 | 5 Generator and PL | UltraScale+ in `hwh` and `gen`; PL loading; clocks; DMA and interrupt drivers verified | the step 1 designs driven by generated crates | no (bitstreams exist) |
@@ -109,6 +109,24 @@ Findings that later steps need:
 - Connection automation leaves a dangling interconnect when two masters share a memory port, and maps only part of a large block RAM unless told its range; the build scripts do both explicitly and fail on a short memory.
 - An AXI GPIO's interrupt status bits toggle when written with 1.
 - The RF clock chips are programmed over the processor's SPI 0 and GPIO (MIO 7, 8, 12) from the register files in `fixtures/rfsoc4x2/clocks/`; the converter tiles need a restart afterwards.
+
+## Step 2 results (2026-11-25)
+
+`hardroxide-psu` and `hardroxide run` for UltraScale+ work on the board and in QEMU (`baremetal/psu-smoke`,
+`scripts/test-board-rfsoc.sh`, `scripts/test-qemu-psu.sh`). On the board: 1199.999 MHz Cortex-A53 and a 33.333 MHz counter read
+from the clock registers; `sleep(100 ms)` 100.006 ms; 20 timer interrupts of 10 ms in 200.17 ms; 64 MiB tested at each end of
+both DDR ranges and one address bit at a time, no errors; a 64 KiB loop 60 times faster with the caches on; all 32 vector
+registers intact across interrupts (the test fails if the entry omits any restore, checked in QEMU); from the PL, 10 of 10
+interrupts handled and 3 of 3 waited for.
+
+Decisions taken while building it:
+
+- Programs run **at EL3 with no firmware**, on `SP_EL0` with exceptions on `SP_EL3`: the state after a JTAG reset, one level
+  and no secure-monitor interface. Starting at another level is not supported.
+- The IRQ entry saves the whole vector file: a callee preserves only half of `v8`..`v15`.
+- The system counter is left to `psu_init`/the boot loader to start; its frequency is read from the clock registers.
+- The AArch64 build of `hardroxide-mmio`'s physical backend now issues the same barrier as the 32-bit one before register
+  writes (it did not).
 
 ## Risks
 

@@ -1,9 +1,10 @@
 //! Running a bare-metal program on a board over JTAG, with the vendor's tools.
 //!
-//! `hardroxide run` resets the board, runs the design's own `ps7_init.tcl` (from its XSA,
-//! at run time, so no vendor tables are redistributed), programs the PL, loads the ELF
-//! and starts it, then streams the UART console. The Vitis tools (`xsdb`, `hw_server`) do the
-//! JTAG work; when they are missing the commands say so and stop.
+//! `hardroxide run` resets the board, runs the design's own `ps7_init.tcl` (Zynq-7000) or
+//! `psu_init.tcl` (Zynq UltraScale+) from its XSA, at run time, so no vendor tables are
+//! redistributed, programs the PL, loads the ELF and starts it, then streams the UART
+//! console. The XSA decides which of the two it is. The Vitis tools (`xsdb`, `hw_server`) do
+//! the JTAG work; when they are missing the commands say so and stop.
 
 use anyhow::{Context, Result, bail};
 use std::io::Read;
@@ -87,18 +88,38 @@ pub fn require_vitis() -> Result<Vitis> {
     Vitis::find().context(MISSING_VITIS)
 }
 
-/// The files `run` needs from an XSA, extracted to `dir`: `ps7_init.tcl` and the `.bit`.
-pub fn extract_xsa(xsa: &Path, dir: &Path) -> Result<()> {
+/// The processor family of a design, told by which initialisation script its XSA carries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Family {
+    Zynq7000,
+    UltraScalePlus,
+}
+
+impl Family {
+    pub fn init_script(self) -> &'static str {
+        match self {
+            Family::Zynq7000 => "ps7_init.tcl",
+            Family::UltraScalePlus => "psu_init.tcl",
+        }
+    }
+}
+
+/// The files `run` needs from an XSA, extracted to `dir`: the PS initialisation script and
+/// the `.bit`.
+pub fn extract_xsa(xsa: &Path, dir: &Path) -> Result<Family> {
     std::fs::create_dir_all(dir)?;
     let mut z =
         zip::ZipArchive::new(std::fs::File::open(xsa).with_context(|| xsa.display().to_string())?)?;
-    let (mut got_init, mut got_bit) = (false, false);
+    let (mut family, mut got_bit) = (None, false);
     for i in 0..z.len() {
         let mut f = z.by_index(i)?;
         let name = f.name().to_string();
-        let target = if name == "ps7_init.tcl" {
-            got_init = true;
-            "ps7_init.tcl"
+        let found = [Family::Zynq7000, Family::UltraScalePlus]
+            .into_iter()
+            .find(|f| name == f.init_script());
+        let target = if let Some(found) = found {
+            family = Some(found);
+            found.init_script()
         } else if name.ends_with(".bit") {
             got_bit = true;
             "design.bit"
@@ -109,23 +130,26 @@ pub fn extract_xsa(xsa: &Path, dir: &Path) -> Result<()> {
         f.read_to_end(&mut data)?;
         std::fs::write(dir.join(target), data)?;
     }
-    if !got_init {
+    let Some(family) = family else {
         bail!(
-            "{} has no ps7_init.tcl: the PS cannot be initialised over JTAG",
+            "{} has no ps7_init.tcl or psu_init.tcl: the PS cannot be initialised over JTAG",
             xsa.display()
         );
-    }
+    };
     if !got_bit {
         bail!(
             "{} has no bitstream (export with --include_bit)",
             xsa.display()
         );
     }
-    Ok(())
+    Ok(family)
 }
 
 /// The `xsdb` script: reset, initialise the PS, program the PL, load and start the ELF.
-pub fn run_script(dir: &Path, elf: &Path, program_pl: bool) -> String {
+pub fn run_script(family: Family, dir: &Path, elf: &Path, program_pl: bool) -> String {
+    if family == Family::UltraScalePlus {
+        return run_script_ultrascale(dir, elf, program_pl);
+    }
     let pl = if program_pl {
         "targets -set -nocase -filter {name =~ \"xc7z*\"}\nfpga -file {DIR}/design.bit\ntargets -set -nocase -filter {name =~ \"*Cortex-A9*#0\"}\n"
     } else {
@@ -138,6 +162,32 @@ pub fn run_script(dir: &Path, elf: &Path, program_pl: bool) -> String {
          targets -set -nocase -filter {{name =~ \"*Cortex-A9*#0\"}}\n\
          catch {{stop}}\n\
          source {{DIR}}/ps7_init.tcl\nps7_init\n{pl}ps7_post_config\n\
+         dow {{ELF}}\ncon\n"
+    )
+    .replace("{DIR}", &dir.display().to_string())
+    .replace("{ELF}", &elf.display().to_string())
+}
+
+/// The same for a Zynq UltraScale+, in the order the vendor's debug launch uses: the PL is
+/// programmed before the PS is initialised, and core 0 is taken out of reset (at EL3) to
+/// receive the program.
+fn run_script_ultrascale(dir: &Path, elf: &Path, program_pl: bool) -> String {
+    let pl = if program_pl {
+        "targets -set -nocase -filter {name =~ \"PSU\"}\nfpga -file {DIR}/design.bit\n"
+    } else {
+        ""
+    };
+    format!(
+        "connect -url tcp:localhost:{HW_SERVER_PORT}\n\
+         targets -set -nocase -filter {{name =~ \"APU*\"}}\n\
+         rst -system\nafter 3000\n\
+         {pl}\
+         targets -set -nocase -filter {{name =~ \"APU*\"}}\n\
+         configparams force-mem-access 1\n\
+         source {{DIR}}/psu_init.tcl\npsu_init\nafter 1000\npsu_post_config\n\
+         psu_ps_pl_isolation_removal\nafter 1000\npsu_ps_pl_reset_config\n\
+         targets -set -nocase -filter {{name =~ \"*Cortex-A53*#0\"}}\n\
+         rst -processor\n\
          dow {{ELF}}\ncon\n"
     )
     .replace("{DIR}", &dir.display().to_string())
@@ -221,11 +271,11 @@ pub fn run(o: &RunOptions) -> Result<()> {
         bail!("{}: no such program", o.elf.display());
     }
     let tmp = std::env::temp_dir().join(format!("hrx-run-{}", std::process::id()));
-    extract_xsa(o.xsa, &tmp)?;
+    let family = extract_xsa(o.xsa, &tmp)?;
     ensure_hw_server(&v)?;
     let elf = o.elf.canonicalize()?;
     let script = tmp.join("run.tcl");
-    std::fs::write(&script, run_script(&tmp, &elf, o.program_pl))?;
+    std::fs::write(&script, run_script(family, &tmp, &elf, o.program_pl))?;
     // The console reader must exist before the program starts printing.
     let console = spawn_console(o.tty, Duration::from_secs(o.watch_secs + 8));
     eprintln!("loading {} ...", o.elf.display());
@@ -296,7 +346,10 @@ pub fn package(o: &PackageOptions) -> Result<()> {
     }
     let tmp = std::env::temp_dir().join(format!("hrx-package-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
-    extract_xsa(o.xsa, &tmp)?;
+    if extract_xsa(o.xsa, &tmp)? != Family::Zynq7000 {
+        let _ = std::fs::remove_dir_all(&tmp);
+        bail!("`package` builds boot images for the Zynq-7000 only so far; use `run` over JTAG");
+    }
     let fsbl = match o.fsbl {
         Some(f) => f.canonicalize().with_context(|| f.display().to_string())?,
         None => {
@@ -456,7 +509,8 @@ mod tests {
 
     #[test]
     fn the_script_resets_initialises_programs_loads_and_starts_in_order() {
-        let s = run_script(Path::new("/t"), Path::new("/e.elf"), true);
+        let zynq = |pl| run_script(Family::Zynq7000, Path::new("/t"), Path::new("/e.elf"), pl);
+        let s = zynq(true);
         let order = [
             "rst -system",
             "source /t/ps7_init.tcl",
@@ -473,7 +527,42 @@ mod tests {
                 .unwrap_or_else(|| panic!("missing or out of order: {k}\n{s}"));
             at += i + k.len();
         }
-        assert!(!run_script(Path::new("/t"), Path::new("/e.elf"), false).contains("fpga"));
+        assert!(!zynq(false).contains("fpga"));
+    }
+
+    #[test]
+    fn the_ultrascale_script_programs_the_pl_first_and_loads_into_a_fresh_core() {
+        let script = |pl| {
+            run_script(
+                Family::UltraScalePlus,
+                Path::new("/t"),
+                Path::new("/e.elf"),
+                pl,
+            )
+        };
+        let s = script(true);
+        let order = [
+            "rst -system",
+            "fpga -file /t/design.bit",
+            "source /t/psu_init.tcl",
+            "\npsu_init\n",
+            "psu_post_config",
+            "psu_ps_pl_isolation_removal",
+            "psu_ps_pl_reset_config",
+            "Cortex-A53*#0",
+            "rst -processor",
+            "dow /e.elf",
+            "con",
+        ];
+        let mut at = 0;
+        for k in order {
+            let i = s[at..]
+                .find(k)
+                .unwrap_or_else(|| panic!("missing or out of order: {k}\n{s}"));
+            at += i + k.len() - usize::from(k.ends_with('\n'));
+        }
+        assert!(!s.contains("ps7"));
+        assert!(!script(false).contains("fpga"));
     }
 
     #[test]
@@ -481,8 +570,13 @@ mod tests {
         let d = std::env::temp_dir().join(format!("hrx-xsa-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         let xsa = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/pynq_z2_gpio.xsa");
-        extract_xsa(&xsa, &d).unwrap();
+        assert_eq!(extract_xsa(&xsa, &d).unwrap(), Family::Zynq7000);
         assert!(d.join("ps7_init.tcl").is_file() && d.join("design.bit").is_file());
+        let rfsoc =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/rfsoc4x2/rfsoc4x2_gpio.xsa");
+        let u = d.join("u");
+        assert_eq!(extract_xsa(&rfsoc, &u).unwrap(), Family::UltraScalePlus);
+        assert!(u.join("psu_init.tcl").is_file() && u.join("design.bit").is_file());
         // The base overlay XSA was repackaged from .bit/.hwh only: no ps7_init.
         let base =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/real/pynq_base_overlay.xsa");

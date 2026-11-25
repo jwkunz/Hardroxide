@@ -206,7 +206,9 @@ check("6 concurrent HTTPS requests (4 sockets)", all(c == "200" for c in codes),
 sc = subprocess.run(["openssl", "s_client", "-connect", "127.0.0.1:18443", "-tls1_3", "-ciphersuites", "TLS_CHACHA20_POLY1305_SHA256", "-brief", "-ign_eof"],
                     input=b"GET / HTTP/1.0\r\n\r\n", capture_output=True, timeout=60)
 txt = (sc.stdout + sc.stderr).decode()
-check("openssl s_client: TLS 1.3, ChaCha20-Poly1305, an ECDSA P-256 signature, X25519", all(w in txt for w in ("TLSv1.3", "TLS_CHACHA20_POLY1305_SHA256", "ecdsa_secp256r1_sha256", "X25519")) and "hello over TLS" in txt, txt[-300:])
+# OpenSSL names the signature scheme in full or, in some versions, as type and hash; in TLS 1.3 ECDSA with SHA-256 is P-256.
+p256 = "ecdsa_secp256r1_sha256" in txt or ("Signature type: ECDSA" in txt and "Hash used: SHA256" in txt)
+check("openssl s_client: TLS 1.3, ChaCha20-Poly1305, an ECDSA P-256 signature, X25519", all(w in txt for w in ("TLSv1.3", "TLS_CHACHA20_POLY1305_SHA256", "X25519")) and p256 and "hello over TLS" in txt, txt[-300:])
 # A client that offers only AES-GCM is refused with an alert; the server is unharmed.
 sc = subprocess.run(["openssl", "s_client", "-connect", "127.0.0.1:18443", "-tls1_3", "-ciphersuites", "TLS_AES_128_GCM_SHA256"], input=b"", capture_output=True, timeout=60)
 check("a client without ChaCha20-Poly1305 is refused", b"alert" in sc.stderr + sc.stdout or b"handshake failure" in sc.stderr + sc.stdout, (sc.stderr + sc.stdout).decode()[-200:])
@@ -228,3 +230,6 @@ PY
 fi
 kill "$QPID" 2>/dev/null; wait "$QPID" 2>/dev/null || true
 [ "$fail" = 0 ] && echo "qemu network test: ok" || { echo "qemu network test: FAILED" >&2; exit 1; }
+
+# ---- Zynq UltraScale+ (hardroxide-psu), on QEMU's AArch64 machine ----
+"$ROOT/scripts/test-qemu-psu.sh"

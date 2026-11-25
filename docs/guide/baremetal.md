@@ -1,5 +1,9 @@
 # Running bare metal and RTOS
 
+Zynq UltraScale+ support is being added for 3.0 ([ADR 0005](../decisions/0005-ultrascale-plus.md)); so far
+`hardroxide run` and the processor support ([`hardroxide-psu`](../reference/psu.md)) work, and this page describes the
+Zynq-7000.
+
 A bare-metal program runs on core 0 of the Zynq with no operating system
 ([ADR 0003](../decisions/0003-bare-metal-and-rtos-platforms.md)). This page is the host setup and the
 workflow; the crate itself is described in [Bare-metal crate](../reference/baremetal.md). Everything here applies to the

@@ -7,7 +7,7 @@ Status: **accepted** 2026-11-25 (the decisions under "Decided" are the maintaine
 
 1. **3.0 means Zynq UltraScale+ support**: what exists for the Zynq-7000 (three flavors, generator, CLI, libraries, applications) also works on Zynq UltraScale+ devices.
 2. **Zynq-7000 stays supported, and everything stays backward compatible.** Keeping several versions of a file, and reorganizing the codebase to allow it, is acceptable.
-3. **First board: Real Digital RFSoC 4x2** (XCZU48DR-FFVG1517; the speed grade is to be confirmed from the board files, since published sources say both -1 and -2, and the checks below used -2), over JTAG, with a private Ethernet cable to the host.
+3. **First board: Real Digital RFSoC 4x2** (`xczu48dr-ffvg1517-2-e`, as the vendor's board files say; those are published by Real Digital under Apache-2.0), over JTAG, with a private Ethernet cable to the host.
 4. **A blank SD card** is available for bare-metal and later Linux validation.
 5. **RF data converters start with a simple cable loopback.**
 

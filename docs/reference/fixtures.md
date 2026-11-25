@@ -56,3 +56,22 @@ The bare-metal and RTOS tutorial programs are in `fixtures/board_tests_bm/{barem
 separate `baremetal/` workspace (`ps7-smoke`, `rt-smoke` for QEMU and the board, `rt-jitter` for the long timing run).
 
 `fixtures/board_tests/` holds the on-board test programs (see its README); `board_tests/loopback/{uart_pair,iic_pair}.rs` test the loopback fixture (generate its crate, copy them into `examples/`, build for the board). The UART pair exchanges 256 bytes each way; the IIC pair makes core 1 a target at `0x2A` (its `ADR` register, offset `0x110`), writes five bytes from core 0, and scans the bus.
+
+## RFSoC 4x2 base overlay
+
+`fixtures/board/rfsoc4x2_base_overlay.xsa` is made from RFSoC-PYNQ's SD card image (BSD 3-Clause, see
+`fixtures/board/LICENSE.rfsoc-pynq`):
+
+```console
+$ source ~/AMD/2025.2/Vivado/settings64.sh
+$ vivado -mode batch -source fixtures/rfsoc4x2/scripts/build_base_ps.tcl -tclargs <workdir> <ps-only.xsa>
+$ python3 fixtures/scripts/package_rfsoc4x2_base.py RFSoC4x2-4.0.0.img <ps-only.xsa>
+```
+
+The first builds a design of the processor alone (the board preset plus the overlay's processor-to-FPGA settings) for its
+`psu_init`, and needs no license; the second copies `base.bit` and `base.hwh` out of the image (read only, without root)
+and packs the three together. The overlay's own processor settings are not used: they describe 8 GiB of processor memory,
+and the preset's, proven on the board, 4 GiB.
+
+The other RFSoC 4x2 designs (`fixtures/rfsoc4x2/`) are driver tests with their blocks wired to each other.
+

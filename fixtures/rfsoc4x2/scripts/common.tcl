@@ -100,8 +100,12 @@ proc hrx_finish {name work out {top ""} {sources {}}} {
   if {[get_property PROGRESS $run] ne "100%"} { error "implementation failed: [get_property STATUS $run]" }
   set wns [get_property STATS.WNS $run]
   set whs [get_property STATS.WHS $run]
-  puts "hrx: timing WNS $wns ns, WHS $whs ns"
-  if {$wns ne "" && ($wns < 0 || $whs < 0)} { error "timing not met: WNS $wns, WHS $whs" }
+  # Pulse widths too: clock buffers and memories have maximum frequencies.
+  set tpws [get_property STATS.TPWS $run]
+  puts "hrx: timing WNS $wns ns, WHS $whs ns, TPWS $tpws ns"
+  if {$wns ne "" && ($wns < 0 || $whs < 0 || ($tpws ne "" && $tpws < 0))} {
+    error "timing not met: WNS $wns, WHS $whs, TPWS $tpws"
+  }
   write_hw_platform -fixed -include_bit -force $out
   puts "hrx: wrote $out"
 }

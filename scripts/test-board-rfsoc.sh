@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # The board tests of the Zynq UltraScale+ support, on an RFSoC 4x2 in JTAG boot mode connected by USB (needs Vitis).
 # Volatile: nothing is written to storage. Runs the smoke program (processor system and PL interrupts) with the loopback
-# fixture in the PL, once more without programming the PL (`run --no-pl`), the kernel's test (baremetal/rt-smoke), a
-# read-only look at the I2C buses and power monitors (baremetal/i2c-info), and the board's own hardware
-# (baremetal/rfsoc-board: identity, temperatures, power monitors, OLED, clock chips, LEDs; it programs the clock chips,
-# which forget at power-off). What the display shows and the button are for a person to check.
-# The two-hour jitter benchmark (baremetal/rt-jitter) is run by hand.
+# fixture in the PL, once more without programming the PL (`run --no-pl`), and then everything a student would run, on the
+# base overlay: the smoke program again, the overlay's example (baremetal/base-overlay), the kernel's test
+# (baremetal/rt-smoke), a read-only look at the I2C buses and power monitors (baremetal/i2c-info), and the board's own
+# hardware (baremetal/rfsoc-board: identity, temperatures, power monitors, OLED, clock chips, LEDs; it programs the clock
+# chips, which forget at power-off). What the display shows, the buttons and the switches are for a person to check.
 # HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
 # HRX_NET=1 adds the Ethernet test (the board cabled to this computer, which serves DHCP on that link).
 #
@@ -14,16 +14,18 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 TTY=${HRX_TTY:-/dev/ttyUSB1}
-XSA=$ROOT/fixtures/rfsoc4x2/rfsoc4x2_loopback.xsa
+# The base overlay for what a student runs; the loopback fixture, which wires blocks to each other, for the driver tests.
+XSA=$ROOT/fixtures/board/rfsoc4x2_base_overlay.xsa
+LOOPBACK=$ROOT/fixtures/rfsoc4x2/rfsoc4x2_loopback.xsa
 cargo build -q -p hardroxide-cli
 OUT=$(mktemp)
 trap 'rm -f "$OUT"' EXIT
 fail=0
-run() { # <features> <extra run arguments...>
-  local features=$1; shift
+run() { # <features> <xsa> <extra run arguments...>
+  local features=$1 xsa=$2; shift 2
   (cd baremetal/psu-smoke && cargo build -q --release --features "$features")
   target/debug/hardroxide run baremetal/psu-smoke/target/aarch64-unknown-none/release/psu-smoke \
-    --xsa "$XSA" --tty "$TTY" --watch 20 "$@" 2>&1 | tr -d '\r' | tee "$OUT"
+    --xsa "$xsa" --tty "$TTY" --watch 20 "$@" 2>&1 | tr -d '\r' | tee "$OUT"
 }
 need() { grep -q -- "$1" "$OUT" || { echo "MISSING: $1" >&2; fail=1; }; }
 processor() {
@@ -40,7 +42,7 @@ processor() {
 }
 
 echo "== processor system and PL"
-run pl
+run pl "$LOOPBACK"
 processor
 need "PL block RAM, 64 KiB: 0 errors"
 need "PL GPIO loop: wrote 0xa5, read 0xa5"
@@ -48,8 +50,21 @@ need "PL GPIO interrupt (ID 127), handler: 10 of 10"
 need "PL timer interrupt (ID 121), waited for: 3 of 3; nothing before the timer ran: true"
 
 echo "== without programming the PL"
-run "" --no-pl
+run "" "$LOOPBACK" --no-pl
 processor
+
+echo "== processor system, with the base overlay"
+run "" "$XSA"
+processor
+
+echo "== the base overlay"
+(cd baremetal/base-overlay && cargo build -q --release)
+target/debug/hardroxide run baremetal/base-overlay/target/aarch64-unknown-none/release/base-overlay \
+  --xsa "$XSA" --tty "$TTY" --watch 10 2>&1 | tr -d '\r' | tee "$OUT"
+need "FPGA temperature: [0-9]* C"
+need "buttons interrupt: quiet before true, arrived true, cleared true"
+need "switches interrupt: quiet before true, arrived true, cleared true"
+need "SELF TEST OK"
 
 echo "== the kernel"
 (cd baremetal/rt-smoke && cargo build -q --release --target aarch64-unknown-none)
@@ -127,7 +142,7 @@ if [ -n "${HRX_NET:-}" ]; then
   target/debug/hardroxide run baremetal/net-smoke/target/aarch64-unknown-none/release/net-smoke \
     --xsa "$XSA" --tty "$TTY" --watch 240 >"$OUT" 2>&1 &
   RUN_PID=$!
-  for _ in $(seq 1 120); do grep -q "NET READY\|NET SMOKE FAILED" "$OUT" && break; sleep 0.5; done
+  for _ in $(seq 1 240); do grep -q "NET READY\|NET SMOKE FAILED" "$OUT" && break; sleep 0.5; done
   tr -d '\r' <"$OUT"
   need "DP83867, clock delays set"
   need "NET READY ip=.* dhcp=true"

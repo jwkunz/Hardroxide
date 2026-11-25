@@ -1,5 +1,8 @@
 # RFSoC 4x2 fixtures
 
+**These are driver tests, not examples.** Examples and tutorials use the board's base overlay,
+`../board/rfsoc4x2_base_overlay.xsa` (probed with `scripts/probe.py base`).
+
 Designs for the Real Digital RFSoC 4x2 (`xczu48dr-ffvg1517-2-e`), Vivado 2025.2, built for [ADR 0005](../../docs/decisions/0005-ultrascale-plus.md). Each XSA holds the bitstream, the hardware handoff and the board's `psu_init`.
 
 | XSA | What is in it | Control, interrupts |
@@ -15,6 +18,14 @@ Designs for the Real Digital RFSoC 4x2 (`xczu48dr-ffvg1517-2-e`), Vivado 2025.2,
 ## Building
 
 `scripts/build.sh <name>...` (names without the `rfsoc4x2_` prefix) writes the XSA here; it fails if timing is not met. It needs a Vivado license for the part. `scripts/sim_rf.sh` simulates the RF design's own logic (`hdl/`) and needs none.
+
+## Speed grade
+
+The board's reference manual lists a speed grade -1 chip; Real Digital's board files, and these designs, say -2. They
+cannot be built for -1: Vivado rejects the board preset's processor clocks (two at 533 MHz) and memory timing for that
+grade. `scripts/timing_speed.tcl -tclargs -1 <routed.dcp>...` re-analyses routed designs with -1 delays (2026-11-25):
+`gpio`, `intc`, `loopback`, `hls_vadd` and `hls_scale` meet timing; `dma` misses one hold check by 0.001 ns and
+`rf_loopback` two setup checks by 0.014 ns. Which grade the chip really is has not been established.
 
 ## Probing on a board
 

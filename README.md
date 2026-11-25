@@ -54,6 +54,9 @@ bare-metal and RTOS flavors (PS support, kernel, MMU and caches, DMA, a 10 ms co
 QEMU, and the applications listed above (HDMI, audio, SD, Ethernet, HTTPS to curl, OpenSSL and Edge). The results, and what is still unchecked, are in
 [`docs/08-verification-gaps.md`](docs/08-verification-gaps.md).
 
+**3.0 in progress** (branch `v3`): bare metal and the real-time kernel on Zynq UltraScale+ (RFSoC 4x2), without code
+generation yet; see [the tutorials](docs/tutorials/rfsoc/index.md).
+
 Limits: Zynq-7000 only (UltraScale+ designs are refused with a clear error),
 bare metal and RTOS on core 0 only (no SMP), direct-register-mode DMA only, one register block per
 IP instance, and Vivado 2025.2 is the version actually exercised on hardware.

@@ -2,7 +2,8 @@
 """Programs an RFSoC 4x2 over JTAG with a fixture design and probes it with raw register accesses (probe_<design>.tcl),
 without any Hardroxide code. Volatile: nothing is written to storage.
 
-Usage: probe.py <design>...        e.g. probe.py gpio dma          (the XSA is ../rfsoc4x2_<design>.xsa)
+Usage: probe.py <design>...        e.g. probe.py gpio dma          (the XSA is ../rfsoc4x2_<design>.xsa; "base"
+is the base overlay, ../../board/rfsoc4x2_base_overlay.xsa)
 Environment: VITIS_SETTINGS (default ~/AMD/2025.2/Vitis/settings64.sh), HRX_WORK (default target/rfsoc4x2),
 HRX_RF_LOOPBACK=1 to require the tones of the RF loopback (SMA cables from the DACs to the ADCs fitted).
 HRX_RF_KEEP_CLOCKS=1 to probe a board that is already running with the design loaded (`hardroxide run --xsa`), without
@@ -35,7 +36,9 @@ def addresses(hwh: bytes) -> dict[str, tuple[int, int]]:
 
 
 def probe(design: str) -> bool:
-    xsa = here.parent / f"rfsoc4x2_{design}.xsa"
+    # "base" is the vendor's overlay (fixtures/board), whose handoff file keeps its own name.
+    xsa = here.parent.parent / "board" / "rfsoc4x2_base_overlay.xsa" if design == "base" else here.parent / f"rfsoc4x2_{design}.xsa"
+    hwh = "base.hwh" if design == "base" else "design_1.hwh"
     script = here / f"probe_{design}.tcl"
     if not xsa.exists() or not script.exists():
         sys.exit(f"missing {xsa} or {script}")
@@ -50,7 +53,7 @@ def probe(design: str) -> bool:
         bits = [n for n in z.namelist() if n.endswith(".bit")]
         z.extract(bits[0], d)
         z.extract("psu_init.tcl", d)
-        amap = addresses(z.read("design_1.hwh"))
+        amap = addresses(z.read(hwh))
     run = d / "run.tcl"
     lines = [f"source {{{here / 'jtag.tcl'}}}"]
     lines += [f"set base({n}) 0x{a:X}\nset size({n}) 0x{s:X}" for n, (a, s) in sorted(amap.items())]

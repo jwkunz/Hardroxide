@@ -157,13 +157,16 @@ fn temperature_check(c: &mut Checks) {
     {
         match value {
             Some(t) => println!("  {name}: {} C", Degrees(t)),
-            None => println!("  {name}: no reading"),
+            // An FPGA design with a system monitor of its own (the base overlay has one) takes the PL's sensor.
+            None => println!("  {name}: no reading (the FPGA design's own monitor has the sensor)"),
         }
-        c.check(
-            "the temperature is plausible",
-            value.is_some_and(|t| (10_000..100_000).contains(&t)),
-        );
+        let plausible = value.is_none_or(|t| (10_000..100_000).contains(&t));
+        c.check("the temperature is plausible", plausible);
     }
+    c.check(
+        "the processing system's sensor reads",
+        temperatures()[0].is_some(),
+    );
 }
 
 fn power(c: &mut Checks, bus: &mut I2c<PhysRegion>) {
@@ -306,8 +309,12 @@ fn page(page: usize, mac: at24mac::MacAddress, bus: &mut I2c<PhysRegion>) -> [Li
             ]
         }
         1 => {
-            let [ps_die, pl_die] = temperatures().map(|t| Degrees(t.unwrap_or(0)));
-            [line!("PS die  {ps_die} C"), line!("PL die  {pl_die} C")]
+            let [ps_die, pl_die] = temperatures();
+            let shown = |name, t: Option<i32>| match t {
+                Some(t) => line!("{name} die  {} C", Degrees(t)),
+                None => line!("{name} die  --"),
+            };
+            [shown("PS", ps_die), shown("PL", pl_die)]
         }
         n => {
             let rail = board::RAILS[(n - 2) % board::RAILS.len()];

@@ -23,4 +23,5 @@ cargo build --release --target aarch64-unknown-none -p hardroxide-rt "$@"
 # The programs for Zynq UltraScale+ alone (their emulator has no I2C controllers, so they are only built here).
 (cd baremetal/i2c-info && cargo build --release "$@")
 (cd baremetal/rfsoc-board && cargo build --release "$@")
+(cd baremetal/base-overlay && cargo build --release "$@")
 echo "no_std build ok"

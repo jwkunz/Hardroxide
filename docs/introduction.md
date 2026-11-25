@@ -69,6 +69,11 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 - **Status**: what real Vivado output looks like (*HWH findings*) and what has and
   has not been verified on hardware (*Verification gaps*).
 
+> **3.0 in progress: Zynq UltraScale+.** On the `v3` branch, bare-metal programs and the real-time kernel run on a Real
+> Digital RFSoC 4x2: start-up, the base overlay, SD, Ethernet and the board's own hardware ([tutorials](tutorials/rfsoc/index.md),
+> [plan and results](decisions/0005-ultrascale-plus.md)). Generating crates from UltraScale+ designs, their FPGA drivers
+> and Linux are not done. Everything else in this book is about the Zynq-7000 and is unchanged.
+
 > **Hardware status.** Linux: generation, bitstream loading, clocks, interrupts and
 > the drivers for GPIO, HLS (scalar and pointer arguments), DMA, Timer, IIC, SPI,
 > the AXI interrupt controller, BRAM, UART Lite and the AXI4-Stream FIFO have been run

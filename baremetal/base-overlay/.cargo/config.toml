@@ -1,0 +1,6 @@
+[build]
+# Zynq UltraScale+ only: the program uses the RFSoC 4x2's base overlay.
+target = "aarch64-unknown-none"
+
+[target.aarch64-unknown-none]
+rustflags = ["-C", "target-cpu=cortex-a53"]

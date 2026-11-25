@@ -57,6 +57,15 @@
   - [6. HTTPS with a self-signed certificate](tutorials/apps/06-https.md)
   - [7. Everything at once](tutorials/apps/07-integration.md)
 
+# Zynq UltraScale+ (3.0 preview)
+
+- [Setup (RFSoC 4x2)](tutorials/rfsoc/index.md)
+  - [1. First light](tutorials/rfsoc/01-first-light.md)
+  - [2. The base overlay](tutorials/rfsoc/02-base-overlay.md)
+  - [3. The board's own hardware](tutorials/rfsoc/03-board-hardware.md)
+  - [4. The real-time kernel](tutorials/rfsoc/04-kernel.md)
+  - [5. Network and SD card](tutorials/rfsoc/05-network-sd.md)
+
 # Reference
 
 - [What each library can and cannot do](reference/libraries.md)

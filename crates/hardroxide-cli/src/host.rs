@@ -11,6 +11,7 @@ use std::io::Read;
 use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const HW_SERVER_PORT: u16 = 3121;
@@ -219,8 +220,45 @@ fn ensure_hw_server(v: &Vitis) -> Result<()> {
     bail!("hw_server did not start (run `hardroxide doctor`)")
 }
 
-/// Stream the console UART to stdout from `tty` (115200 8N1) until `stop` elapses.
-fn spawn_console(tty: &Path, stop: Duration) -> Option<std::thread::JoinHandle<()>> {
+/// When the console reader stops: not while the program is still being loaded (a large bitstream takes half a minute
+/// over JTAG, longer than a short watch), then `watch` after it started, and no sooner than 8 s more than `watch` after
+/// the reader did.
+#[derive(Clone)]
+struct ConsoleEnd {
+    earliest: Instant,
+    /// `None` while loading.
+    end: Arc<Mutex<Option<Instant>>>,
+}
+
+impl ConsoleEnd {
+    fn new(watch: Duration) -> Self {
+        Self {
+            earliest: Instant::now() + watch + Duration::from_secs(8),
+            end: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn set(&self, end: Instant) {
+        *self.end.lock().unwrap_or_else(|e| e.into_inner()) = Some(end);
+    }
+
+    fn program_started(&self, watch: Duration) {
+        self.set(self.earliest.max(Instant::now() + watch));
+    }
+
+    /// Stop now: nothing was started.
+    fn abandon(&self) {
+        self.set(Instant::now());
+    }
+
+    fn reached(&self) -> bool {
+        let end = *self.end.lock().unwrap_or_else(|e| e.into_inner());
+        end.is_some_and(|end| Instant::now() >= end)
+    }
+}
+
+/// Stream the console UART to stdout from `tty` (115200 8N1) until `end`.
+fn spawn_console(tty: &Path, end: ConsoleEnd) -> Option<std::thread::JoinHandle<()>> {
     if !tty.exists() {
         eprintln!(
             "note: {} not found; the program's console output will not be shown",
@@ -239,9 +277,8 @@ fn spawn_console(tty: &Path, stop: Duration) -> Option<std::thread::JoinHandle<(
         let Ok(mut f) = std::fs::OpenOptions::new().read(true).open(&tty) else {
             return;
         };
-        let t0 = Instant::now();
         let mut buf = [0u8; 256];
-        while t0.elapsed() < stop {
+        while !end.reached() {
             // Non-blocking-ish: a raw tty with VMIN=0 would be better; poll briefly instead.
             match f.read(&mut buf) {
                 Ok(n) if n > 0 => {
@@ -277,7 +314,9 @@ pub fn run(o: &RunOptions) -> Result<()> {
     let script = tmp.join("run.tcl");
     std::fs::write(&script, run_script(family, &tmp, &elf, o.program_pl))?;
     // The console reader must exist before the program starts printing.
-    let console = spawn_console(o.tty, Duration::from_secs(o.watch_secs + 8));
+    let watch = Duration::from_secs(o.watch_secs);
+    let end = ConsoleEnd::new(watch);
+    let console = spawn_console(o.tty, end.clone());
     eprintln!("loading {} ...", o.elf.display());
     let st = v
         .shell(&format!("xsdb '{}'", script.display()))
@@ -286,12 +325,14 @@ pub fn run(o: &RunOptions) -> Result<()> {
         .output()
         .context("running xsdb")?;
     if !st.status.success() {
+        end.abandon();
         let _ = std::fs::remove_dir_all(&tmp);
         bail!(
             "xsdb failed (is the board in JTAG boot mode and powered? try `hardroxide doctor`):\n{}",
             String::from_utf8_lossy(&st.stderr)
         );
     }
+    end.program_started(watch);
     eprintln!("running; console below ({} s) ...", o.watch_secs);
     if let Some(h) = console {
         let _ = h.join();
@@ -493,6 +534,22 @@ pub fn doctor(tty: &Path) -> Vec<Check> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_console_outlasts_a_slow_load() {
+        // Nothing ends it while loading, however short the watch.
+        let end = ConsoleEnd::new(Duration::ZERO);
+        assert!(!end.reached());
+        // Once the program runs it gets its watch time.
+        end.program_started(Duration::from_secs(60));
+        assert!(!end.reached());
+        // A quick load never shortens the time to less than before (watch and 8 s from the start).
+        let end = ConsoleEnd::new(Duration::ZERO);
+        end.program_started(Duration::ZERO);
+        assert!(!end.reached());
+        end.abandon();
+        assert!(end.reached());
+    }
 
     #[test]
     fn a_vitis_directory_needs_settings_and_xsdb() {

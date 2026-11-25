@@ -43,7 +43,10 @@ families, shared setup in `baremetal/common/`); a full two-hour jitter run is st
 (`HRX_SD_SERIAL=0x...` and `HRX_NET=1` for the board script; the SD test erases the card). The board's own hardware is
 done too (`crates/hardroxide-board`, `baremetal/rfsoc-board`; never drive `MIO7`, the LMK04828's reset pin, high). USB,
 Pmod+ and SYZYGY are out by the maintainer's decision; DisplayPort, PL memory and the 100 Gb port go to the Linux
-examples. Next: step 5, the generator for UltraScale+.
+examples. **Examples and tutorials use the board's base overlay**
+(`fixtures/board/rfsoc4x2_base_overlay.xsa`, `probe.py base`, `baremetal/base-overlay`); the other RFSoC designs are driver
+tests. Never build them for speed grade -1 (the preset is rejected); `timing_speed.tcl` checks -1 timing.
+Next: step 5, the generator for UltraScale+, targeting the base overlay first.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

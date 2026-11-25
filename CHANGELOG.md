@@ -29,6 +29,10 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
 - `hardroxide-psu`: the GPIO controller (`gpio`) and the die temperature sensors (`sysmon`).
 - Fixed in the RF loopback fixture's probe script: it drove the clock chip's reset pin high, which that chip's register
   file turns into an output held low.
+- The RFSoC 4x2's base overlay, ready for bare metal (`fixtures/board/rfsoc4x2_base_overlay.xsa`), its example
+  `baremetal/base-overlay`, and preview tutorials for the board that all use it.
+- Fixed (2.x too): `hardroxide run` showed no console output when loading took longer than the time to watch, as with a
+  large bitstream; the watch time now counts from the program's start.
 - Backward compatibility with 2.7.0 is checked in CI (`scripts/check-compat.py`).
 
 ## 2.7.0 (2026-11-21)

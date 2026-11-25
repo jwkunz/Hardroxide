@@ -175,6 +175,17 @@ works since); and the processor's GPIO ignores a level written to a pin while it
 drives whatever the pin last had. USB and the Pmod+ and SYZYGY connectors were left out by decision; DisplayPort, the
 PL's memory and the 100 Gb port are left to the Linux examples.
 
+## The base overlay (2026-11-25)
+
+**Examples and tutorials use the board's base overlay** (maintainer's decision: students should not meet a different
+bitstream with each example); the step 1 designs are driver tests. `fixtures/board/rfsoc4x2_base_overlay.xsa` is
+RFSoC-PYNQ 4.0.0's bitstream and handoff with a `psu_init` generated for the board preset plus the overlay's
+processor-to-FPGA settings. It passes `probe.py base` on the board (LEDs, buttons, switches, the interrupt path,
+temperature, Pmod memories, all four converter tiles locking, DMA resets, the PL's DDR4, which is 4 GiB mapped twice), and
+`baremetal/base-overlay` drives it with the Zynq-7000's GPIO and interrupt controller drivers, unchanged. Step 5's
+generator and applications target it first. `hardroxide run` showed no console output with it, because loading takes 28 s
+and the reader's time started before loading (also true of 2.x); fixed.
+
 ## Risks
 
 | Risk | Mitigation |

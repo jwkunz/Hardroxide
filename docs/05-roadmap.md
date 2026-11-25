@@ -81,6 +81,15 @@ public-key arithmetic** or PL accelerators for the TLS handshake (about 80 ms of
 bank fixes; `fsck.fat` on a card the board formatted; listening to the audio pump; an interactive browser session and Firefox and Safari against the HTTPS server; an independent review of the cryptography and the TLS code; and the older items under "Not started" above
 (UltraScale+, SMP, HLS stream ports, scatter-gather DMA).
 
+## 3.0: Zynq UltraScale+ (in progress, branch `v3`)
+
+Plan and results: [ADR 0005](decisions/0005-ultrascale-plus.md). Done: the FPGA fixture designs, processor support,
+`hardroxide run`, the kernel, SD, Ethernet, I2C and the board's own hardware. To do, in order: code generation for
+UltraScale+ designs with their drivers (including bare-metal and RTOS applications), Linux on the board, the 3.0.0
+release; the radio driver is 3.1. Not in the plan yet: starting from SD (`hardroxide package`). Left out: USB, Pmod+ and
+SYZYGY; DisplayPort, the PL's memory and the 100 Gb port are for the Linux examples. Still owed: a two-hour jitter run and
+the PYNQ-Z2 board regression.
+
 ## Documentation site
 
 The mdBook (`book.toml`, `src = "docs"`) is the authoritative documentation

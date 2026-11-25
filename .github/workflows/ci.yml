@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the compatibility check reads the last release's tag
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -23,7 +25,7 @@ jobs:
       - run: cargo test --workspace
       - uses: taiki-e/install-action@v2
         with:
-          tool: mdbook@0.5.4
+          tool: mdbook@0.5.4,cargo-semver-checks
       - run: mdbook build
       - run: cargo test -p hardroxide-irq --features async
       # Hardware-free only; see docs/08-verification-gaps.md for board checks.
@@ -32,5 +34,7 @@ jobs:
       - run: scripts/check-no-std.sh
       # Bare-metal PS support on QEMU's Zynq-7000 machine (startup, GIC, timers, console).
       - run: scripts/test-qemu.sh
+      # Backward compatibility with the published release (ADR 0005): public APIs, generated crates, and the release's own programs.
+      - run: scripts/check-compat.py
       # Runtime crates' tests as real armv7 binaries under qemu-arm.
       - run: scripts/test-armv7.sh

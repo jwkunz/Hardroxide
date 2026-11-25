@@ -10,6 +10,19 @@ environment variables switch on what needs something connected: `HRX_AUDIO_LOOPB
 `HRX_SD_SERIAL=0x...` (a card **that may be erased**, named by the serial number `sd_info` prints: the SD tests format it, and the format program refuses any other card that holds data). `scripts/test-qemu.sh` also runs the SD card (with `fsck.fat` on the image it wrote) and the network stack
 (DHCP, HTTP, HTTPS, UDP and TCP echo, against real `curl`, `openssl s_client` and Python sockets) under QEMU, and needs `dosfstools`, `curl`, `openssl` and Python 3.
 
+## `check-compat.py`: backward compatibility
+
+`scripts/check-compat.py [semver] [generator] [programs]` (all three by default; CI runs it) fails if anything a user of the published release (2.7.0; `COMPAT_BASE` to change it) relies on has changed, which
+[ADR 0005](../decisions/0005-ultrascale-plus.md) promises will not happen:
+
+- **semver:** every library's public API against the crate on crates.io, with `cargo-semver-checks`, and for `hardroxide-ps7` and `hardroxide-rt` also as built for `armv7a-none-eabihf`, where their Arm-only modules exist.
+- **generator:** for every fixture design and all three platforms, the working tree's `generate` gives the same files as the published CLI (only the version in the dependencies may differ), `update` accepts the published CLI's crate and leaves it alone, and no command or flag has gone.
+- **programs:** crates made by the published CLI, with the programs of that release (read from the tag), build against the working tree's libraries.
+
+It needs `cargo install cargo-semver-checks --locked`, the `armv7a-none-eabihf` target and the release's git tag; the first run installs the published CLI under `target/compat/`.
+
+## Board helpers
+
 Helper scripts in `scripts/board/` for working with a PYNQ-Z2. They are plain POSIX
 shell, change only the running system, and are what the
 [tutorials](../tutorials/index.md) use.

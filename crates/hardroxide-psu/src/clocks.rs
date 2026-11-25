@@ -17,6 +17,7 @@ const IOPLL: usize = 0x20;
 const IOPLL_FRAC: usize = 0x28;
 const RPLL: usize = 0x30;
 const RPLL_FRAC: usize = 0x38;
+const GEM0_REF: usize = 0x50;
 const SDIO0_REF: usize = 0x6C;
 const UART0_REF: usize = 0x74;
 const I2C0_REF: usize = 0x120;
@@ -123,6 +124,39 @@ pub fn i2c_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) ->
     peripheral_hz(crl, crf, ps_ref_hz, I2C0_REF + 4 * (n & 1), Pll::Ddr)
 }
 
+/// The reference clock of Ethernet MAC `n` (0 to 3), which times what it transmits.
+pub fn gem_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64> {
+    peripheral_hz(crl, crf, ps_ref_hz, GEM0_REF + 4 * (n & 3), Pll::Ddr)
+}
+
+/// The two dividers (each 1 to 63) bringing `source_hz` closest to `target_hz`.
+pub fn divisors(source_hz: u64, target_hz: u64) -> (u32, u32) {
+    let total = ((source_hz + target_hz / 2) / target_hz.max(1)).clamp(1, 63 * 63);
+    let second = total.div_ceil(63);
+    let first = ((total + second / 2) / second).clamp(1, 63);
+    (first as u32, second as u32)
+}
+
+/// Set the dividers of MAC `n`'s reference clock for `target_hz` (125, 25 or 2.5 MHz for gigabit, 100 and 10 Mbit/s),
+/// leaving its source and enables as `psu_init` set them. Returns the rate now produced.
+pub fn set_gem_ref_hz(
+    crl: &impl Mmio,
+    crf: &impl Mmio,
+    ps_ref_hz: u64,
+    n: usize,
+    target_hz: u64,
+) -> Result<u64> {
+    let register = GEM0_REF + 4 * (n & 3);
+    let ctrl = crl.read32(register)?;
+    // The source's rate: what the clock is now, times the dividers now.
+    let d0 = u64::from((ctrl >> 8) & 0x3F).max(1);
+    let d1 = u64::from((ctrl >> 16) & 0x3F).max(1);
+    let source = gem_ref_hz(crl, crf, ps_ref_hz, n)? * d0 * d1;
+    let (d0, d1) = divisors(source, target_hz);
+    crl.write32(register, (ctrl & !0x003F_3F00) | d0 << 8 | d1 << 16)?;
+    gem_ref_hz(crl, crf, ps_ref_hz, n)
+}
+
 /// The clock of the system counter, which the processors' generic timers count.
 pub fn timestamp_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64) -> Result<u64> {
     let ctrl = crl.read32(TIMESTAMP_REF)?;
@@ -184,6 +218,26 @@ mod tests {
         near(sdio_ref_hz(&crl, &crf, REF, 0).unwrap(), 187_499_969);
         near(i2c_ref_hz(&crl, &crf, REF, 0).unwrap(), 99_999_985);
         near(timestamp_hz(&crl, &crf, REF).unwrap(), 33_333_328);
+    }
+
+    #[test]
+    fn the_ethernet_clock_follows_the_link_speed() {
+        let (be, crl, crf) = board();
+        // As psu_init leaves GEM 1 on the board: 1500 MHz / 12 = 125 MHz, with both enables.
+        be.poke(0xFF5E_0000 + GEM0_REF as u64 + 4, 0x0601_0C00);
+        near(gem_ref_hz(&crl, &crf, REF, 1).unwrap(), 125_000_000);
+        for (target, dividers) in [
+            (25_000_000, (60, 1)),
+            (2_500_000, (60, 10)),
+            (125_000_000, (12, 1)),
+        ] {
+            near(set_gem_ref_hz(&crl, &crf, REF, 1, target).unwrap(), target);
+            let now = be.peek(0xFF5E_0000 + GEM0_REF as u64 + 4);
+            assert_eq!(((now >> 8) & 0x3F, (now >> 16) & 0x3F), dividers);
+            assert_eq!(now & !0x003F_3F00, 0x0600_0000, "source and enables kept");
+        }
+        assert_eq!(divisors(1_500_000_000, 1), (63, 63));
+        assert_eq!(divisors(1_000, 1_000_000), (1, 1));
     }
 
     #[test]

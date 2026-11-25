@@ -94,3 +94,19 @@ if command -v fsck.fat >/dev/null; then
   fsck.fat -n "$IMG.part" || { echo "fsck.fat found errors" >&2; fail=1; }
 fi
 [ "$fail" = 0 ] && echo "qemu UltraScale+ SD test: ok" || { echo "qemu UltraScale+ SD test: FAILED" >&2; exit 1; }
+
+# ---- the Ethernet MAC driver, the network stack and HTTPS (baremetal/net-smoke), checked by scripts/net_check.py ----
+cd "$ROOT/baremetal/net-smoke"
+cargo build --release --features qemu --target aarch64-unknown-none
+"${RUN[@]}" -M xlnx-zcu102,secure=on -m 4G -display none -serial "file:$OUT" -serial null -monitor none \
+  -nic "user,mac=02:48:52:58:00:01,hostfwd=tcp:127.0.0.1:18180-:80,hostfwd=tcp:127.0.0.1:18109-:9,hostfwd=tcp:127.0.0.1:18543-:443,hostfwd=udp:127.0.0.1:18107-:7" \
+  -kernel target/aarch64-unknown-none/release/net-smoke >/dev/null 2>&1 &
+QPID=$!
+for _ in $(seq 1 100); do grep -q "NET READY" "$OUT" && break; sleep 0.1; done
+cat "$OUT"
+need "NET READY ip=10.0.2.15 dhcp=true"
+if [ "$fail" = 0 ]; then
+  python3 "$ROOT/scripts/net_check.py" 127.0.0.1 18180 18109 18543 18107 || fail=1
+fi
+kill "$QPID" 2>/dev/null; wait "$QPID" 2>/dev/null || true
+[ "$fail" = 0 ] && echo "qemu UltraScale+ network test: ok" || { echo "qemu UltraScale+ network test: FAILED" >&2; exit 1; }

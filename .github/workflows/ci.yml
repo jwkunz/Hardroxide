@@ -22,6 +22,9 @@ jobs:
       - run: cd baremetal/rt-smoke && cargo fmt --check
       - run: cd baremetal/rt-jitter && cargo fmt --check
       - run: cd baremetal/psu-smoke && cargo fmt --check
+      - run: cd baremetal/sd-smoke && cargo fmt --check
+      - run: cd baremetal/sd-info && cargo fmt --check
+      - run: cd baremetal/net-smoke && cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - uses: taiki-e/install-action@v2

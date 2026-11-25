@@ -280,6 +280,11 @@ pub fn mdio_write(&self, phy: u8, reg: u8, value: u16) -> Result<(), GemError>
 pub fn find_phy(&mut self) -> Result<u8, GemError>
 pub fn link_up(&mut self, slcr: &impl Mmio, timeout_ms: u64) -> Result<Link, GemError>
 pub fn set_speed(&self, slcr: &impl Mmio, link: Link) -> Result<(), GemError>
+pub fn negotiate(&mut self, timeout_ms: u64) -> Result<Link, GemError>
+pub fn start(&mut self, link: Link) -> Result<(), GemError>
+pub fn mdio_read_extended(&self, phy: u8, reg: u16) -> Result<u16, GemError>
+pub fn mdio_write_extended(&self, phy: u8, reg: u16, value: u16) -> Result<(), GemError>
+pub fn dp83867_set_delays(&mut self, rx_code: u8, tx_code: u8) -> Result<bool, GemError>
 pub fn receive(&mut self, buf: &mut [u8]) -> Option<usize>
 pub fn transmit(&mut self, frame: &[u8]) -> bool
 ```

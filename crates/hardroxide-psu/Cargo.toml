@@ -20,6 +20,8 @@ panic-handler = []
 default-irq-entry = []
 # The default synchronous-exception entry (reports it and halts). The kernel supplies its own.
 default-sync-entry = []
+# `impl hardroxide_net::Device for gem::Gem`, so the network stack can run on the Ethernet MAC.
+net = ["hardroxide-ps7/net"]
 
 [dependencies]
 hardroxide-mmio = { workspace = true, features = ["physmem"] }

@@ -95,6 +95,24 @@ pub fn current_el() -> u32
 pub fn clock_divisor_v3(base_hz: u32, target_hz: u32) -> (u32, u32)
 ```
 
+## Ethernet (`gem`, feature `net` for the network stack)
+
+`hardroxide-ps7`'s [driver](ps7.md), for the MACs at `map::GEM0_BASE`..`GEM3_BASE`; it recognises the later controller from its
+identification register (a 64-bit bus; the unused second queue is parked) and refuses rings or buffers above 4 GiB. The
+transmit clock is set in `CRL_APB`:
+
+```rust,ignore
+pub fn link_up<R: Mmio>(
+pub fn reference_hz(speed_mbps: u16) -> u64
+pub fn gem_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64>
+pub fn set_gem_ref_hz(
+pub fn divisors(source_hz: u64, target_hz: u64) -> (u32, u32)
+```
+
+`gem::link_up(&mut gem, &crl, &crf, ps_ref_hz, instance, timeout_ms)` negotiates, sets the clock and starts the MAC. The
+RFSoC 4x2's cable is on `GEM1`, and its TI DP83867 PHY first needs the board's clock delays:
+`gem.dp83867_set_delays(0x8, 0xA)`.
+
 ## Memory (`mem`)
 
 ```rust,ignore

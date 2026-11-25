@@ -38,7 +38,10 @@ regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and
 [ADR 0005](docs/decisions/0005-ultrascale-plus.md) (accepted): RFSoC 4x2 first, Zynq-7000 stays and everything must remain **backward compatible with 2.7.0**
 (`scripts/check-compat.py`, in CI). Work is on branch `v3.0`. Done: step 0 (except the PYNQ-Z2 board regression) and step 1: seven RFSoC 4x2 designs in
 `fixtures/rfsoc4x2/`, proven on the board over JTAG (`scripts/probe.py` there). Step 2 done: `crates/hardroxide-psu` (AArch64, EL3) and `hardroxide run` for UltraScale+ (`scripts/test-board-rfsoc.sh`,
-`scripts/test-qemu-psu.sh`). Next: step 3, the kernel's AArch64 port. The Vivado license for the part expires 2026-12-29.
+`scripts/test-qemu-psu.sh`). Step 3 done: the kernel's AArch64 port (`port/aarch64.rs`; programs in `baremetal/` build for both
+families, shared setup in `baremetal/common/`); a full two-hour jitter run is still owed (65 minutes passed). Step 4: SD and Ethernet done
+(`HRX_SD_SERIAL=0x...` and `HRX_NET=1` for the board script; the SD test erases the card), **I2C remains**. Then step 5 (the generator).
+The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step
 

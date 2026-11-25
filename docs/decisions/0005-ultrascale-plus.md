@@ -145,6 +145,18 @@ Found and fixed:
 - The AArch64 tick truncated 33,333,333 / 1000 and ran 10 ppm fast; the first benchmark counted every release as on time
   (mean lateness 0 ns). The tick now spreads the remainder, and the benchmark reports early releases.
 
+## Step 4 results so far (2026-11-25)
+
+**SD card** (SanDisk 16 GB, erased with the maintainer's permission): the guard refused builds naming no card or another card;
+formatted, written and read back; the start of the card fetched over JTAG passes `fsck.fat` and the 1 MiB file matches byte for
+byte; 1.8 MB/s written and 6 MB/s read in 4 KiB pieces, 11 MB/s in one 31 MiB read.
+
+**Ethernet** (GEM 1, DP83867, cabled to a PC): 1 Gbit/s full duplex, an address by DHCP, `ping` 0.25 to 0.34 ms, all of
+`scripts/net_check.py` (curl, UDP, TCP, HTTPS with curl and openssl); 18.4 MB/s over HTTP (300 kB downloads, one at a time),
+220 requests/s, 21 new TLS connections/s (47 ms each, median handshake 35 ms; the Zynq-7000 managed 83 ms each).
+
+**I2C**: not yet done.
+
 ## Risks
 
 | Risk | Mitigation |

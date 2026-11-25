@@ -4,6 +4,7 @@
 # fixture in the PL, once more without programming the PL (`run --no-pl`), and the kernel's test (baremetal/rt-smoke).
 # The two-hour jitter benchmark (baremetal/rt-jitter) is run by hand.
 # HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
+# HRX_NET=1 adds the Ethernet test (the board cabled to this computer, which serves DHCP on that link).
 #
 #   scripts/test-board-rfsoc.sh                 HRX_TTY: the console port (default /dev/ttyUSB1)
 set -euo pipefail
@@ -93,6 +94,31 @@ PY
   else
     echo "MISSING: DUMP" >&2; fail=1
   fi
+fi
+
+# Ethernet: only with HRX_NET=1 and a cable from the board to this computer (which must give it an address by DHCP).
+if [ -n "${HRX_NET:-}" ]; then
+  echo "== Ethernet"
+  (cd baremetal/net-smoke && cargo build -q --release --target aarch64-unknown-none)
+  : >"$OUT"
+  target/debug/hardroxide run baremetal/net-smoke/target/aarch64-unknown-none/release/net-smoke \
+    --xsa "$XSA" --tty "$TTY" --watch 240 >"$OUT" 2>&1 &
+  RUN_PID=$!
+  for _ in $(seq 1 120); do grep -q "NET READY\|NET SMOKE FAILED" "$OUT" && break; sleep 0.5; done
+  tr -d '\r' <"$OUT"
+  need "DP83867, clock delays set"
+  need "NET READY ip=.* dhcp=true"
+  IP=$(sed -n 's/.*NET READY ip=\([0-9.]*\) dhcp=true.*/\1/p' "$OUT" | head -1)
+  if [ -n "$IP" ]; then
+    ping -c 5 -i 0.2 -W 1 "$IP" | tail -3 || fail=1
+    python3 scripts/net_check.py "$IP" 80 9 443 7 --figures || fail=1
+  else
+    fail=1
+  fi
+  # Stop showing the console (either may find nothing left to stop).
+  pkill -P "$RUN_PID" 2>/dev/null || true
+  kill "$RUN_PID" 2>/dev/null || true
+  wait "$RUN_PID" 2>/dev/null || true
 fi
 
 [ "$fail" = 0 ] && echo "RFSoC 4x2 board test: ok" || { echo "RFSoC 4x2 board test: FAILED" >&2; exit 1; }

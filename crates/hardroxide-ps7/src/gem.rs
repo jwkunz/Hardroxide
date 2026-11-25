@@ -1,10 +1,13 @@
-//! The Zynq-7000's Gigabit Ethernet MACs (`GEM0`, `GEM1`; Cadence GEM): descriptor rings in non-cacheable memory, polled receive and
-//! transmit of whole frames, the management interface (MDIO) to the PHY, and link bring-up with autonegotiation.
+//! The Gigabit Ethernet MACs of the Zynq-7000 (`GEM0`, `GEM1`) and Zynq UltraScale+ (`GEM0`..`GEM3`; Cadence GEM): descriptor
+//! rings in non-cacheable memory, polled receive and transmit of whole frames, the management interface (MDIO) to the PHY, and
+//! link bring-up with autonegotiation. The MAC's identification register tells the two generations apart; the newer one has a
+//! wider bus and a second queue, which is parked.
 //!
 //! The rings and the frame buffers live in one region of memory given to [`Gem::new`]; it must not be cached (see
 //! `mem::set_non_cacheable`) because the MAC's DMA reads and writes it behind the processor's back. Everything is
 //! polled: there are no interrupts. The register layout and the descriptor format are those of the Cadence GEM as the
-//! Zynq-7000 technical reference manual describes them.
+//! technical reference manuals describe them. Descriptors hold 32-bit addresses: the memory given to [`Gem::new`] must lie
+//! below 4 GiB.
 //!
 //! Not supported: jumbo frames, VLAN tags, checksum offload, hardware timestamps, the second queue, receive filtering beyond the
 //! station address and broadcast, PHYs other than through the standard MII registers (the RTL8211E on the PYNQ-Z2 is plain MII).
@@ -28,6 +31,12 @@ const SPEC_ADDR1_BOT: usize = 0x088;
 const SPEC_ADDR1_TOP: usize = 0x08C;
 const FRAMES_TX: usize = 0x108;
 const FRAMES_RX: usize = 0x158;
+const MODULE_ID: usize = 0x0FC; // [27:16] the design's identification number: 2 on the Zynq-7000, 7 on UltraScale+
+const DESIGN_CONFIG6: usize = 0x294; // [15:1] the priority queues above queue 0 that exist
+const TX_QUEUE1_BASE: usize = 0x440;
+const RX_QUEUE1_BASE: usize = 0x480;
+/// The first identification number with the later generation's features.
+const GENERATION_ULTRASCALE: u32 = 7;
 
 const CTRL_RXEN: u32 = 1 << 2;
 const CTRL_TXEN: u32 = 1 << 3;
@@ -41,6 +50,7 @@ const CFG_RX_1536: u32 = 1 << 8;
 const CFG_GIGABIT: u32 = 1 << 10;
 const CFG_FCS_REMOVE: u32 = 1 << 17;
 const CFG_MDC_DIV_48: u32 = 3 << 18;
+const CFG_BUS_64: u32 = 1 << 21;
 
 const NWSR_MDIO_IDLE: u32 = 1 << 2;
 
@@ -52,7 +62,10 @@ pub const TX_DESCRIPTORS: usize = 16;
 pub const FRAME_BUF: usize = 1536;
 const RX_RING: usize = 0;
 const TX_RING: usize = RX_RING + RX_DESCRIPTORS * 8;
-const RX_BUFS: usize = (TX_RING + TX_DESCRIPTORS * 8).next_multiple_of(64);
+// One descriptor each for a second queue that is parked (never given to the MAC to use).
+const RX_PARKED: usize = TX_RING + TX_DESCRIPTORS * 8;
+const TX_PARKED: usize = RX_PARKED + 8;
+const RX_BUFS: usize = (TX_PARKED + 8).next_multiple_of(64);
 const TX_BUFS: usize = RX_BUFS + RX_DESCRIPTORS * FRAME_BUF;
 /// The size of the memory region [`Gem::new`] needs.
 pub const DMA_REGION_BYTES: usize = TX_BUFS + TX_DESCRIPTORS * FRAME_BUF;
@@ -92,6 +105,11 @@ pub enum GemError {
 pub struct Link {
     pub speed_mbps: u16,
     pub full_duplex: bool,
+}
+
+/// Whether `len` bytes at `base` all have 32-bit addresses.
+fn below_4_gib(base: usize, len: usize) -> bool {
+    (base as u64).saturating_add(len as u64) <= 1 << 32
 }
 
 /// What the PHY's registers say about the link (a pure function of the partner abilities, for testing).
@@ -141,6 +159,8 @@ pub struct Gem<R: Mmio> {
     tx_next: usize,
     phy: Option<u8>,
     link: Option<Link>,
+    /// Configuration bits that depend on the MAC's generation (the width of its memory bus).
+    bus: u32,
 }
 
 impl<R: Mmio> Gem<R> {
@@ -159,6 +179,7 @@ impl<R: Mmio> Gem<R> {
             tx_next: 0,
             phy: None,
             link: None,
+            bus: 0,
         }
     }
 
@@ -192,16 +213,31 @@ impl<R: Mmio> Gem<R> {
     }
 
     fn barrier() {
-        #[cfg(target_arch = "arm")]
+        #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
         // SAFETY: a barrier instruction.
         unsafe {
-            core::arch::asm!("dsb", options(nostack, preserves_flags))
+            core::arch::asm!("dsb sy", options(nostack, preserves_flags))
         }
         core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
     }
 
-    /// Reset the MAC, set up the rings and the station address. The MAC does not receive or send until [`Gem::link_up`] has run.
+    /// Reset the MAC, set up the rings and the station address. The MAC does not receive or send until [`Gem::link_up`] (or
+    /// [`Gem::start`]) has run.
+    ///
+    /// # Panics
+    /// If the memory given to [`Gem::new`] does not lie wholly below 4 GiB (possible only on a 64-bit processor): the MAC
+    /// would be given a truncated address.
     pub fn init(&mut self) -> Result<(), GemError> {
+        // Only a 64-bit processor can hold such an address (the host's tests, whose memory is not the MAC's, are exempt).
+        assert!(
+            !cfg!(target_arch = "aarch64") || below_4_gib(self.dma, DMA_REGION_BYTES),
+            "the Ethernet rings and buffers must lie below 4 GiB"
+        );
+        self.bus = if (self.regs.read32(MODULE_ID)? >> 16) & 0xFFF >= GENERATION_ULTRASCALE {
+            CFG_BUS_64
+        } else {
+            0
+        };
         self.regs.write32(NWCTRL, 0)?;
         self.regs.write32(NWCTRL, CTRL_CLRSTAT)?;
         self.regs.write32(NWCTRL, 0)?;
@@ -233,9 +269,22 @@ impl<R: Mmio> Gem<R> {
         // Receive buffers of 1536 bytes (24 x 64), full packet buffers, 16-beat bursts.
         self.regs
             .write32(DMACR, (24 << 16) | (1 << 10) | (3 << 8) | 0x10)?;
+        // A second queue, where there is one, gets a ring of one descriptor that gives the MAC nothing to do: left
+        // pointing anywhere it can stall the DMA.
+        if self.bus != 0 && self.regs.read32(DESIGN_CONFIG6)? & 0x2 != 0 {
+            self.write_word(RX_PARKED, RX_USED | RX_WRAP);
+            self.write_word(RX_PARKED + 4, 0);
+            self.write_word(TX_PARKED, 0);
+            self.write_word(TX_PARKED + 4, TX_USED | TX_WRAP | TX_LAST);
+            Self::barrier();
+            self.regs
+                .write32(RX_QUEUE1_BASE, (self.dma + RX_PARKED) as u32)?;
+            self.regs
+                .write32(TX_QUEUE1_BASE, (self.dma + TX_PARKED) as u32)?;
+        }
         self.regs.write32(
             NWCFG,
-            CFG_FCS_REMOVE | CFG_RX_1536 | CFG_MDC_DIV_48 | CFG_FULL_DUPLEX,
+            CFG_FCS_REMOVE | CFG_RX_1536 | CFG_MDC_DIV_48 | CFG_FULL_DUPLEX | self.bus,
         )?;
         // The station address (first specific-address filter) and the management port.
         let m = self.mac;
@@ -297,8 +346,19 @@ impl<R: Mmio> Gem<R> {
     }
 
     /// Restart autonegotiation, wait up to `timeout_ms` for the link, then set the MAC (and, through `slcr`, the clock the MAC
-    /// transmits with) to the negotiated speed and turn the receiver and transmitter on.
+    /// transmits with) to the negotiated speed and turn the receiver and transmitter on. For the Zynq-7000's `GEM0`; elsewhere
+    /// use [`Gem::negotiate`], set the transmit clock, and [`Gem::start`].
     pub fn link_up(&mut self, slcr: &impl Mmio, timeout_ms: u64) -> Result<Link, GemError> {
+        let link = self.negotiate(timeout_ms)?;
+        self.set_speed(slcr, link)?;
+        self.regs
+            .write32(NWCTRL, CTRL_MDEN | CTRL_RXEN | CTRL_TXEN)?;
+        self.link = Some(link);
+        Ok(link)
+    }
+
+    /// Restart autonegotiation and wait up to `timeout_ms` for the link. Changes nothing in the MAC.
+    pub fn negotiate(&mut self, timeout_ms: u64) -> Result<Link, GemError> {
         let phy = match self.phy {
             Some(p) => p,
             None => self.find_phy()?,
@@ -322,22 +382,27 @@ impl<R: Mmio> Gem<R> {
             }
             sleep(Duration::from_millis(10));
         }
-        let link = negotiated(
+        Ok(negotiated(
             self.mdio_read(phy, PHY_1000_CONTROL)?,
             self.mdio_read(phy, PHY_1000_STATUS)?,
             self.mdio_read(phy, PHY_ADVERTISE)?,
             self.mdio_read(phy, PHY_PARTNER)?,
-        );
-        self.set_speed(slcr, link)?;
+        ))
+    }
+
+    /// Set the MAC to the speed and duplex of `link` and turn the receiver and transmitter on. The transmit clock must
+    /// already run at the link's rate (125, 25 or 2.5 MHz).
+    pub fn start(&mut self, link: Link) -> Result<(), GemError> {
+        self.configure(link)?;
         self.regs
             .write32(NWCTRL, CTRL_MDEN | CTRL_RXEN | CTRL_TXEN)?;
         self.link = Some(link);
-        Ok(link)
+        Ok(())
     }
 
-    /// Program the MAC's speed and duplex and the transmit clock (from the IO PLL at 1000 MHz: 125, 25 or 2.5 MHz) for `link`.
-    pub fn set_speed(&self, slcr: &impl Mmio, link: Link) -> Result<(), GemError> {
-        let mut cfg = CFG_FCS_REMOVE | CFG_RX_1536 | CFG_MDC_DIV_48;
+    /// The network configuration register for `link`.
+    fn configure(&self, link: Link) -> Result<(), GemError> {
+        let mut cfg = CFG_FCS_REMOVE | CFG_RX_1536 | CFG_MDC_DIV_48 | self.bus;
         if link.full_duplex {
             cfg |= CFG_FULL_DUPLEX;
         }
@@ -347,6 +412,13 @@ impl<R: Mmio> Gem<R> {
             _ => 0,
         };
         self.regs.write32(NWCFG, cfg)?;
+        Ok(())
+    }
+
+    /// Program the MAC's speed and duplex and the transmit clock (from the IO PLL at 1000 MHz: 125, 25 or 2.5 MHz) for `link`.
+    /// Zynq-7000 `GEM0` only (the clock is set through the SLCR).
+    pub fn set_speed(&self, slcr: &impl Mmio, link: Link) -> Result<(), GemError> {
+        self.configure(link)?;
         // GEM0_CLK_CTRL (0x140): bit 0 enable, source IO PLL, DIVISOR0 [13:8] = 8, DIVISOR1 [25:20] = 1, 5 or 50.
         let div1 = match link.speed_mbps {
             1000 => 1,
@@ -358,6 +430,56 @@ impl<R: Mmio> Gem<R> {
         slcr.write32(0x140, ctrl)?;
         slcr.write32(0x004, 0x767B)?; // lock
         Ok(())
+    }
+
+    // ---- The TI DP83867 PHY ----
+
+    /// Read an extended register of a PHY with the indirect access of IEEE 802.3 clause 22 (registers 13 and 14).
+    pub fn mdio_read_extended(&self, phy: u8, reg: u16) -> Result<u16, GemError> {
+        self.select_extended(phy, reg)?;
+        self.mdio_read(phy, 14)
+    }
+
+    /// Write an extended register, as [`Gem::mdio_read_extended`].
+    pub fn mdio_write_extended(&self, phy: u8, reg: u16, value: u16) -> Result<(), GemError> {
+        self.select_extended(phy, reg)?;
+        self.mdio_write(phy, 14, value)
+    }
+
+    fn select_extended(&self, phy: u8, reg: u16) -> Result<(), GemError> {
+        const DEVICE: u16 = 0x1F;
+        self.mdio_write(phy, 13, DEVICE)?; // the address function
+        self.mdio_write(phy, 14, reg)?;
+        self.mdio_write(phy, 13, 0x4000 | DEVICE) // the data function
+    }
+
+    /// Give a TI DP83867 PHY wired in RGMII the clock delays its board needs: it delays the receive and transmit clocks
+    /// itself, by `(code + 1) * 0.25` ns for codes 0 to 15. Also clears the strap's receive-control quirk. Returns `false`
+    /// (changing nothing) if the PHY found is not a DP83867. Call before [`Gem::negotiate`].
+    pub fn dp83867_set_delays(&mut self, rx_code: u8, tx_code: u8) -> Result<bool, GemError> {
+        let phy = match self.phy {
+            Some(p) => p,
+            None => self.find_phy()?,
+        };
+        if self.mdio_read(phy, PHY_ID1)? != 0x2000
+            || self.mdio_read(phy, PHY_ID1 + 1)? & 0xFFF0 != 0xA230
+        {
+            return Ok(false);
+        }
+        // RGMIICTL: delay both clocks. RGMIIDCTL: by how much. CFG4 bit 7: the strap quirk.
+        let control = self.mdio_read_extended(phy, 0x32)?;
+        self.mdio_write_extended(phy, 0x32, control | 0x0003)?;
+        self.mdio_write_extended(
+            phy,
+            0x86,
+            u16::from(tx_code & 0xF) << 4 | u16::from(rx_code & 0xF),
+        )?;
+        let cfg4 = self.mdio_read_extended(phy, 0x31)?;
+        self.mdio_write_extended(phy, 0x31, cfg4 & !0x0080)?;
+        // Software restart (keeps the registers), so that the new settings take effect.
+        self.mdio_write(phy, 0x1F, 0x4000)?;
+        sleep(Duration::from_millis(1));
+        Ok(true)
     }
 
     // ---- Frames ----
@@ -512,6 +634,85 @@ mod tests {
         assert_eq!(be.peek(0xE000_B000 + SPEC_ADDR1_BOT as u64), 0x3322_1102);
         assert_eq!(be.peek(0xE000_B000 + SPEC_ADDR1_TOP as u64), 0x5544);
         assert_eq!(be.peek(0xE000_B000 + NWCTRL as u64), CTRL_MDEN);
+    }
+
+    #[test]
+    fn the_zynq_7000_mac_is_set_up_as_before_and_the_later_one_with_its_extras() {
+        const REGS: u64 = 0xE000_B000;
+        // Identification 2: no bus width bit, the second queue's registers untouched even if the bits there looked set.
+        let r = Region::new();
+        let (be, mut g) = gem(&r);
+        be.poke(REGS + MODULE_ID as u64, 0x0002_0118);
+        be.poke(REGS + DESIGN_CONFIG6 as u64, 0x2);
+        g.init().unwrap();
+        assert_eq!(be.peek(REGS + NWCFG as u64) & CFG_BUS_64, 0);
+        assert_eq!(be.peek(REGS + TX_QUEUE1_BASE as u64), 0);
+        // Identification 7 with a second queue: 64-bit bus, both queue 1 rings parked.
+        let r = Region::new();
+        let (be, mut g) = gem(&r);
+        be.poke(REGS + MODULE_ID as u64, 0x5007_0106);
+        be.poke(REGS + DESIGN_CONFIG6 as u64, 0x2);
+        g.init().unwrap();
+        assert_ne!(be.peek(REGS + NWCFG as u64) & CFG_BUS_64, 0);
+        assert_eq!(
+            be.peek(REGS + RX_QUEUE1_BASE as u64),
+            (r.base() + RX_PARKED) as u32
+        );
+        assert_eq!(
+            be.peek(REGS + TX_QUEUE1_BASE as u64),
+            (r.base() + TX_PARKED) as u32
+        );
+        assert_ne!(word(&r, RX_PARKED) & RX_USED, 0, "nothing to receive into");
+        assert_ne!(word(&r, TX_PARKED + 4) & TX_USED, 0, "nothing to send");
+        // The bus width survives a speed change.
+        g.start(Link {
+            speed_mbps: 1000,
+            full_duplex: true,
+        })
+        .unwrap();
+        let cfg = be.peek(REGS + NWCFG as u64);
+        assert_eq!(
+            cfg & (CFG_BUS_64 | CFG_GIGABIT | CFG_FULL_DUPLEX),
+            CFG_BUS_64 | CFG_GIGABIT | CFG_FULL_DUPLEX
+        );
+        assert_eq!(
+            be.peek(REGS + NWCTRL as u64),
+            CTRL_MDEN | CTRL_RXEN | CTRL_TXEN
+        );
+    }
+
+    #[test]
+    fn only_32_bit_addresses_are_given_to_the_mac() {
+        assert!(below_4_gib(0x7FF0_0000, DMA_REGION_BYTES));
+        assert!(below_4_gib(0xFFFF_F000, 0x1000));
+        #[cfg(target_pointer_width = "64")]
+        {
+            assert!(!below_4_gib(0xFFFF_F000, 0x1001));
+            assert!(!below_4_gib(0x8_0000_0000, DMA_REGION_BYTES));
+        }
+    }
+
+    #[test]
+    fn extended_phy_registers_are_reached_through_13_and_14() {
+        let r = Region::new();
+        let (be, g) = gem(&r);
+        g.mdio_write_extended(0xF, 0x86, 0x00A8).unwrap();
+        let sent: std::vec::Vec<(u32, u32)> = be
+            .log()
+            .iter()
+            .filter_map(|a| match *a {
+                hardroxide_mmio::MockAccess::Write { addr, value }
+                    if addr == 0xE000_B000 + PHYMNTNC as u64 =>
+                {
+                    Some(((value >> 18) & 0x1F, value & 0xFFFF))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            sent,
+            [(13, 0x001F), (14, 0x0086), (13, 0x401F), (14, 0x00A8)]
+        );
     }
 
     #[test]

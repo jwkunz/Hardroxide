@@ -10,13 +10,14 @@
 //!
 //! This is the counterpart of [`hardroxide-ps7`](hardroxide_ps7) for the Zynq-7000, with the
 //! same module names where the hardware allows it. The drivers for peripheral blocks both
-//! families have ([`uart`], [`i2c`], [`sd`]) are that crate's, re-exported.
+//! families have ([`uart`], [`i2c`], [`sd`], and the Ethernet MAC in [`gem`]) are that crate's, re-exported.
 //!
 //! `no_std`, no third-party dependencies.
 
 #![cfg_attr(not(test), no_std)]
 
 pub use hardroxide_ps7::{i2c, sd, uart};
+pub mod gem;
 
 pub mod clocks;
 #[cfg(target_arch = "aarch64")]

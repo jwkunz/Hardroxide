@@ -33,6 +33,11 @@ Their tests: `scripts/test-qemu.sh`, `cargo test -p hardroxide-gen --test bareme
 regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and applications in `apps/` (built by the
 `apps` test against the generated crate; plan in ADR 0004, versions 2.1 to 2.7). `main` carries 2.7.0, released.
 
+## 3.0 in progress: Zynq UltraScale+
+
+[ADR 0005](docs/decisions/0005-ultrascale-plus.md) (accepted): RFSoC 4x2 first, Zynq-7000 stays and everything must remain **backward compatible with 2.7.0**
+(`scripts/check-compat.py`, in CI). Work is on branch `v3.0`.
+
 ## Current state and next step
 
 Zynq-7000 only. `hardroxide generate`, `update` and `inspect` work (golden
@@ -64,7 +69,7 @@ the same interrupt line.
 - Generated driver constructors may only use values from
   `hardroxide_hwh::Instance::driver_config()` (it is hashed into the interface
   hash; anything else would go stale on a bitstream-only `hardroxide update`).
-- The runtime crates (`mmio`, `fpga`, `dma`, `irq`, `ip`, and the application libraries `gfx`, `video`, `audio`, `fat`, `net`, `crypto`, `tls`) must stay `no_std`-capable: new code that needs the OS goes behind the `std` feature, and `scripts/check-no-std.sh` (CI) builds them for `armv7a-none-eabihf`. Timeouts use `hardroxide_mmio::time`, never `std::time`.
+- The runtime crates (`mmio`, `fpga`, `dma`, `irq`, `ip`, and the application libraries `gfx`, `video`, `audio`, `fat`, `net`, `crypto`, `tls`) must stay `no_std`-capable: new code that needs the OS goes behind the `std` feature, and `scripts/check-no-std.sh` (CI) builds them for `armv7a-none-eabihf` and `aarch64-unknown-none`. Timeouts use `hardroxide_mmio::time`, never `std::time`.
 - `scripts/test-armv7.sh` runs the runtime crates' tests as armv7 binaries
   under `qemu-arm` (uses the Vitis-bundled gcc/qemu if no system ones; CI too).
 

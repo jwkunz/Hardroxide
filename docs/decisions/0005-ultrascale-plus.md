@@ -54,15 +54,14 @@ Two consequences of a **major** version number that is also backward compatible:
 - A few public types in `hardroxide-hwh` and `hardroxide-gen` are exhaustive (`IrqRoute`, `Design`, `Instance`, `Platform`, ...). Adding a variant or a field to one would break code that matches or builds it. The rule: add **methods and new types** instead. Where that is
   impossible, the exception is recorded here and in the changelog, and never touches the crates a user's program links against.
 
-## Codebase organization (proposed)
+## Codebase organization
 
 One repository, one set of crate names, with the family-specific code **beside** the existing code, not mixed into it.
 
 | Piece | Change |
 |---|---|
-| `hardroxide-ps7` | stays, same public API. Zynq-7000 specifics only: start-up, MMU, SCU timers, SLCR clocks, PL configuration |
-| new `hardroxide-ps-common` | drivers for peripheral blocks both families share (Cadence UART, I2C and GEM; the SD host controller; GICv2), moved out of `ps7` and **re-exported there at the same paths** |
-| new `hardroxide-psu` | Zynq UltraScale+: AArch64 start-up and exception levels, translation tables and caches, generic timer, CRL/CRF clocks, CSU PL loading, the address map |
+| `hardroxide-ps7` | stays, same public API. It remains the home of the drivers for peripheral blocks both families have (Cadence UART and I2C, the GEM, the SD host controller); these already build for AArch64 |
+| new `hardroxide-psu` | Zynq UltraScale+: AArch64 start-up and exception levels, translation tables and caches, generic timer, CRL/CRF clocks, CSU PL loading, the address map, its own interrupt controller and handler table. **Depends on `ps7` and re-exports the shared drivers** |
 | portable alias | generated crates re-export their family crate as `ps7` or `psu`, and both also as `ps`, so a portable program writes `design::ps::println!` |
 | `hardroxide-rt` | one scheduler; the processor port becomes `port/armv7.rs` and `port/aarch64.rs`, chosen by target |
 | `hardroxide-fpga` | `slcr` stays; a `zynqmp` module beside it |
@@ -70,7 +69,14 @@ One repository, one set of crate names, with the family-specific code **beside**
 | `hardroxide-cli` | `run`, `package` and `doctor` choose the flow by family (`ps7_init` or `psu_init`, `bootgen` architecture) |
 | fixtures, apps | `fixtures/rfsoc4x2/`, `apps/rfsoc4x2/` beside the Zynq ones; programs that run on both move to a shared directory only when a second family really builds them |
 
-Where a driver differs in detail between the families (the GEM's 64-bit descriptors, SD clocking, interrupt numbers), the shared crate takes the difference as a parameter; if that would complicate the Zynq-7000 path, the family gets its own copy.
+Where a shared driver differs in detail between the families (SD clocking, for example), `ps7` gains an additive method or parameter; if that would complicate the Zynq-7000 path, `psu` gets its own copy.
+
+**Revised in step 0:** the plan first moved the shared drivers into a new `hardroxide-ps-common` crate and re-exported them from `ps7`. Programs would still have compiled, but `cargo-semver-checks` does not follow re-exports into another crate and reports every moved item as removed (tried with the UART driver), so the move would have switched the compatibility check off for exactly the code being moved. The cost of not moving is a name: `psu` depends on a crate named after the other family.
+
+Found while checking, to handle when porting:
+
+- The GEM and SD drivers hand the hardware 32-bit addresses (`as u32`). On a 64-bit processor they must refuse a buffer above 4 GB instead of truncating its address (step 4).
+- The interrupt controller driver and handler table are fixed at the Zynq-7000's 96 interrupts; UltraScale+ has more, hence `psu`'s own (step 2).
 
 ## Milestones
 
@@ -78,7 +84,7 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 
 | Step | Deliverable | Acceptance | License |
 |---|---|---|---|
-| 0 Groundwork | this ADR; compatibility checks in CI; `ps-common` split | all 2.7 checks pass, semver check clean, PYNQ-Z2 regression | no |
+| 0 Groundwork | this ADR; compatibility checks in CI (`scripts/check-compat.py`); the libraries kept building for AArch64 | all 2.7 checks pass; PYNQ-Z2 regression (waits for the board) | no |
 | 1 **Bitstream sprint** | the board preset; XSAs built and committed for: processor-only, GPIO, interrupts, DMA loopback, timers and peripherals, HLS, RF loopback | each programmed and probed **over JTAG** (register reads and writes), independently of our libraries | **yes: before 2026-12-29** |
 | 2 First light | start-up, UART, GIC, timers, MMU; `hardroxide run` for the board | QEMU in CI; console, DDR memory test and interrupts on the board | no |
 | 3 RTOS | AArch64 kernel port | kernel tests in QEMU and on the board; the jitter benchmark (two hours) | no |

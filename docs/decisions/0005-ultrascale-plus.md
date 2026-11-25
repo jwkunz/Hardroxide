@@ -1,6 +1,6 @@
 # ADR 0005: Zynq UltraScale+ support (3.0)
 
-Status: **draft** 2026-11-25, awaiting the maintainer's approval. The decisions under "Decided" are the maintainer's; the rest is proposed. Builds on [ADR 0003](0003-bare-metal-and-rtos-platforms.md) and
+Status: **accepted** 2026-11-25 (the decisions under "Decided" are the maintainer's; the milestone plan may be revised as work proceeds). Builds on [ADR 0003](0003-bare-metal-and-rtos-platforms.md) and
 [ADR 0004](0004-base-overlay-applications.md).
 
 ## Decided
@@ -11,7 +11,8 @@ Status: **draft** 2026-11-25, awaiting the maintainer's approval. The decisions 
 4. **A blank SD card** is available for bare-metal and later Linux validation.
 5. **RF data converters start with a simple cable loopback.**
 
-Interpretation to confirm: the RF work is **3.1**, so that it does not hold up 3.0.
+6. **The RF work is 3.1**, so that it does not hold up 3.0 (confirmed). Its loopback design is still built during the license window.
+7. **The board definition files may be downloaded** from Real Digital's or PYNQ's public repositories.
 
 ## Facts established before planning (2026-11-25)
 
@@ -104,7 +105,5 @@ Why the bitstream sprint comes second: the license is time-limited and the repos
 
 ## Open questions
 
-1. Is RF correctly placed in 3.1?
-2. May the board definition files be downloaded from Real Digital's or PYNQ's public repositories?
-3. Can the PYNQ-Z2 be connected for regression runs, and when?
-4. Does the kit include a permanent license voucher?
+1. Can the PYNQ-Z2 be connected for regression runs, and when?
+2. Does the kit include a permanent license voucher?

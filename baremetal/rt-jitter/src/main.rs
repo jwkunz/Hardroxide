@@ -77,6 +77,9 @@ impl Hist {
 static RELEASE: Hist = Hist::new();
 static ISR: Hist = Hist::new();
 static MISSED: AtomicU32 = AtomicU32::new(0);
+/// The furthest a release came before the grid's best estimate: more than the clock's resolution and the baseline's own
+/// uncertainty would mean the tick and the time source disagree, and the lateness figures would be wrong.
+static EARLIEST_NS: AtomicU64 = AtomicU64::new(0);
 static SGI_SENT_NS: AtomicU64 = AtomicU64::new(0);
 static SGI_SEM: Semaphore = Semaphore::new(0, 1);
 
@@ -105,6 +108,7 @@ fn control() {
             continue;
         }
         RELEASE.add((off - base_offset).max(0) as u64);
+        EARLIEST_NS.fetch_max((base_offset - off).max(0) as u64, Relaxed);
     }
 }
 
@@ -171,6 +175,10 @@ fn report() {
         minutes += 1;
         println!("\n== after {minutes} min (kernel ticks {}) ==", ticks());
         println!("  missed releases: {}", MISSED.load(Relaxed));
+        println!(
+            "  earliest release before the baseline: {} ns",
+            EARLIEST_NS.load(Relaxed)
+        );
         RELEASE.print("10 ms release lateness");
         ISR.print("interrupt-to-task latency");
     }

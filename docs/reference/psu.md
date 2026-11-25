@@ -54,6 +54,8 @@ Read from the clock registers of both power domains (`map::CRL_APB_BASE`, `map::
 ```rust,ignore
 pub unsafe fn init(counter_hz: u64)
 pub fn start_periodic(ticks: u64)
+pub fn start_rate(counter_hz: u64, rate_hz: u64)
+pub fn next_period(counter_hz: u64, rate_hz: u64, carried: &mut u64) -> u64
 pub fn start_one_shot(ticks: u64)
 pub fn tick()
 pub fn stop()
@@ -65,6 +67,8 @@ pub fn ticks_to_ns(ticks: u64, hz: u64) -> u64
 `time::init` takes the system counter's frequency (`clocks::timestamp_hz`; `psu_init` and the boot loader start the counter)
 and becomes the time source of the drivers. The timer is the core's secure physical timer, interrupt
 `map::ppi::SECURE_PHYSICAL_TIMER`; its handler calls `timer::tick`, which keeps a periodic timer free of drift.
+`start_rate` fires a given number of times a second exactly on average, also when that does not divide the counter's frequency
+(1 kHz from the RFSoC 4x2's 33,333,333 Hz): the periods differ by one count.
 
 ## Interrupts (`gic`, `irq`, `wait`, `cpu`)
 

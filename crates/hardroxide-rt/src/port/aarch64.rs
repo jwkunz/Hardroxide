@@ -42,7 +42,7 @@ pub(crate) mod platform {
 
     /// Start the secure physical timer interrupting `tick_hz` times a second; `counter_hz` is the system counter's clock.
     pub fn start_tick(_be: &PhysMem, counter_hz: u64, tick_hz: u32) {
-        timer::start_periodic(counter_hz / u64::from(tick_hz.max(1)));
+        timer::start_rate(counter_hz, u64::from(tick_hz));
     }
 
     /// In the tick's interrupt: arm the next period (which drops the timer's line).

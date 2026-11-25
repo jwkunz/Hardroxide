@@ -27,6 +27,18 @@ pub const GEM2_BASE: usize = 0xFF0D_0000;
 pub const GEM3_BASE: usize = 0xFF0E_0000;
 pub const GEM_SIZE: usize = 0x1000;
 
+pub const SPI0_BASE: usize = 0xFF04_0000;
+pub const SPI1_BASE: usize = 0xFF05_0000;
+pub const SPI_SIZE: usize = 0x1000;
+
+/// The GPIO controller of the multiplexed pins ([`crate::gpio`]).
+pub const GPIO_BASE: usize = 0xFF0A_0000;
+pub const GPIO_SIZE: usize = 0x1000;
+
+/// The system monitors ([`crate::sysmon`]).
+pub const SYSMON_BASE: usize = 0xFFA5_0000;
+pub const SYSMON_SIZE: usize = 0x1000;
+
 /// The system counter's control registers; it drives the processors' generic timers.
 pub const SYSTEM_COUNTER_BASE: usize = 0xFF26_0000;
 

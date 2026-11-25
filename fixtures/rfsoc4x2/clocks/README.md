@@ -6,3 +6,7 @@
 Each line is one 24-bit SPI write, in order. The chips are on the processor's SPI 0: chip select 0 is the LMK04828, 1 and 2 the
 LMX2594s of the DACs and the ADCs. They make the converters' 491.52 MHz reference clocks; see `scripts/probe_rf_loopback.tcl`
 for the sequence.
+
+The LMK04828 file turns the chip's reset pin into an open-drain output held low (register `0x14A` = `0x06`) and starts
+with a reset over SPI. The processor pin wired to it (`MIO7`) must be driven low, never high, and not left floating
+(its pull-up would hold the chip in reset). `crates/hardroxide-board` and the probe script do so.

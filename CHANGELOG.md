@@ -22,6 +22,13 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
   need.
 - `hardroxide-ps7`: a `cpu` module, the common processor operations under the name `hardroxide-psu` also uses.
 - `hardroxide-mmio`: the physical-memory backend issues its write barrier on AArch64 too.
+- New crate `hardroxide-board`: drivers for the INA220 power monitor, the AT24MAC402 identity EEPROM, the US2066 OLED and
+  the LMK04828 and LMX2594 clock chips, and the RFSoC 4x2's wiring. `baremetal/rfsoc-board` demonstrates them with the
+  processor's LEDs, button and temperature sensors.
+- `hardroxide-ps7`: an SPI driver (`spi`, also `psu::spi`), usable through `embedded_hal::spi::SpiDevice`.
+- `hardroxide-psu`: the GPIO controller (`gpio`) and the die temperature sensors (`sysmon`).
+- Fixed in the RF loopback fixture's probe script: it drove the clock chip's reset pin high, which that chip's register
+  file turns into an output held low.
 - Backward compatibility with 2.7.0 is checked in CI (`scripts/check-compat.py`).
 
 ## 2.7.0 (2026-11-21)

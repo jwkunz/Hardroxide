@@ -4,7 +4,7 @@ Designs for the Real Digital RFSoC 4x2 (`xczu48dr-ffvg1517-2-e`), Vivado 2025.2,
 
 | XSA | What is in it | Control, interrupts |
 |---|---|---|
-| `rfsoc4x2_gpio` | LEDs, RGB LEDs, buttons, switches on AXI GPIO (the only design with pins); also the processor-only design | HPM0_FPD; irq0[0] |
+| `rfsoc4x2_gpio` | LEDs, RGB LEDs, buttons, switches on AXI GPIO (the only design with pins; button bit 4 is the user reset button, which reads high until pressed); also the processor-only design | HPM0_FPD; irq0[0] |
 | `rfsoc4x2_intc` | AXI Timer, IIC, two GPIOs behind an AXI INTC | HPM0_FPD; irq0[0] |
 | `rfsoc4x2_loopback` | timer, 2 UART Lite, 2 IIC, Quad SPI, 2 GPIO, stream FIFO, 64 KiB block RAM, wired back to each other inside the FPGA | HPM0_LPD; irq0[7:0] |
 | `rfsoc4x2_dma` | two AXI DMA stream loops: 32-bit addresses and 32-bit data on HP0; 40-bit addresses and 128-bit data on HP1 | HPM0_FPD; irq0[1:0], irq1[1:0] |

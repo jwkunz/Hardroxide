@@ -40,7 +40,10 @@ regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and
 `fixtures/rfsoc4x2/`, proven on the board over JTAG (`scripts/probe.py` there). Step 2 done: `crates/hardroxide-psu` (AArch64, EL3) and `hardroxide run` for UltraScale+ (`scripts/test-board-rfsoc.sh`,
 `scripts/test-qemu-psu.sh`). Step 3 done: the kernel's AArch64 port (`port/aarch64.rs`; programs in `baremetal/` build for both
 families, shared setup in `baremetal/common/`); a full two-hour jitter run is still owed (65 minutes passed). Step 4 done: SD, Ethernet, I2C
-(`HRX_SD_SERIAL=0x...` and `HRX_NET=1` for the board script; the SD test erases the card). Next: step 5, the generator for UltraScale+.
+(`HRX_SD_SERIAL=0x...` and `HRX_NET=1` for the board script; the SD test erases the card). The board's own hardware is
+done too (`crates/hardroxide-board`, `baremetal/rfsoc-board`; never drive `MIO7`, the LMK04828's reset pin, high). USB,
+Pmod+ and SYZYGY are out by the maintainer's decision; DisplayPort, PL memory and the 100 Gb port go to the Linux
+examples. Next: step 5, the generator for UltraScale+.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

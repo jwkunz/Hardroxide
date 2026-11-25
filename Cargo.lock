@@ -238,6 +238,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hardroxide-board"
+version = "2.7.0"
+dependencies = [
+ "embedded-hal",
+ "hardroxide-mmio",
+ "thiserror",
+]
+
+[[package]]
 name = "hardroxide-cli"
 version = "2.7.0"
 dependencies = [

@@ -4,6 +4,7 @@
 #   axi_gpio_1  channel 1: RGB LED 0 (bits 0..2 = R, G, B) and RGB LED 1 (bits 3..5)
 # Also serves as the processor-only design: its psu_init is the board's.
 # Usage: vivado -mode batch -source build_gpio.tcl -tclargs <workdir> <out.xsa>
+# Bit 4 (pin AN12) is the board's user reset button (URST_B), active low: it reads 1 until pressed.
 source [file join [file dirname [info script]] common.tcl]
 lassign $argv work out
 set ps [hrx_project gpio $work {PSU__USE__M_AXI_GP0 1 PSU__USE__IRQ0 1}]

@@ -8,7 +8,7 @@ is in progress: the generator and the kernel do not use it yet.
 The PS must already be initialised (DDR, MIO, PLLs) by the vendor's `psu_init` or an FSBL. A program runs **on core 0, in
 AArch64, at EL3**, the state of the processor after a reset over JTAG (what [`hardroxide run`](cli.md#run) does); started any
 other way it sleeps. The module names are those of `hardroxide-ps7` where the hardware allows it, and the drivers for blocks
-both families have (`uart`, `i2c`) are that crate's, re-exported. `ps7` has a `cpu` module (an alias of the common part of
+both families have (`uart`, `i2c`, `spi`, `sd`) are that crate's, re-exported. `ps7` has a `cpu` module (an alias of the common part of
 its `cp15`) so that a program can name the processor operations the same way on both.
 
 Features: `default-irq-entry` and `default-sync-entry` (on by default: the non-nesting IRQ vector entry and a diagnostic entry
@@ -43,6 +43,7 @@ pub fn cpu_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64) -> Result<u64>
 pub fn uart_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64>
 pub fn sdio_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64>
 pub fn i2c_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64>
+pub fn spi_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64>
 pub fn timestamp_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64) -> Result<u64>
 ```
 
@@ -91,6 +92,40 @@ pub fn current_el() -> u32
 `clocks::i2c_ref_hz`: `i2c.set_clock(input_hz, 100_000)`. On the RFSoC 4x2 bus 0 carries nine INA220 power monitors
 (`0x40`..`0x48`) and bus 1 a voltage-setting DAC (`0x0d`) and the identity EEPROM (`0x50`, `0x58`);
 `baremetal/i2c-info` reads them without changing anything. QEMU's `xlnx-zcu102` does not model these controllers.
+
+## SPI (`spi`)
+
+`hardroxide-ps7`'s [driver](ps7.md#spi-controllers), for the controllers at `map::SPI0_BASE` and `SPI1_BASE`, given
+`clocks::spi_ref_hz`.
+
+## GPIO (`gpio`)
+
+```rust,ignore
+pub const PINS: u32 = 174;
+pub fn locate(pin: u32) -> Option<(usize, u32)>
+pub struct Gpio<R: Mmio>
+pub fn set_output(&self, pin: u32, high: bool) -> Result<()>
+pub fn set_input(&self, pin: u32) -> Result<()>
+pub fn write(&self, pin: u32, high: bool) -> Result<()>
+pub fn read(&self, pin: u32) -> Result<bool>
+```
+
+The processing system's GPIO controller at `map::GPIO_BASE`: pins 0 to 77 are the multiplexed pins (`MIO`), 78 to 173
+the signals into the PL (`EMIO`). `psu_init` must route a pin to GPIO. The controller **ignores a level written to a pin
+while it is an input**, which is why `set_output` takes the level: it selects the direction with the driver still off,
+sets the level, and only then enables the driver, so the other level is never driven. Writes are masked: one pin never
+disturbs another.
+
+## Die temperatures (`sysmon`)
+
+```rust,ignore
+pub enum Sensor
+pub fn millicelsius(reading: u16) -> i32
+pub fn temperature(regs: &impl Mmio, sensor: Sensor) -> Result<Option<i32>>
+```
+
+The temperature sensors beside the processors and in the PL, read from the system monitors at `map::SYSMON_BASE`, which
+convert continuously from reset. No alarms or voltage channels.
 
 ## SD card (`sd`)
 

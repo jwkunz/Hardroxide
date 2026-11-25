@@ -5,6 +5,8 @@ without any Hardroxide code. Volatile: nothing is written to storage.
 Usage: probe.py <design>...        e.g. probe.py gpio dma          (the XSA is ../rfsoc4x2_<design>.xsa)
 Environment: VITIS_SETTINGS (default ~/AMD/2025.2/Vitis/settings64.sh), HRX_WORK (default target/rfsoc4x2),
 HRX_RF_LOOPBACK=1 to require the tones of the RF loopback (SMA cables from the DACs to the ADCs fitted).
+HRX_RF_KEEP_CLOCKS=1 to probe a board that is already running with the design loaded (`hardroxide run --xsa`), without
+resetting it, and to leave its clock chips as they are: it tests whatever programmed them (rf_loopback only).
 The board must be in JTAG boot mode, connected by USB, and the only JTAG board attached.
 """
 import os
@@ -37,6 +39,9 @@ def probe(design: str) -> bool:
     script = here / f"probe_{design}.tcl"
     if not xsa.exists() or not script.exists():
         sys.exit(f"missing {xsa} or {script}")
+    keep = bool(os.environ.get("HRX_RF_KEEP_CLOCKS"))
+    if keep and design != "rf_loopback":
+        sys.exit("HRX_RF_KEEP_CLOCKS applies to rf_loopback only")
     d = work / design
     d.mkdir(parents=True, exist_ok=True)
     for stale in d.glob("*.hex"):
@@ -51,7 +56,8 @@ def probe(design: str) -> bool:
     lines += [f"set base({n}) 0x{a:X}\nset size({n}) 0x{s:X}" for n, (a, s) in sorted(amap.items())]
     lines += [f"set work {{{d}}}", f"set scripts {{{here}}}",
               "if {[catch {",
-              f"  hrx_bringup {{{d / bits[0]}}} {{{d / 'psu_init.tcl'}}}",
+              ("  connect\n  targets -set -nocase -filter {name =~ \"PSU\"}\n  set ::hrx_keep_clocks 1" if keep
+               else f"  hrx_bringup {{{d / bits[0]}}} {{{d / 'psu_init.tcl'}}}"),
               f"  source {{{script}}}",
               "} message]} { puts \"PROBE FAIL  stopped: $message\"; exit 1 }",
               "puts \"PROBE done, $::hrx_failures failure(s)\"",

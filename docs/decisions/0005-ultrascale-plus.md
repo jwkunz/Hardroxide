@@ -164,6 +164,17 @@ and QEMU, which does not model the controllers.
 Step 4 is complete for the standalone programs; the base-overlay applications wait for the generator (step 5), and those for
 HDMI and audio have no hardware on this board.
 
+**The board's own hardware** (added 2026-11-25, `baremetal/rfsoc-board`, new crate `hardroxide-board`): the identity
+EEPROM, both die temperatures, the nine power monitors (through the processor's I2C), the OLED (its address counter reads
+back), the LMK04828 and both LMX2594s, the processor's LEDs and button. The clock programming is confirmed by the RF
+converters: after the program ran, their three PLLs locked and the loopback tones arrived at 102.375, 204.825, 307.2 and
+614.4 MHz as intended. Two findings, both in the pin wired to the LMK04828's reset: the register file turns the chip's pin
+into an open-drain output held low (TI datasheet, register `0x14A` = `0x06`), so the earlier probe script and a first
+version of the program, which pulsed it high, drove against it (briefly; both drivers limit the current, and everything
+works since); and the processor's GPIO ignores a level written to a pin while it is an input, so "write low, then enable"
+drives whatever the pin last had. USB and the Pmod+ and SYZYGY connectors were left out by decision; DisplayPort, the
+PL's memory and the 100 Gb port are left to the Linux examples.
+
 ## Risks
 
 | Risk | Mitigation |

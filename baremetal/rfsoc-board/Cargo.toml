@@ -1,0 +1,31 @@
+[package]
+name = "rfsoc-board"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# A standalone workspace: this builds for the bare-metal target, not the host.
+[workspace]
+
+[features]
+# Used by the shared start-up code; the emulator lacks this board's chips, so the program is not run there.
+qemu = []
+
+[dependencies]
+hardroxide-mmio = { path = "../../crates/hardroxide-mmio", default-features = false, features = ["physmem"] }
+hardroxide-board = { path = "../../crates/hardroxide-board" }
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+hardroxide-psu = { path = "../../crates/hardroxide-psu", features = ["panic-handler"] }
+
+[build-dependencies]
+hardroxide-ps7 = { path = "../../crates/hardroxide-ps7" }
+hardroxide-psu = { path = "../../crates/hardroxide-psu" }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+debug = true
+
+[profile.dev]
+panic = "abort"

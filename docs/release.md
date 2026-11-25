@@ -15,8 +15,8 @@ irreversible (a crate version can be yanked but not deleted).
    `CHANGELOG.md`.
 4. **Dry run.** `cargo publish --workspace --dry-run` packages and builds every
    crate against the others as they will appear on crates.io (it does not need a token). A crate's README and `repository` and `homepage` fields are fixed for that version once published, so check them here.
-5. **Publish.** All 18 crates (17 until 3.0), in dependency order (a crate must be on the index before one that depends on it can be published):
-   `hardroxide-mmio`, `-hwh`, `-irq`, `-crypto`, `-net`, `-gfx`, `-dma`, `-fat`, `-fpga`, `-ps7`, `-psu` (new in 3.0), `-tls`, `-gen`, `-ip`, `-rt`, `-audio`, `-video`, `-cli`.
+5. **Publish.** All 19 crates (17 until 3.0), in dependency order (a crate must be on the index before one that depends on it can be published):
+   `hardroxide-mmio`, `-board` (new in 3.0), `-hwh`, `-irq`, `-crypto`, `-net`, `-gfx`, `-dma`, `-fat`, `-fpga`, `-ps7`, `-psu` (new in 3.0), `-tls`, `-gen`, `-ip`, `-rt`, `-audio`, `-video`, `-cli`.
    Log in with `cargo login` (a token scoped to `publish-new` and `publish-update` for `hardroxide*`, with a short expiry; never paste a token into a chat or a file in the repository).
    **crates.io limits how fast new crates can be published (at the time of writing a burst of five, then one every ten minutes; check its current policy)**, so a first release of 17 took about two hours: publish one crate at a time (`cargo publish -p <crate>`) and, on a rate-limit
    error, wait for the time it names and go on. (`cargo publish --workspace` does the ordering but stops at the first error.) Publishing is irreversible: check the dry run first.

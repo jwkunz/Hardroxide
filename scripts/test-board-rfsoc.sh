@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # The board tests of the Zynq UltraScale+ support, on an RFSoC 4x2 in JTAG boot mode connected by USB (needs Vitis).
 # Volatile: nothing is written to storage. Runs the smoke program (processor system and PL interrupts) with the loopback
-# fixture in the PL, once more without programming the PL (`run --no-pl`), the kernel's test (baremetal/rt-smoke), and a
-# read-only look at the I2C buses and power monitors (baremetal/i2c-info).
+# fixture in the PL, once more without programming the PL (`run --no-pl`), the kernel's test (baremetal/rt-smoke), a
+# read-only look at the I2C buses and power monitors (baremetal/i2c-info), and the board's own hardware
+# (baremetal/rfsoc-board: identity, temperatures, power monitors, OLED, clock chips, LEDs; it programs the clock chips,
+# which forget at power-off). What the display shows and the button are for a person to check.
 # The two-hour jitter benchmark (baremetal/rt-jitter) is run by hand.
 # HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
 # HRX_NET=1 adds the Ethernet test (the board cabled to this computer, which serves DHCP on that link).
@@ -72,6 +74,17 @@ need "bus 0 at .*: 0x40 0x41 0x42 0x43 0x44 0x45 0x46 0x47 0x48  (9 found, 0 oth
 need "bus 1 at .*0x0d.*0x50 0x58 .*0 other errors"
 need "9 of 9 monitors read"
 need "I2C INFO DONE"
+
+echo "== the board's hardware"
+(cd baremetal/rfsoc-board && cargo build -q --release)
+target/debug/hardroxide run baremetal/rfsoc-board/target/aarch64-unknown-none/release/rfsoc-board \
+  --xsa "$XSA" --tty "$TTY" --watch 12 2>&1 | tr -d '\r' | tee "$OUT"
+need "Ethernet address [0-9a-f:]\{17\}"
+need "VCC0V85 .* mV"
+need "address counter read back: Some(10), Some(50), Some(25)"
+need "LMX2594 (DAC): Unlocked"
+need "LMX2594 (DAC): Locked"
+need "BOARD DEMO OK"
 
 # The SD card: only with HRX_SD_SERIAL naming the card in the slot, WHICH IS ERASED (baremetal/sd-info prints the serial
 # number without writing). The start of what the board wrote comes back over JTAG and is checked with fsck.fat.

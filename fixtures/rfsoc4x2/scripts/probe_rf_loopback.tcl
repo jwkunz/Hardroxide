@@ -32,33 +32,37 @@ set lmk [register_file $scripts/../clocks/LMK04828_245.76.txt]
 set lmx [register_file $scripts/../clocks/LMX2594_491.52.txt]
 check "clock register files read" [expr {[llength $lmk] == 136 && [llength $lmx] == 113}] "([llength $lmk], [llength $lmx])"
 
-# MIO 7: LMK reset; MIO 8 and 12: its reference select (0, 0 = the on-board oscillator).
-set pins [expr {(1 << 7) | (1 << 8) | (1 << 12)}]
-foreach reg {0x204 0x208} { wr [expr {$gpio + $reg}] [expr {[rd [expr {$gpio + $reg}]] | $pins}] }
-set data [expr {[rd [expr {$gpio + 0x40}]] & ~$pins}]
-wr [expr {$gpio + 0x40}] [expr {$data | (1 << 7)}]
-after 10
-wr [expr {$gpio + 0x40}] $data
-after 10
+if {[info exists ::hrx_keep_clocks]} {
+  puts "PROBE ok    clock chips left as found"
+} else {
+  # MIO 8 and 12: the LMK's reference select (0, 0 = the on-board oscillator). MIO 7 is wired to its reset pin: held
+  # low and never driven high, because the register file turns the chip's pin into an output held low (the chip is
+  # reset over SPI, by the file's first line). Floating, the processor pin's pull-up would hold the chip in reset.
+  set pins [expr {(1 << 7) | (1 << 8) | (1 << 12)}]
+  # A level written to an input is ignored: direction first, then the level, then the driver.
+  wr [expr {$gpio + 0x204}] [expr {[rd [expr {$gpio + 0x204}]] | $pins}]
+  wr [expr {$gpio + 0x40}] [expr {[rd [expr {$gpio + 0x40}]] & ~$pins}]
+  wr [expr {$gpio + 0x208}] [expr {[rd [expr {$gpio + 0x208}]] | $pins}]
 
-wr [expr {$spi + 0x14}] 0
-wr [expr {$spi + 0x08}] 0x7F
-wr [expr {$spi + 0x04}] 0x7F
-wr [expr {$spi + 0x28}] 1
-wr [expr {$spi + 0x2C}] 1
-wr $spi [expr {0x1 | (7 << 3) | (1 << 14) | (0xF << 10)}]
-wr [expr {$spi + 0x14}] 1
-foreach word $lmk { spi_write 0 $word }
-after 100
-foreach cs {1 2} {
-  spi_write $cs 0x020000
-  spi_write $cs 0x000000
-  foreach word $lmx { spi_write $cs $word }
-  after 20
-  spi_write $cs [lindex $lmx end]
+  wr [expr {$spi + 0x14}] 0
+  wr [expr {$spi + 0x08}] 0x7F
+  wr [expr {$spi + 0x04}] 0x7F
+  wr [expr {$spi + 0x28}] 1
+  wr [expr {$spi + 0x2C}] 1
+  wr $spi [expr {0x1 | (7 << 3) | (1 << 14) | (0xF << 10)}]
+  wr [expr {$spi + 0x14}] 1
+  foreach word $lmk { spi_write 0 $word }
+  after 100
+  foreach cs {1 2} {
+    spi_write $cs 0x020000
+    spi_write $cs 0x000000
+    foreach word $lmx { spi_write $cs $word }
+    after 20
+    spi_write $cs [lindex $lmx end]
+  }
+  check "clock chips written" 1
+  after 200
 }
-check "clock chips written" 1
-after 200
 
 # ---- data converter tiles -------------------------------------------------------------------------------------------
 foreach {name offset} {"DAC tile 0" 0x4000 "DAC tile 2" 0xC000 "ADC tile 2" 0x1C000} {

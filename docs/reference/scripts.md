@@ -14,7 +14,9 @@ environment variables switch on what needs something connected: `HRX_AUDIO_LOOPB
 
 `scripts/test-qemu-psu.sh` runs `baremetal/psu-smoke` on QEMU's `xlnx-zcu102` machine (`test-qemu.sh` ends by calling it).
 `scripts/test-board-rfsoc.sh` runs it on an RFSoC 4x2 in JTAG boot mode, with the loopback fixture in the PL and again without
-programming it, and then the kernel's test, `baremetal/rt-smoke` (which `test-qemu-psu.sh` also runs). The designs themselves are checked without Hardroxide code by `fixtures/rfsoc4x2/scripts/probe.py`.
+programming it, and then the kernel's test, `baremetal/rt-smoke` (which `test-qemu-psu.sh` also runs). The designs themselves are checked without Hardroxide code by `fixtures/rfsoc4x2/scripts/probe.py` (with
+`HRX_RF_KEEP_CLOCKS=1` it leaves a running board's clock chips alone, to check what a program set up). The board script
+also runs `baremetal/rfsoc-board`, the demonstration of the board's own hardware.
 
 ## `check-compat.py`: backward compatibility
 

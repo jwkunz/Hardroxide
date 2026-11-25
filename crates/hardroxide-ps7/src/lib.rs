@@ -33,6 +33,7 @@ pub mod map;
 #[cfg(target_arch = "arm")]
 pub mod mem;
 pub mod sd;
+pub mod spi;
 #[cfg(target_arch = "arm")]
 pub mod time;
 pub mod timer;

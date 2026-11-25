@@ -218,6 +218,28 @@ missing acknowledge is `I2cError::Nack(address)`.
 
 > **Verified on a PYNQ-Z2:** it configured the audio codec over the EMIO-routed I2C 1 (see [Verification gaps](../08-verification-gaps.md)). A bug found there: the `embedded-hal` `transaction` must call the controller's own `write`/`read`, not `self.write` (which resolves to the trait default and recurses).
 
+## SPI controllers
+
+```rust,ignore
+pub enum SpiError
+pub enum Mode
+pub fn prescale(input_hz: u32, max_hz: u32) -> Option<(u32, u32)>
+pub struct Spi<R: Mmio>
+pub fn new(regs: R) -> Self
+pub fn configure(&self, mode: Mode, input_hz: u32, max_hz: u32) -> Result<u32, SpiError>
+pub fn transfer(&self, cs: u8, out: &[u8], back: &mut [u8]) -> Result<(), SpiError>
+pub fn write(&self, cs: u8, out: &[u8]) -> Result<(), SpiError>
+pub fn device(&self, cs: u8) -> Device<'_, R>
+pub struct Device<'a, R: Mmio>
+```
+
+`hardroxide_ps7::spi` (new in 3.0): the Cadence SPI controllers, master mode, polled, 8-bit words, chip selects 0 to 2
+driven by software so that one stays asserted for a whole transfer. `configure` picks the fastest bus clock not above
+`max_hz`; the controller divides its input by 4 to 256. `device(cs)` implements `embedded_hal::spi::SpiDevice`.
+
+> **Verified** on an RFSoC 4x2 only (the display and the clock chips, through [`hardroxide-board`](board.md)); not run on
+> a Zynq-7000.
+
 ## SD card controller
 
 ```rust,ignore

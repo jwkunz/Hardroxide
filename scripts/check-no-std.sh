@@ -5,7 +5,7 @@
 # fails to compile.
 set -euo pipefail
 rustup target add armv7a-none-eabihf >/dev/null
-CRATES="-p hardroxide-mmio -p hardroxide-fpga -p hardroxide-dma -p hardroxide-irq -p hardroxide-ip -p hardroxide-gfx -p hardroxide-video -p hardroxide-audio -p hardroxide-fat -p hardroxide-net -p hardroxide-crypto -p hardroxide-tls"
+CRATES="-p hardroxide-mmio -p hardroxide-fpga -p hardroxide-dma -p hardroxide-irq -p hardroxide-ip -p hardroxide-gfx -p hardroxide-video -p hardroxide-audio -p hardroxide-fat -p hardroxide-net -p hardroxide-crypto -p hardroxide-tls -p hardroxide-board"
 cargo build --release --target armv7a-none-eabihf --no-default-features $CRATES "$@"
 # The PS support crate (ARM only parts included).
 cargo build --release --target armv7a-none-eabihf -p hardroxide-ps7 --features panic-handler "$@"
@@ -22,4 +22,5 @@ cargo build --release --target aarch64-unknown-none -p hardroxide-psu --features
 cargo build --release --target aarch64-unknown-none -p hardroxide-rt "$@"
 # The programs for Zynq UltraScale+ alone (their emulator has no I2C controllers, so they are only built here).
 (cd baremetal/i2c-info && cargo build --release "$@")
+(cd baremetal/rfsoc-board && cargo build --release "$@")
 echo "no_std build ok"

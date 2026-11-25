@@ -19,6 +19,7 @@ const RPLL: usize = 0x30;
 const RPLL_FRAC: usize = 0x38;
 const GEM0_REF: usize = 0x50;
 const SDIO0_REF: usize = 0x6C;
+const SPI0_REF: usize = 0x7C;
 const UART0_REF: usize = 0x74;
 const I2C0_REF: usize = 0x120;
 const TIMESTAMP_REF: usize = 0x128;
@@ -157,6 +158,12 @@ pub fn set_gem_ref_hz(
     gem_ref_hz(crl, crf, ps_ref_hz, n)
 }
 
+/// The reference clock of SPI controller `n` (0 or 1).
+pub fn spi_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64> {
+    // Source select 2 is the RPU PLL and 3 the video PLL's low-power copy, as for the SD controllers.
+    peripheral_hz(crl, crf, ps_ref_hz, SPI0_REF + 4 * (n & 1), Pll::Video)
+}
+
 /// The clock of the system counter, which the processors' generic timers count.
 pub fn timestamp_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64) -> Result<u64> {
     let ctrl = crl.read32(TIMESTAMP_REF)?;
@@ -183,6 +190,7 @@ mod tests {
             (IOPLL, 0x0001_5A00),
             (RPLL, 0x0001_3F00),
             (SDIO0_REF, 0x0101_0800),
+            (SPI0_REF, 0x0101_0800),
             (UART0_REF + 4, 0x0101_0F00),
             (I2C0_REF, 0x0101_0F00),
             (TIMESTAMP_REF, 0x0100_0104),
@@ -216,6 +224,7 @@ mod tests {
         near(cpu_hz(&crl, &crf, REF).unwrap(), 1_199_999_756);
         near(uart_ref_hz(&crl, &crf, REF, 1).unwrap(), 99_999_985);
         near(sdio_ref_hz(&crl, &crf, REF, 0).unwrap(), 187_499_969);
+        near(spi_ref_hz(&crl, &crf, REF, 0).unwrap(), 187_499_969);
         near(i2c_ref_hz(&crl, &crf, REF, 0).unwrap(), 99_999_985);
         near(timestamp_hz(&crl, &crf, REF).unwrap(), 33_333_328);
     }

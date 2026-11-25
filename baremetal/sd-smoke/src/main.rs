@@ -1,84 +1,83 @@
-//! End-to-end test of the SD host driver and the FAT32 file system: initialise the card, format it,
-//! write files and directories, read them back and check them, and report the speeds. Under QEMU the
-//! "card" is a disk image (`scripts/test-qemu.sh` then runs `fsck.fat` on it); the same program runs
-//! on a board over JTAG with a card in the slot **and erases the card**, so it is built only with the
-//! `qemu` feature.
+//! End-to-end test of the SD host driver and the FAT32 file system: initialise the card, format it, write files and
+//! directories, read them back and check them, and report the speeds. Runs under QEMU, where the "card" is a disk image
+//! (`scripts/test-qemu.sh` then runs `fsck.fat` on it), and on a board over JTAG with a card in the slot, **which it
+//! erases**. For a board it must be built for that one card: `HRX_ERASE_SERIAL=0x...` (the serial number `sd-info`
+//! prints); any other card is left untouched. Afterwards it leaves the start of the card (to 16 MiB past the file system's
+//! tables) in memory for the host to read back and check.
 
 #![no_std]
 #![no_main]
 
 use hardroxide_fat::{FormatOptions, OpenMode, Timestamp, Volume};
-use hardroxide_mmio::{Mmio, MmioBackend, PhysMem};
-use hardroxide_ps7::sd::SdHost;
-use hardroxide_ps7::{clocks, console, map, println, time};
+use platform::ps::{self, cpu, mem, println, time};
 
-hardroxide_ps7::entry!(main);
+#[allow(dead_code)]
+#[path = "../../common/platform.rs"]
+mod platform;
+#[path = "../../common/sd.rs"]
+mod sd;
 
-const PS_CLK_HZ: u64 = if cfg!(feature = "qemu") { 33_333_333 } else { 50_000_000 };
+ps::entry!(main);
 
-fn platform_init() {
-    // SAFETY: this program owns the SLCR for the duration of this setup.
-    let be = unsafe { PhysMem::new() };
-    let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE).unwrap();
-    let w = |o: usize, v: u32| slcr.write32(o, v).unwrap();
-    let r = |o: usize| slcr.read32(o).unwrap();
-    w(0x008, 0xDF0D);
-    if cfg!(feature = "qemu") {
-        let m = |a: usize, mask: u32, v: u32| w(a, (r(a) & !mask) | (v & mask));
-        m(0x108, 0x0007_F000, 0x0002_0000);
-        m(0x108, 0x10, 0x10);
-        m(0x108, 0x1, 0x1);
-        m(0x108, 0x1, 0x0);
-        m(0x108, 0x10, 0x0);
-    }
-    w(0x12C, r(0x12C) | (1 << 20));
-    let io_fdiv = (r(0x108) >> 12) & 0x7F;
-    w(0x154, ((io_fdiv / 2).max(1) << 8) | 0x3);
-    w(0x228, 0);
-    w(0x738, 0x16E1);
-    w(0x73C, 0x16E0);
-    w(0x004, 0x767B);
+/// The card a build for a board may erase.
+const ERASE_SERIAL: Option<&str> = option_env!("HRX_ERASE_SERIAL");
+/// Where the start of the card is left in memory.
+const DUMP_AT: usize = 0x1000_0000;
+
+fn may_erase(serial: u32) -> bool {
+    cfg!(feature = "qemu")
+        || ERASE_SERIAL.and_then(|s| u32::from_str_radix(s.trim_start_matches("0x"), 16).ok())
+            == Some(serial)
 }
 
 /// A deterministic byte pattern.
 fn byte(seed: u32, i: usize) -> u8 {
-    (i as u32).wrapping_mul(2_654_435_761).wrapping_add(seed).rotate_left(7) as u8
+    (i as u32)
+        .wrapping_mul(2_654_435_761)
+        .wrapping_add(seed)
+        .rotate_left(7) as u8
+}
+
+fn halt() -> ! {
+    loop {
+        cpu::wfe()
+    }
 }
 
 fn fail(msg: &str) -> ! {
     println!("SD SMOKE FAILED: {msg}");
-    loop { hardroxide_ps7::cp15::wfe() }
+    halt()
 }
 
 fn main() -> ! {
-    platform_init();
-    // SAFETY: early in start-up, running from DDR at its physical address.
-    unsafe { hardroxide_ps7::mem::enable(512 << 20) };
-    // SAFETY: the SLCR is only read here; the console UART is used by nothing else.
-    let be = unsafe { PhysMem::new() };
-    let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE).unwrap();
-    let uart_ref = clocks::uart_ref_hz(&slcr, PS_CLK_HZ).unwrap();
-    // SAFETY: as above.
-    unsafe { console::init(map::UART0_BASE, uart_ref as u32, 115_200) };
-    let periph = clocks::periph_hz(&slcr, PS_CLK_HZ).unwrap();
-    // SAFETY: nothing else touches the global timer.
-    unsafe { time::init(periph) };
-    println!("\n== SD card and FAT32 smoke test ==");
-
-    let base = if cfg!(feature = "qemu") { 50_000_000 } else { clocks::sdio_ref_hz(&slcr, PS_CLK_HZ).unwrap() as u32 };
-    let mut sd = SdHost::new(be.map(map::SDIO0_BASE as u64, map::SDIO_SIZE).unwrap(), base);
+    platform::init("SD card and FAT32 smoke test");
+    let (mut sd, _) = sd::host();
     let info = match sd.init() {
         Ok(i) => i,
         Err(e) => fail(&alloc_free(format_args!("card initialisation: {e}"))),
     };
     println!(
-        "card: {} blocks ({} MiB), {}, rca {:#x}, bus {} Hz",
+        "card: {} blocks ({} MiB), {}, rca {:#x}, bus {} Hz, serial {:#010x}",
         info.blocks,
         info.blocks * 512 / (1 << 20),
-        if info.high_capacity { "SDHC/SDXC" } else { "standard capacity" },
+        if info.high_capacity {
+            "SDHC/SDXC"
+        } else {
+            "standard capacity"
+        },
         info.rca,
-        info.clock_hz
+        info.clock_hz,
+        info.serial
     );
+    // Nothing has been written so far, and nothing is unless this is the card the build names.
+    if !may_erase(info.serial) {
+        println!(
+            "SD SMOKE REFUSED: this build may erase {} and this card is {:#010x}; nothing was written",
+            ERASE_SERIAL.unwrap_or("no card"),
+            info.serial
+        );
+        halt();
+    }
 
     // Raw blocks: write a pattern at the end of the card, read it back.
     let mut block = [0u8; 512 * 4];
@@ -86,19 +85,34 @@ fn main() -> ! {
         *b = byte(1, i);
     }
     let last = info.blocks - 8;
-    sd.write(last, &block).unwrap_or_else(|e| fail(&alloc_free(format_args!("raw write: {e}"))));
+    sd.write(last, &block)
+        .unwrap_or_else(|e| fail(&alloc_free(format_args!("raw write: {e}"))));
     let mut back = [0u8; 512 * 4];
-    sd.read(last, &mut back).unwrap_or_else(|e| fail(&alloc_free(format_args!("raw read: {e}"))));
+    sd.read(last, &mut back)
+        .unwrap_or_else(|e| fail(&alloc_free(format_args!("raw read: {e}"))));
     if back != block {
         fail("raw block read-back differs");
     }
     println!("raw blocks: 4 blocks written and read back at the end of the card");
 
     // The file system.
-    Volume::format(&mut sd, &FormatOptions::default()).unwrap_or_else(|e| fail(&alloc_free(format_args!("format: {e}"))));
-    let mut vol = Volume::mount(sd).unwrap_or_else(|e| fail(&alloc_free(format_args!("mount: {e}"))));
-    vol.set_time(Timestamp { year: 2026, month: 11, day: 21, hour: 15, minute: 0, second: 0 });
-    println!("formatted and mounted: {} MiB free, {} byte clusters", vol.free_bytes().unwrap() >> 20, vol.cluster_bytes());
+    Volume::format(&mut sd, &FormatOptions::default())
+        .unwrap_or_else(|e| fail(&alloc_free(format_args!("format: {e}"))));
+    let mut vol =
+        Volume::mount(sd).unwrap_or_else(|e| fail(&alloc_free(format_args!("mount: {e}"))));
+    vol.set_time(Timestamp {
+        year: 2026,
+        month: 11,
+        day: 21,
+        hour: 15,
+        minute: 0,
+        second: 0,
+    });
+    println!(
+        "formatted and mounted: {} MiB free, {} byte clusters",
+        vol.free_bytes().unwrap() >> 20,
+        vol.cluster_bytes()
+    );
 
     vol.mkdir("/logs").unwrap();
     {
@@ -107,7 +121,9 @@ fn main() -> ! {
         f.close(&mut vol).unwrap();
     }
     {
-        let mut f = vol.open("/A long file name for the smoke test.txt", OpenMode::Write).unwrap();
+        let mut f = vol
+            .open("/A long file name for the smoke test.txt", OpenMode::Write)
+            .unwrap();
         f.write(&mut vol, b"long names work\n").unwrap();
         f.close(&mut vol).unwrap();
     }
@@ -146,11 +162,20 @@ fn main() -> ! {
         }
     }
     let t2 = time::now_ns();
-    println!("1 MiB written in {} ms, read in {} ms (4 KiB pieces, programmed I/O)", (t1 - t0) / 1_000_000, (t2 - t1) / 1_000_000);
+    println!(
+        "1 MiB written in {} ms, read in {} ms (4 KiB pieces, programmed I/O)",
+        (t1 - t0) / 1_000_000,
+        (t2 - t1) / 1_000_000
+    );
 
     let mut names = 0;
     vol.read_dir("/", |e| {
-        println!("  {} {:>8} {}", if e.is_dir { "d" } else { "-" }, e.size, e.name);
+        println!(
+            "  {} {:>8} {}",
+            if e.is_dir { "d" } else { "-" },
+            e.size,
+            e.name
+        );
         names += 1;
     })
     .unwrap();
@@ -158,8 +183,30 @@ fn main() -> ! {
         fail("the root directory should hold 3 entries");
     }
     vol.sync().unwrap();
+    // The start of the card in memory, for the host: the partition table, the file system's tables and the first 16 MiB of
+    // its data, read through a driver of its own (so the card is identified afresh).
+    if !cfg!(feature = "qemu") {
+        let (mut sd, _) = sd::host();
+        sd.init()
+            .unwrap_or_else(|e| fail(&alloc_free(format_args!("second initialisation: {e}"))));
+        let mut boot = [0u8; 512];
+        sd.read(2048, &mut boot).unwrap();
+        let reserved = u64::from(u16::from_le_bytes([boot[14], boot[15]]));
+        let per_fat = u64::from(u32::from_le_bytes([boot[36], boot[37], boot[38], boot[39]]));
+        let blocks = 2048 + reserved + u64::from(boot[16]) * per_fat + 32768;
+        let len = blocks as usize * 512;
+        // SAFETY: DDR beyond the program, used by nothing else; the DDR is at least 512 MiB.
+        let dump = unsafe { core::slice::from_raw_parts_mut(DUMP_AT as *mut u8, len) };
+        let t = time::now_ns();
+        sd.read(0, dump)
+            .unwrap_or_else(|e| fail(&alloc_free(format_args!("dump: {e}"))));
+        let ms = (time::now_ns() - t) / 1_000_000;
+        mem::flush_range(DUMP_AT, len);
+        println!("read {} MiB in one run in {ms} ms", len >> 20);
+        println!("DUMP {DUMP_AT:#x} {len}");
+    }
     println!("SD SMOKE OK");
-    loop { hardroxide_ps7::cp15::wfe() }
+    halt()
 }
 
 /// Format a message into a small stack buffer (no allocator here).
@@ -175,7 +222,10 @@ mod heapless_str {
     }
     impl Str {
         pub fn new(args: core::fmt::Arguments) -> Self {
-            let mut s = Str { buf: [0; 160], len: 0 };
+            let mut s = Str {
+                buf: [0; 160],
+                len: 0,
+            };
             let _ = s.write_fmt(args);
             s
         }

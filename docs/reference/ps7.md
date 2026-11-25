@@ -224,6 +224,7 @@ missing acknowledge is `I2cError::Nack(address)`.
 pub enum SdError
 pub struct CardInfo
 pub fn clock_divisor(base_hz: u32, target_hz: u32) -> (u32, u32)
+pub fn clock_divisor_v3(base_hz: u32, target_hz: u32) -> (u32, u32)
 pub fn csd_blocks(r: &[u32; 4]) -> u64
 pub struct SdHost<R: Mmio>
 pub fn new(regs: R, base_hz: u32) -> Self

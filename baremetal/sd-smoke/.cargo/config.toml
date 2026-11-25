@@ -1,5 +1,9 @@
 [build]
+# The Zynq-7000; for Zynq UltraScale+ pass `--target aarch64-unknown-none`.
 target = "armv7a-none-eabihf"
 
 [target.armv7a-none-eabihf]
 rustflags = ["-C", "target-cpu=cortex-a9"]
+
+[target.aarch64-unknown-none]
+rustflags = ["-C", "target-cpu=cortex-a53"]

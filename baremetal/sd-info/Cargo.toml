@@ -1,0 +1,34 @@
+[package]
+name = "sd-info"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# A standalone workspace: this builds for the bare-metal targets, not the host.
+[workspace]
+
+[features]
+# Run under QEMU (xilinx-zynq-a9 or xlnx-zcu102): set up what the boot code would.
+qemu = []
+
+[dependencies]
+hardroxide-mmio = { path = "../../crates/hardroxide-mmio", default-features = false, features = ["physmem"] }
+hardroxide-fat = { path = "../../crates/hardroxide-fat" }
+
+[target.'cfg(target_arch = "arm")'.dependencies]
+hardroxide-ps7 = { path = "../../crates/hardroxide-ps7", features = ["panic-handler"] }
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+hardroxide-psu = { path = "../../crates/hardroxide-psu", features = ["panic-handler"] }
+
+[build-dependencies]
+hardroxide-ps7 = { path = "../../crates/hardroxide-ps7" }
+hardroxide-psu = { path = "../../crates/hardroxide-psu" }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+debug = true
+
+[profile.dev]
+panic = "abort"

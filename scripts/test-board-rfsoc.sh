@@ -3,6 +3,7 @@
 # Volatile: nothing is written to storage. Runs the smoke program (processor system and PL interrupts) with the loopback
 # fixture in the PL, once more without programming the PL (`run --no-pl`), and the kernel's test (baremetal/rt-smoke).
 # The two-hour jitter benchmark (baremetal/rt-jitter) is run by hand.
+# HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
 #
 #   scripts/test-board-rfsoc.sh                 HRX_TTY: the console port (default /dev/ttyUSB1)
 set -euo pipefail
@@ -61,4 +62,37 @@ need "second (after rearm) true, nothing pending true"
 need "0 broken (preserved)"
 need "RT ALL OK"
 need "EXCEPTION: undefined instruction"
+# The SD card: only with HRX_SD_SERIAL naming the card in the slot, WHICH IS ERASED (baremetal/sd-info prints the serial
+# number without writing). The start of what the board wrote comes back over JTAG and is checked with fsck.fat.
+if [ -n "${HRX_SD_SERIAL:-}" ]; then
+  echo "== the SD card ($HRX_SD_SERIAL is erased)"
+  (cd baremetal/sd-smoke && HRX_ERASE_SERIAL=$HRX_SD_SERIAL cargo build -q --release --target aarch64-unknown-none)
+  target/debug/hardroxide run baremetal/sd-smoke/target/aarch64-unknown-none/release/sd-smoke \
+    --xsa "$XSA" --tty "$TTY" --watch 40 2>&1 | tr -d '\r' | tee "$OUT"
+  need "raw blocks: 4 blocks written and read back"
+  need "formatted and mounted"
+  need "SD SMOKE OK"
+  if grep -q "^DUMP " "$OUT"; then
+    read -r _ at len < <(grep "^DUMP " "$OUT")
+    DUMP=$(mktemp -d)
+    printf 'connect\ntargets -set -nocase -filter {name =~ "PSU"}\nmrd -force -bin -file {%s} %s %d\nexit\n' \
+      "$DUMP/card.bin" "$at" $((len / 4)) >"$DUMP/dump.tcl"
+    VITIS=${VITIS_SETTINGS:-$HOME/AMD/2025.2/Vitis/settings64.sh}
+    bash -c "set +u; source '$VITIS'; xsdb '$DUMP/dump.tcl'" >/dev/null
+    # The partition (from sector 2048) at its full size, sparse beyond what was fetched.
+    python3 - "$DUMP/card.bin" "$DUMP/part.img" <<'PY'
+import struct, sys
+d = open(sys.argv[1], "rb").read()
+start, count = struct.unpack_from("<II", d, 446 + 8)
+with open(sys.argv[2], "wb") as f:
+    f.write(d[start * 512:])
+    f.truncate(count * 512)
+PY
+    fsck.fat -n "$DUMP/part.img" || { echo "fsck.fat found errors" >&2; fail=1; }
+    rm -rf "$DUMP"
+  else
+    echo "MISSING: DUMP" >&2; fail=1
+  fi
+fi
+
 [ "$fail" = 0 ] && echo "RFSoC 4x2 board test: ok" || { echo "RFSoC 4x2 board test: FAILED" >&2; exit 1; }

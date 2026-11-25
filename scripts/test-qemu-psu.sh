@@ -74,3 +74,23 @@ need "0 broken (preserved)"
 need "RT ALL OK"
 need "EXCEPTION: undefined instruction"
 [ "$fail" = 0 ] && echo "qemu UltraScale+ kernel test: ok" || { echo "qemu UltraScale+ kernel test: FAILED" >&2; exit 1; }
+
+# ---- the SD host driver and the FAT32 file system (baremetal/sd-smoke), checked by the host's fsck.fat ----
+cd "$ROOT/baremetal/sd-smoke"
+cargo build --release --features qemu --target aarch64-unknown-none
+IMG=$(mktemp)
+trap 'rm -f "$OUT" "$IMG" "$IMG.part"' EXIT
+truncate -s 128M "$IMG"
+timeout "${QEMU_TIMEOUT:-20}" "${RUN[@]}" -M xlnx-zcu102,secure=on -m 4G -display none \
+  -serial "file:$OUT" -serial null -monitor none -drive "if=sd,index=0,file=$IMG,format=raw" \
+  -kernel target/aarch64-unknown-none/release/sd-smoke >/dev/null 2>&1 || true
+cat "$OUT"
+need "raw blocks: 4 blocks written and read back"
+need "formatted and mounted"
+need "SD SMOKE OK"
+if command -v fsck.fat >/dev/null; then
+  # The partition starts at sector 2048 (1 MiB).
+  dd if="$IMG" of="$IMG.part" bs=512 skip=2048 status=none
+  fsck.fat -n "$IMG.part" || { echo "fsck.fat found errors" >&2; fail=1; }
+fi
+[ "$fail" = 0 ] && echo "qemu UltraScale+ SD test: ok" || { echo "qemu UltraScale+ SD test: FAILED" >&2; exit 1; }

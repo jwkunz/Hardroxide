@@ -13,6 +13,8 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
   to a task and leave `main` suspended until every task blocked. No task runs before `start` now, and calls that would wait
   fail at once.
 - Fixture designs for the RFSoC 4x2, including an RF loopback (`fixtures/rfsoc4x2/`).
+- The SD card driver works on UltraScale+ (re-exported as `psu::sd`): it divides the clock as the version 3.00 controllers
+  need.
 - `hardroxide-ps7`: a `cpu` module, the common processor operations under the name `hardroxide-psu` also uses.
 - `hardroxide-mmio`: the physical-memory backend issues its write barrier on AArch64 too.
 - Backward compatibility with 2.7.0 is checked in CI (`scripts/check-compat.py`).

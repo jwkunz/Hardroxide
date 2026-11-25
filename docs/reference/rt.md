@@ -131,6 +131,9 @@ at most 10.2 us late (mean 1.06 us) over 726,197 releases with none missed, and 
 task within 5.4 us (mean 3.95 us). Details and limits: [Verification gaps](../08-verification-gaps.md); the program is
 `baremetal/rt-jitter`.
 
+On an RFSoC 4x2 (Cortex-A53, 65 minutes, same program and load): release lateness at most 6.2 us (mean 0.89 us) over 390,086
+releases with none missed; interrupt to task at most 4.7 us (mean 3.04 us).
+
 ## Statistics
 
 ```rust,ignore

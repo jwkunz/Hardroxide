@@ -75,7 +75,7 @@ Where a shared driver differs in detail between the families (SD clocking, for e
 
 Found while checking, to handle when porting:
 
-- The GEM and SD drivers hand the hardware 32-bit addresses (`as u32`). On a 64-bit processor they must refuse a buffer above 4 GB instead of truncating its address (step 4).
+- The GEM driver hands the hardware 32-bit addresses (`as u32`). On a 64-bit processor it must refuse a buffer above 4 GB instead of truncating its address (step 4). (The SD driver moves data without DMA and has no such hazard.)
 - The interrupt controller driver and handler table are fixed at the Zynq-7000's 96 interrupts; UltraScale+ has more, hence `psu`'s own (step 2).
 
 ## Milestones
@@ -87,7 +87,7 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 | 0 Groundwork | this ADR; compatibility checks in CI (`scripts/check-compat.py`); the libraries kept building for AArch64 | all 2.7 checks pass; PYNQ-Z2 regression (waits for the board) | no |
 | 1 **Bitstream sprint** | the board preset; XSAs built and committed (`fixtures/rfsoc4x2/`): GPIO (which also serves as the processor-only design), interrupt controller, DMA, peripherals in loopback, two HLS kernels, RF loopback | each programmed and probed **over JTAG** (register reads and writes), independently of our libraries | **yes: before 2026-12-29** |
 | 2 First light (done) | start-up, UART, GIC, timers, MMU; `hardroxide run` for the board | QEMU in CI; console, DDR memory test and interrupts on the board | no |
-| 3 RTOS | AArch64 kernel port | kernel tests in QEMU and on the board; the jitter benchmark (two hours) | no |
+| 3 RTOS (done; two-hour run outstanding) | AArch64 kernel port | kernel tests in QEMU and on the board; the jitter benchmark (two hours) | no |
 | 4 Peripherals | SD, Ethernet, I2C; the SD, network and HTTPS programs ported | `fsck.fat` on the card, `curl` and `openssl` interoperability, throughput and handshake figures | no |
 | 5 Generator and PL | UltraScale+ in `hwh` and `gen`; PL loading; clocks; DMA and interrupt drivers verified | the step 1 designs driven by generated crates | no (bitstreams exist) |
 | 6 Linux | `--platform linux` on AArch64 PYNQ; documentation | the Linux tutorials re-run on the board | no |
@@ -127,6 +127,23 @@ Decisions taken while building it:
 - The system counter is left to `psu_init`/the boot loader to start; its frequency is read from the clock registers.
 - The AArch64 build of `hardroxide-mmio`'s physical backend now issues the same barrier as the 32-bit one before register
   writes (it did not).
+
+## Step 3 results (2026-11-25)
+
+The kernel's AArch64 port passes `baremetal/rt-smoke` (one program for both families) in QEMU and on the board: preemption,
+periodic release, queues, interrupt hand-off, priority inheritance, registers intact across switches (the test fails when any
+tried part of the restore is removed), a fault in a task reported.
+
+**Jitter, RFSoC 4x2, 65 minutes** (`baremetal/rt-jitter`; planned two hours, stopped at the maintainer's request): 0 missed
+releases; lateness of the 10 ms task over 390,086 releases mean 0.89 us, maximum 6.19 us (the earliest 0.38 us before the
+baseline); interrupt to task over 487,736 interrupts mean 3.04 us, maximum 4.65 us. Neither maximum grew after minute 10.
+A full two-hour run remains to be done before 3.0.
+
+Found and fixed:
+
+- An interrupt or a kernel call before `start` could switch to a task and strand `main` until all tasks blocked (since 2.x).
+- The AArch64 tick truncated 33,333,333 / 1000 and ran 10 ppm fast; the first benchmark counted every release as on time
+  (mean lateness 0 ns). The tick now spreads the remainder, and the benchmark reports early releases.
 
 ## Risks
 

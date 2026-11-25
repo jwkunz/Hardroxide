@@ -85,6 +85,16 @@ pub fn without_irq<T>(f: impl FnOnce() -> T) -> T
 pub fn current_el() -> u32
 ```
 
+## SD card (`sd`)
+
+`hardroxide-ps7`'s [driver](ps7.md), for the controllers at `map::SDIO0_BASE` and `SDIO1_BASE`, given
+`clocks::sdio_ref_hz`. These controllers are of specification 3.00, which the driver detects and divides the clock for
+(`sd::clock_divisor_v3`: a power of two would clock identification at 732 kHz from the RFSoC 4x2's 187.5 MHz).
+
+```rust,ignore
+pub fn clock_divisor_v3(base_hz: u32, target_hz: u32) -> (u32, u32)
+```
+
 ## Memory (`mem`)
 
 ```rust,ignore

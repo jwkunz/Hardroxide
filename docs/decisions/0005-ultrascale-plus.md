@@ -100,7 +100,8 @@ Why the bitstream sprint comes second: the license is time-limited and the repos
 ## Step 1 results (2026-11-25)
 
 All seven designs are built, meet timing and pass their JTAG probes on the board (104 checks; `fixtures/rfsoc4x2/README.md`). The vendor's preset gives working DDR in both address ranges. With SMA cables from the DACs to the ADCs, each DAC's tone arrives at its input at about
--15 dBFS (sent at -6 dBFS), 91 dB above the median of the spectrum, the other DAC's tone at -80 dBFS or lower; from the waveform memory and from the converter's mixer, retuned at run time. So 3.1 needs no new bitstream to have a working signal path.
+-15 dBFS (sent at -6 dBFS), 91 dB above the median of the spectrum, the other DAC's tone at -80 dBFS or lower; from the waveform memory and from the converter's mixer, retuned at run time. So 3.1 needs no new bitstream to have a working signal path. Unplugging a cable established the
+DAC connectors: DAC A is DAC tile 2 (`vout20`), DAC B tile 0 (`vout00`); as cabled, ADC A is `vin2_23` and ADC B `vin2_01`.
 
 Findings that later steps need:
 

@@ -22,6 +22,15 @@ Designs for the Real Digital RFSoC 4x2 (`xczu48dr-ffvg1517-2-e`), Vivado 2025.2,
 
 For the RF loopback, connect SMA cables from DAC A to ADC A and from DAC B to ADC B, and set `HRX_RF_LOOPBACK=1` to require both tones.
 
+| Board connector | In the design |
+|---|---|
+| DAC A | DAC tile 2, block 0: `vout20`, player 1 |
+| DAC B | DAC tile 0, block 0: `vout00`, player 0 |
+| ADC A | ADC tile 2, `vin2_23`: capture input 1 |
+| ADC B | ADC tile 2, `vin2_01`: capture input 0 |
+
+The DACs were identified by unplugging DAC A's cable; the ADCs follow from the cabling above.
+
 ## Third-party files
 
 `board_files/` (Real Digital, Apache 2.0) and `clocks/` (Xilinx RFSoC-PYNQ, BSD 3-Clause); each has its license and origin.

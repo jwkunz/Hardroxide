@@ -10,8 +10,8 @@ from pathlib import Path
 
 RATE = 2457.6e6  # ADC samples per second after decimation
 RUNS = {  # file prefix: what plays, and each DAC's frequency
-    "memory": ("waveform memory", {"DAC tile 0 (vout00)": 1365 * 75e3, "DAC tile 2 (vout20)": 2731 * 75e3}),
-    "mixer": ("constant and mixer", {"DAC tile 0 (vout00)": 307.2e6, "DAC tile 2 (vout20)": 614.4e6}),
+    "memory": ("waveform memory", {"DAC B (vout00)": 1365 * 75e3, "DAC A (vout20)": 2731 * 75e3}),
+    "mixer": ("constant and mixer", {"DAC B (vout00)": 307.2e6, "DAC A (vout20)": 614.4e6}),
 }
 N = 32768
 
@@ -38,6 +38,7 @@ def analyse(path: Path, tones: dict[str, float]) -> set[str] | None:
     """Print one capture's summary; the tones found in it, or None if the converter delivers a constant."""
     x = samples(path)[:N]
     name = path.stem.split("_", 1)[1]
+    name = {"vin2_01": "ADC B (vin2_01)", "vin2_23": "ADC A (vin2_23)"}.get(name, name)
     mean = sum(x) / len(x)
     rms = math.sqrt(sum((v - mean) ** 2 for v in x) / len(x))
     if rms == 0:

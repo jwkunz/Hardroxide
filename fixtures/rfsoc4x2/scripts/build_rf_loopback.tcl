@@ -3,9 +3,9 @@
 #
 # Converters (clocks and rates as in the PYNQ base overlay for this board, from the board's LMX2594s at 491.52 MHz,
 # sampling at 4915.2 MS/s):
-#   DAC tile 0 and tile 2, block 0 (rfdc vout00, vout20): I/Q input, fine mixer, interpolation 2; 8 I/Q pairs
+#   DAC tile 0 and tile 2, block 0 (rfdc vout00 = connector DAC B, vout20 = DAC A): I/Q input, fine mixer, interpolation 2; 8 I/Q pairs
 #                                                         (256 bits) per 307.2 MHz clock
-#   ADC tile 2, both blocks (vin2_01, vin2_23):           real samples, mixer bypassed (coarse), decimation 2; 8 samples
+#   ADC tile 2, both blocks (vin2_01 = connector ADC B, vin2_23 = ADC A):           real samples, mixer bypassed (coarse), decimation 2; 8 samples
 #                                                         (128 bits) per 307.2 MHz clock, 2457.6 MS/s
 #   The converters work only once the board's clock chips (LMK04828, LMX2594, on the PS's SPI 0) are programmed.
 #

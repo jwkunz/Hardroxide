@@ -85,7 +85,7 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 | Step | Deliverable | Acceptance | License |
 |---|---|---|---|
 | 0 Groundwork | this ADR; compatibility checks in CI (`scripts/check-compat.py`); the libraries kept building for AArch64 | all 2.7 checks pass; PYNQ-Z2 regression (waits for the board) | no |
-| 1 **Bitstream sprint** | the board preset; XSAs built and committed for: processor-only, GPIO, interrupts, DMA loopback, timers and peripherals, HLS, RF loopback | each programmed and probed **over JTAG** (register reads and writes), independently of our libraries | **yes: before 2026-12-29** |
+| 1 **Bitstream sprint** | the board preset; XSAs built and committed (`fixtures/rfsoc4x2/`): GPIO (which also serves as the processor-only design), interrupt controller, DMA, peripherals in loopback, two HLS kernels, RF loopback | each programmed and probed **over JTAG** (register reads and writes), independently of our libraries | **yes: before 2026-12-29** |
 | 2 First light | start-up, UART, GIC, timers, MMU; `hardroxide run` for the board | QEMU in CI; console, DDR memory test and interrupts on the board | no |
 | 3 RTOS | AArch64 kernel port | kernel tests in QEMU and on the board; the jitter benchmark (two hours) | no |
 | 4 Peripherals | SD, Ethernet, I2C; the SD, network and HTTPS programs ported | `fsck.fat` on the card, `curl` and `openssl` interoperability, throughput and handshake figures | no |
@@ -96,6 +96,18 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 
 Why the bitstream sprint comes second: the license is time-limited and the repository already treats built XSAs as fixtures, so every design the later steps need is built while the license lasts and proven with raw register access. Uncompressed bitstreams for this part are about
 34 MB, so the fixtures enable bitstream compression.
+
+## Step 1 results (2026-11-25)
+
+All seven designs are built, meet timing and pass their JTAG probes on the board (104 checks; `fixtures/rfsoc4x2/README.md`). The vendor's preset gives working DDR in both address ranges. With SMA cables from the DACs to the ADCs, each DAC's tone arrives at its input at about
+-15 dBFS (sent at -6 dBFS), 91 dB above the median of the spectrum, the other DAC's tone at -80 dBFS or lower; from the waveform memory and from the converter's mixer, retuned at run time. So 3.1 needs no new bitstream to have a working signal path.
+
+Findings that later steps need:
+
+- The interrupt controller (GIC-400) cannot be read through the debug access port, only through a core; and while it is disabled its pending registers do not show a high line (its line status registers, `GICD_SPISR`, do). `pl_ps_irq0[n]` is interrupt 121 + n, `pl_ps_irq1[n]` 136 + n.
+- Connection automation leaves a dangling interconnect when two masters share a memory port, and maps only part of a large block RAM unless told its range; the build scripts do both explicitly and fail on a short memory.
+- An AXI GPIO's interrupt status bits toggle when written with 1.
+- The RF clock chips are programmed over the processor's SPI 0 and GPIO (MIO 7, 8, 12) from the register files in `fixtures/rfsoc4x2/clocks/`; the converter tiles need a restart afterwards.
 
 ## Risks
 

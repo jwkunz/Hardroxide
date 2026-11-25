@@ -1,26 +1,24 @@
-//! Smoke test for hardroxide-rt on a Zynq-7000: priority preemption, periodic release,
-//! semaphores, queues, interrupt-to-task hand-off and priority inheritance. Runs under QEMU
-//! (`--features qemu`, see `scripts/test-qemu.sh`) and on the board over JTAG.
+//! Smoke test for hardroxide-rt on a Zynq-7000 or a Zynq UltraScale+ (the target chooses): priority preemption, periodic
+//! release, semaphores, queues, interrupt-to-task hand-off, priority inheritance, an interrupt before the kernel starts,
+//! registers across task switches, and the report of a fault in a task. Runs under QEMU (`--features qemu`, see
+//! `scripts/test-qemu.sh`) and on the boards over JTAG.
 
 #![no_std]
 #![no_main]
 
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering::SeqCst};
-use hardroxide_mmio::{Mmio, MmioBackend, PhysMem};
-use hardroxide_ps7::gic::Gic;
-use hardroxide_ps7::{clocks, console, irq, map, println, time};
 use hardroxide_rt::{
     Mutex, Periodic, Queue, Semaphore, WAIT_FOREVER, delay_ms, spawn, start, task_stack, ticks,
 };
+use platform::ps::{self, cpu, irq, println};
 
-hardroxide_ps7::entry!(main);
+#[path = "../../common/platform.rs"]
+mod platform;
+mod registers;
 
-const PS_CLK_HZ: u64 = if cfg!(feature = "qemu") {
-    33_333_333
-} else {
-    50_000_000
-};
-const SCENARIOS: u32 = 6;
+ps::entry!(main);
+
+const SCENARIOS: u32 = 7;
 
 static DONE: Semaphore = Semaphore::new(0, 16);
 static QUEUE: Queue<u32, 4> = Queue::new();
@@ -31,30 +29,6 @@ static COUNTER: AtomicU32 = AtomicU32::new(0);
 static STOP_SPIN: AtomicU32 = AtomicU32::new(0);
 static PI_ACQUIRED_AT: AtomicU64 = AtomicU64::new(0);
 static PI_START: AtomicU64 = AtomicU64::new(0);
-
-fn platform_init() {
-    // SAFETY: this program owns the SLCR for the duration of this setup.
-    let be = unsafe { PhysMem::new() };
-    let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE).unwrap();
-    let w = |o: usize, v: u32| slcr.write32(o, v).unwrap();
-    let r = |o: usize| slcr.read32(o).unwrap();
-    w(0x008, 0xDF0D);
-    if cfg!(feature = "qemu") {
-        let m = |a: usize, mask: u32, v: u32| w(a, (r(a) & !mask) | (v & mask));
-        m(0x108, 0x0007_F000, 0x0002_0000);
-        m(0x108, 0x10, 0x10);
-        m(0x108, 0x1, 0x1);
-        m(0x108, 0x1, 0x0);
-        m(0x108, 0x10, 0x0);
-    }
-    w(0x12C, r(0x12C) | (1 << 20));
-    let io_fdiv = (r(0x108) >> 12) & 0x7F;
-    w(0x154, ((io_fdiv / 2).max(1) << 8) | 0x3);
-    w(0x228, 0);
-    w(0x738, 0x16E1);
-    w(0x73C, 0x16E0);
-    w(0x004, 0x767B);
-}
 
 // ---- scenario 1: periodic release on a 10 ms grid ----
 fn periodic() {
@@ -139,14 +113,7 @@ fn isr_waiter() {
 }
 fn isr_trigger() {
     delay_ms(420);
-    // SAFETY: the distributor window is used here only to raise one software interrupt.
-    let be = unsafe { PhysMem::new() };
-    let gic = Gic::new(
-        be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)
-            .unwrap(),
-        be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE).unwrap(),
-    );
-    gic.send_sgi(1, 1).unwrap();
+    send_sgi(1);
 }
 
 // ---- scenario 5: priority inversion resolved by priority inheritance ----
@@ -208,46 +175,77 @@ fn event_trigger() {
     send_sgi(2);
 }
 fn send_sgi(n: u32) {
-    // SAFETY: the distributor window is used here only to raise one software interrupt.
-    let be = unsafe { PhysMem::new() };
-    let gic = Gic::new(
-        be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)
-            .unwrap(),
-        be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE).unwrap(),
-    );
-    gic.send_sgi(n, 1).unwrap();
+    platform::gic().send_sgi(n, 1).unwrap();
+}
+
+// ---- scenario 7: two equally urgent tasks load every register they can with their own values, and check them after the
+// other has run (the tick switches between them while they spin) ----
+const ROUNDS: u32 = 100;
+static SWITCHES: [AtomicU32; 2] = [AtomicU32::new(0), AtomicU32::new(0)];
+static BROKEN: AtomicU32 = AtomicU32::new(0);
+static REGISTER_TASKS_DONE: AtomicU32 = AtomicU32::new(0);
+
+fn register_task(me: usize) {
+    delay_ms(1200);
+    for round in 0..ROUNDS {
+        SWITCHES[me].fetch_add(1, SeqCst);
+        let seed = (u64::from(round) << 8) | (me as u64 + 1);
+        if !registers::survive_a_switch(seed, &SWITCHES[1 - me]) {
+            BROKEN.fetch_add(1, SeqCst);
+        }
+    }
+    if REGISTER_TASKS_DONE.fetch_add(1, SeqCst) == 1 {
+        let broken = BROKEN.load(SeqCst);
+        println!(
+            "[7] registers: {} checks in two tasks switching under them, {broken} broken ({})",
+            2 * ROUNDS,
+            if broken == 0 {
+                "preserved"
+            } else {
+                "CORRUPTED"
+            }
+        );
+        DONE.give();
+    }
+    // Keep the other task's wait ending until it is done too.
+    while REGISTER_TASKS_DONE.load(SeqCst) < 2 {
+        SWITCHES[me].fetch_add(1, SeqCst);
+        delay_ms(1);
+    }
+}
+fn registers_a() {
+    register_task(0);
+}
+fn registers_b() {
+    register_task(1);
 }
 
 fn coordinator() {
+    COORDINATOR_RAN.store(1, SeqCst);
     for _ in 0..SCENARIOS {
         DONE.take(WAIT_FOREVER);
     }
     println!("RT ALL OK");
+    println!("-- executing an undefined instruction in a task on purpose");
+    registers::undefined_instruction();
+    println!("not reached");
     loop {
         delay_ms(1000);
     }
 }
 
+// ---- before the kernel starts: an interrupt is handled and `main` goes on ----
+static EARLY: AtomicU32 = AtomicU32::new(0);
+/// The most urgent task sets this first thing: it must still be clear when `main` calls `start`.
+static COORDINATOR_RAN: AtomicU32 = AtomicU32::new(0);
+static BEFORE_START: Semaphore = Semaphore::new(0, 1);
+fn early_handler() {
+    EARLY.fetch_add(1, SeqCst);
+}
+
 fn main() -> ! {
-    platform_init();
-    // SAFETY: early in start-up, running from DDR at its physical address.
-    unsafe { hardroxide_ps7::mem::enable(512 << 20) };
-    // SAFETY: SLCR is only read here; the console UART is used by nothing else.
-    let be = unsafe { PhysMem::new() };
-    let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE).unwrap();
-    let uart_ref = clocks::uart_ref_hz(&slcr, PS_CLK_HZ).unwrap();
-    // SAFETY: as above.
-    unsafe { console::init(map::UART0_BASE, uart_ref as u32, 115_200) };
-    let periph = clocks::periph_hz(&slcr, PS_CLK_HZ).unwrap();
-    println!("\n== hardroxide-rt smoke test ==");
-    // SAFETY: nothing else touches the global timer.
-    unsafe { time::init(periph) };
-    let gic = Gic::new(
-        be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)
-            .unwrap(),
-        be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE).unwrap(),
-    );
-    gic.init().unwrap();
+    let board = platform::init("hardroxide-rt smoke test");
+    let gic = &board.gic;
     assert!(irq::register(1, sgi_handler));
     gic.set_priority(1, 0x40).unwrap();
     gic.enable(1).unwrap();
@@ -271,5 +269,32 @@ fn main() -> ! {
     task!("pi_high", 5, pi_high);
     task!("event_waiter", 4, event_waiter);
     task!("event_trigger", 6, event_trigger);
-    start(periph, 1000)
+    task!("registers_a", 2, registers_a);
+    task!("registers_b", 2, registers_b);
+
+    assert!(irq::register(3, early_handler));
+    gic.set_priority(3, 0x40).unwrap();
+    gic.enable(3).unwrap();
+    // SAFETY: the handler and the controller are set up.
+    unsafe { cpu::enable_irq() };
+    send_sgi(3);
+    while EARLY.load(SeqCst) == 0 {
+        core::hint::spin_loop();
+    }
+    cpu::disable_irq();
+    // Kernel calls from `main` do not switch to a task either, and one that would have to wait fails.
+    BEFORE_START.give();
+    let took = BEFORE_START.take(0);
+    let waited = BEFORE_START.take(5);
+    delay_ms(1);
+    println!("[0] before start: give and take {took}, a take that would wait {waited}");
+    println!(
+        "[0] before start: an interrupt was handled, main went on and {}",
+        if COORDINATOR_RAN.load(SeqCst) == 0 {
+            "no task ran"
+        } else {
+            "A TASK RAN EARLY"
+        }
+    );
+    start(board.tick_clock_hz, 1000)
 }

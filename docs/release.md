@@ -8,7 +8,7 @@ irreversible (a crate version can be yanked but not deleted).
    `scripts/test-armv7.sh`, `scripts/test-qemu.sh` (bare metal and kernel) and the CI and docs workflows.
 2. **Board run.** On a PYNQ-Z2, work through
    [Verification gaps](08-verification-gaps.md) again if drivers changed
-   (the programs are in `fixtures/board_tests/`). For the bare-metal and RTOS flavors, run `baremetal/rt-smoke`,
+   (the programs are in `fixtures/board_tests/`). For Zynq UltraScale+ run `scripts/test-board-rfsoc.sh`. For the bare-metal and RTOS flavors, run `baremetal/rt-smoke`,
    `baremetal/rt-jitter` and the tutorial programs in `fixtures/board_tests_bm/` over JTAG.
 3. **Version.** Set `version` in the workspace `Cargo.toml` and the `version`
    of each `hardroxide-*` entry under `[workspace.dependencies]`; update

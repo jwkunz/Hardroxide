@@ -7,6 +7,11 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
 - New crate `hardroxide-psu`: bare-metal processor support for the Cortex-A53 (AArch64 at EL3): startup, MMU and caches, GIC,
   generic timer, clocks, console.
 - `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one.
+- `hardroxide-rt` runs on UltraScale+ too (AArch64 port: tasks at EL3, the whole vector file saved; stacks of at least 2048
+  bytes). Same API; `baremetal/rt-smoke` and `rt-jitter` build for both processors.
+- `hardroxide-rt` fix (both processors): an interrupt, or a kernel call such as `Semaphore::give`, before `start` could switch
+  to a task and leave `main` suspended until every task blocked. No task runs before `start` now, and calls that would wait
+  fail at once.
 - Fixture designs for the RFSoC 4x2, including an RF loopback (`fixtures/rfsoc4x2/`).
 - `hardroxide-ps7`: a `cpu` module, the common processor operations under the name `hardroxide-psu` also uses.
 - `hardroxide-mmio`: the physical-memory backend issues its write barrier on AArch64 too.

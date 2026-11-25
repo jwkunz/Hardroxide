@@ -365,6 +365,7 @@ dependencies = [
  "hardroxide-irq",
  "hardroxide-mmio",
  "hardroxide-ps7",
+ "hardroxide-psu",
 ]
 
 [[package]]

@@ -123,6 +123,8 @@ hrx_vectors:
     .endm
 
     .section .text.hrx_exceptions,"ax"
+    // Also where a kernel's synchronous-exception entry sends what is not its supervisor call.
+    REPORT  hrx_report_sync, 1
     REPORT  hrx_fiq_entry, 2
     REPORT  hrx_serror_entry, 3
     REPORT  hrx_lower_entry, 4
@@ -133,7 +135,9 @@ hrx_vectors:
 global_asm!(
     r#"
     .section .text.hrx_exceptions,"ax"
-    REPORT  hrx_sync_entry, 1
+    .global hrx_sync_entry
+hrx_sync_entry:
+    b       hrx_report_sync
 "#
 );
 

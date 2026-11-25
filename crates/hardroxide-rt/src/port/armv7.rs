@@ -14,6 +14,52 @@
 
 use core::arch::global_asm;
 
+/// What the kernel needs from the processor besides the context switch.
+pub(crate) mod platform {
+    pub use hardroxide_ps7::cp15::{wfe, wfi, without_irq};
+    pub use hardroxide_ps7::{gic::Gic, irq, map};
+
+    use hardroxide_mmio::{MmioBackend, PhysMem, PhysRegion};
+    use hardroxide_ps7::timer::PrivateTimer;
+
+    /// The interrupt of the tick timer.
+    pub const TICK_INTERRUPT: u32 = map::ppi::PRIVATE_TIMER;
+    /// The smallest task stack accepted.
+    pub const MIN_STACK: usize = 512;
+    /// The idle task's stack.
+    pub const IDLE_STACK: usize = 1024;
+
+    /// The global timer's low count word: one device read, wrapping every 13 s at 325 MHz (intervals between uses are far
+    /// shorter).
+    #[inline(always)]
+    pub fn stamp() -> u32 {
+        // SAFETY: a read of the Cortex-A9 global timer's counter register, which the time source keeps running.
+        unsafe { core::ptr::read_volatile(map::GLOBAL_TIMER_BASE as *const u32) }
+    }
+
+    fn private_timer(be: &PhysMem) -> Option<PrivateTimer<PhysRegion>> {
+        be.map(map::PRIVATE_TIMER_BASE as u64, map::PRIVATE_TIMER_SIZE)
+            .ok()
+            .map(PrivateTimer::new)
+    }
+
+    /// Start the private timer interrupting `tick_hz` times a second; `periph_hz` is its clock.
+    pub fn start_tick(be: &PhysMem, periph_hz: u64, tick_hz: u32) {
+        let per_tick = (periph_hz / u64::from(tick_hz.max(1))) as u32;
+        private_timer(be)
+            .expect("timer")
+            .start_periodic(per_tick)
+            .expect("timer");
+    }
+
+    /// In the tick's interrupt: drop the timer's line.
+    pub fn acknowledge_tick(be: &PhysMem) {
+        if let Some(t) = private_timer(be) {
+            let _ = t.clear_interrupt();
+        }
+    }
+}
+
 /// Words in a saved context.
 pub const FRAME_WORDS: usize = 50;
 /// System mode, IRQ and FIQ enabled, ARM state.

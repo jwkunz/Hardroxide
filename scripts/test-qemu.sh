@@ -64,7 +64,11 @@ need2 "woke the task: true, after 20 ticks"
 need2 "0 late"
 need2 "inheritance worked"
 need2 "second (after rearm) true, nothing pending true"
+need2 "a take that would wait false"
+need2 "main went on and no task ran"
+need2 "0 broken (preserved)"
 need2 "RT ALL OK"
+need2 "EXCEPTION: undefined instruction"
 [ "$fail" = 0 ] && echo "qemu kernel test: ok" || { echo "qemu kernel test: FAILED" >&2; exit 1; }
 
 # ---- the SD host driver and the FAT32 file system (baremetal/sd-smoke) ----

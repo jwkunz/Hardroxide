@@ -19,4 +19,5 @@ rustup target add aarch64-unknown-none >/dev/null
 cargo build --release --target aarch64-unknown-none --no-default-features $CRATES "$@"
 cargo build --release --target aarch64-unknown-none -p hardroxide-ps7 --features net "$@"
 cargo build --release --target aarch64-unknown-none -p hardroxide-psu --features panic-handler "$@"
+cargo build --release --target aarch64-unknown-none -p hardroxide-rt "$@"
 echo "no_std build ok"

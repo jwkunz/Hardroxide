@@ -1,27 +1,29 @@
-//! Jitter benchmark for hardroxide-rt on a Zynq-7000 (run for hours on the board).
+//! Jitter benchmark for hardroxide-rt on a Zynq-7000 or a Zynq UltraScale+ (the target chooses; run for hours on the
+//! board).
 //!
-//! Measures, under load, with the global timer (3 ns resolution):
+//! Measures, under load, with the time source (the Zynq-7000's global timer, 3 ns resolution; the UltraScale+ system
+//! counter, 30 ns):
 //!   * release lateness of a 10 ms periodic task (priority 5): how far after its ideal release
 //!     (a fixed grid) the task actually runs;
 //!   * interrupt-to-task latency: from raising a software interrupt to the waiting
 //!     priority-7 task running (entry, dispatch, semaphore give, context switch).
 //!
 //! Load: a priority-1 task that never sleeps, a priority-3 task that thrashes a 4 MiB array
-//! (beyond the 512 KiB L2) for about 3 ms of every 10 ms, and a priority-2 task that prints the
+//! (beyond the L2 cache: 512 KiB on the Zynq-7000, 1 MiB on UltraScale+) for about 3 ms of every 10 ms, and a priority-2 task that prints the
 //! report over the UART. Cumulative histograms are printed every minute.
 
 #![no_std]
 #![no_main]
 
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
-use hardroxide_mmio::{Mmio, MmioBackend, PhysMem};
-use hardroxide_ps7::gic::Gic;
-use hardroxide_ps7::{clocks, console, irq, map, println, time};
 use hardroxide_rt::{Periodic, Semaphore, WAIT_FOREVER, delay_ms, spawn, start, task_stack, ticks};
+use platform::ps::{self, irq, println, time};
 
-hardroxide_ps7::entry!(main);
+#[path = "../../common/platform.rs"]
+mod platform;
 
-const PS_CLK_HZ: u64 = 50_000_000;
+ps::entry!(main);
+
 /// Bucket upper edges in microseconds; the last bucket is everything above.
 const EDGES: [u64; 12] = [1, 2, 3, 5, 8, 12, 20, 50, 100, 500, 2000, 10_000];
 const N: usize = EDGES.len() + 1;
@@ -82,22 +84,6 @@ fn time_ns() -> u64 {
     time::now_ns()
 }
 
-fn platform_init() {
-    // SAFETY: this program owns the SLCR for the duration of this setup.
-    let be = unsafe { PhysMem::new() };
-    let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE).unwrap();
-    let w = |o: usize, v: u32| slcr.write32(o, v).unwrap();
-    let r = |o: usize| slcr.read32(o).unwrap();
-    w(0x008, 0xDF0D);
-    w(0x12C, r(0x12C) | (1 << 20));
-    let io_fdiv = (r(0x108) >> 12) & 0x7F;
-    w(0x154, ((io_fdiv / 2).max(1) << 8) | 0x3);
-    w(0x228, 0);
-    w(0x738, 0x16E1);
-    w(0x73C, 0x16E0);
-    w(0x004, 0x767B);
-}
-
 // ---- the 10 ms task under test ----
 fn control() {
     let mut p = Periodic::every_ms(10);
@@ -136,13 +122,7 @@ fn isr_waiter() {
 }
 
 fn isr_trigger() {
-    // SAFETY: the distributor window is used here only to raise one software interrupt.
-    let be = unsafe { PhysMem::new() };
-    let gic = Gic::new(
-        be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)
-            .unwrap(),
-        be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE).unwrap(),
-    );
+    let gic = platform::gic();
     let mut i = 0u32;
     loop {
         // A period that is not a multiple of the tick, so the interrupt lands at all phases.
@@ -197,25 +177,8 @@ fn report() {
 }
 
 fn main() -> ! {
-    platform_init();
-    // SAFETY: early in start-up, running from DDR at its physical address.
-    unsafe { hardroxide_ps7::mem::enable(512 << 20) };
-    // SAFETY: SLCR is only read here; the console UART is used by nothing else.
-    let be = unsafe { PhysMem::new() };
-    let slcr = be.map(map::SLCR_BASE as u64, map::SLCR_SIZE).unwrap();
-    let uart_ref = clocks::uart_ref_hz(&slcr, PS_CLK_HZ).unwrap();
-    // SAFETY: as above.
-    unsafe { console::init(map::UART0_BASE, uart_ref as u32, 115_200) };
-    let periph = clocks::periph_hz(&slcr, PS_CLK_HZ).unwrap();
-    println!("\n== hardroxide-rt jitter benchmark: reports every minute ==");
-    // SAFETY: nothing else touches the global timer.
-    unsafe { time::init(periph) };
-    let gic = Gic::new(
-        be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)
-            .unwrap(),
-        be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE).unwrap(),
-    );
-    gic.init().unwrap();
+    let board = platform::init("hardroxide-rt jitter benchmark: reports every minute");
+    let gic = &board.gic;
     assert!(irq::register(1, sgi_handler));
     gic.set_priority(1, 0x40).unwrap();
     gic.enable(1).unwrap();
@@ -235,5 +198,5 @@ fn main() -> ! {
     if !cfg!(feature = "no-hog") {
         task!("hog", 1, hog);
     }
-    start(periph, 1000)
+    start(board.tick_clock_hz, 1000)
 }

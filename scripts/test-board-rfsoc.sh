@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The board tests of the Zynq UltraScale+ support, on an RFSoC 4x2 in JTAG boot mode connected by USB (needs Vitis).
 # Volatile: nothing is written to storage. Runs the smoke program (processor system and PL interrupts) with the loopback
-# fixture in the PL, then once more without programming the PL (`run --no-pl`).
+# fixture in the PL, once more without programming the PL (`run --no-pl`), and the kernel's test (baremetal/rt-smoke).
+# The two-hour jitter benchmark (baremetal/rt-jitter) is run by hand.
 #
 #   scripts/test-board-rfsoc.sh                 HRX_TTY: the console port (default /dev/ttyUSB1)
 set -euo pipefail
@@ -44,4 +45,20 @@ need "PL timer interrupt (ID 121), waited for: 3 of 3; nothing before the timer 
 echo "== without programming the PL"
 run "" --no-pl
 processor
+
+echo "== the kernel"
+(cd baremetal/rt-smoke && cargo build -q --release --target aarch64-unknown-none)
+target/debug/hardroxide run baremetal/rt-smoke/target/aarch64-unknown-none/release/rt-smoke \
+  --xsa "$XSA" --tty "$TTY" --watch 15 2>&1 | tr -d '\r' | tee "$OUT"
+need "a take that would wait false"
+need "main went on and no task ran"
+need "no drift"
+need "10/10 items received in order"
+need "woke the task: true, after 20 ticks"
+need "20 wakeups of a 5 ms sleeper over a spinning task, 0 late"
+need "inheritance worked"
+need "second (after rearm) true, nothing pending true"
+need "0 broken (preserved)"
+need "RT ALL OK"
+need "EXCEPTION: undefined instruction"
 [ "$fail" = 0 ] && echo "RFSoC 4x2 board test: ok" || { echo "RFSoC 4x2 board test: FAILED" >&2; exit 1; }

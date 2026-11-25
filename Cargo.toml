@@ -33,4 +33,5 @@ hardroxide-tls = { path = "crates/hardroxide-tls", version = "2.7.0" }
 hardroxide-crypto = { path = "crates/hardroxide-crypto", version = "2.7.0" }
 hardroxide-net = { path = "crates/hardroxide-net", version = "2.7.0" }
 hardroxide-ps7 = { path = "crates/hardroxide-ps7", version = "2.7.0", default-features = false }
+hardroxide-psu = { path = "crates/hardroxide-psu", version = "2.7.0", default-features = false }
 embedded-hal = "1"

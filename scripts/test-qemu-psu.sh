@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Run the Zynq UltraScale+ smoke test (baremetal/psu-smoke) on QEMU's xlnx-zcu102 machine, started at EL3, and check what it
 # prints: startup, console, time source, MMU and caches, memory in both DDR ranges, GIC and generic-timer interrupts with the
-# vector registers preserved, and the exception report. QEMU models neither the PL nor the clock registers nor cache timing.
+# vector registers preserved, and the exception report; then the kernel's test (baremetal/rt-smoke). QEMU models neither the PL
+# nor the clock registers nor cache timing.
 #
 # QEMU: $QEMU_SYSTEM_AARCH64, or `qemu-system-aarch64` on PATH, or the one bundled with Vitis.
 set -euo pipefail
@@ -54,3 +55,22 @@ print(f"timing: sleep {sleep_us} us, 20 ticks {span_us} us -> {'ok' if ok else '
 sys.exit(0 if ok else 1)
 PY
 [ "$fail" = 0 ] && echo "qemu UltraScale+ smoke test: ok" || { echo "qemu UltraScale+ smoke test: FAILED" >&2; exit 1; }
+
+# ---- the kernel (hardroxide-rt), the same test program as on the Zynq-7000 ----
+cd "$ROOT/baremetal/rt-smoke"
+cargo build --release --features qemu --target aarch64-unknown-none
+timeout "${QEMU_TIMEOUT:-20}" "${RUN[@]}" -M xlnx-zcu102,secure=on -m 4G -display none \
+  -serial "file:$OUT" -serial null -monitor none -kernel target/aarch64-unknown-none/release/rt-smoke >/dev/null 2>&1 || true
+cat "$OUT"
+need "a take that would wait false"
+need "main went on and no task ran"
+need "no drift"
+need "10/10 items received in order"
+need "woke the task: true, after 20 ticks"
+need "0 late"
+need "inheritance worked"
+need "second (after rearm) true, nothing pending true"
+need "0 broken (preserved)"
+need "RT ALL OK"
+need "EXCEPTION: undefined instruction"
+[ "$fail" = 0 ] && echo "qemu UltraScale+ kernel test: ok" || { echo "qemu UltraScale+ kernel test: FAILED" >&2; exit 1; }

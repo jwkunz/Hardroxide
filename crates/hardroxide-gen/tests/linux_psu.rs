@@ -239,6 +239,7 @@ fn every_design_checks_for_aarch64_linux() {
         eprintln!("skipping: `rustup target add aarch64-unknown-linux-gnu` to run this test");
         return;
     }
+    let mut checked = 0;
     for path in FIXTURES {
         let name = path.rsplit('/').next().unwrap();
         let tmp = std::env::temp_dir().join(format!("hrx-lpsu-{name}-{}", std::process::id()));
@@ -247,6 +248,17 @@ fn every_design_checks_for_aarch64_linux() {
             .unwrap()
             .write_to(&tmp)
             .unwrap();
+        // The on-board test programs of this design, if it has any, are checked with it.
+        let design = name.trim_start_matches("rfsoc4x2_");
+        let design = if *path == BASE { "base" } else { design };
+        let programs = root().join("fixtures/board_tests_rfsoc_linux").join(design);
+        if let Ok(files) = std::fs::read_dir(programs) {
+            for file in files {
+                let file = file.unwrap().path();
+                std::fs::copy(&file, tmp.join("examples").join(file.file_name().unwrap())).unwrap();
+                checked += 1;
+            }
+        }
         // Checking needs no cross linker.
         cargo(
             &tmp,
@@ -262,6 +274,7 @@ fn every_design_checks_for_aarch64_linux() {
         );
         std::fs::remove_dir_all(tmp).unwrap();
     }
+    assert_eq!(checked, 7, "every on-board test program was checked");
 }
 
 #[test]

@@ -40,9 +40,13 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
   `hardroxide-psu`, with the same drivers and examples. `hardroxide-hwh` reads their clocks and interrupts and XSAs with
   several handoff files; `hardroxide-psu` has `pl::configured`, `clocks::pl_clock_hz` and `set_pl_clock_hz`;
   `AxiGpio::regs` is new.
-- Linux crates for Zynq UltraScale+ designs, **not yet run on a board**: `hardroxide-fpga::zynqmp` (PL clocks, AXI port
+- Linux crates for Zynq UltraScale+ designs, run on an RFSoC 4x2 (DMA and HLS included; not the radio blocks): `hardroxide-fpga::zynqmp` (PL clocks, AXI port
   widths, loader), `BitFile::to_bin_zynqmp`, `Design::axi_port_widths`, a port-width file in the crate, and the interrupt
   overlay for this family. `scripts/test-aarch64.sh` runs the runtime crates' tests as AArch64 binaries.
+- On AArch64, `Udmabuf` selects `u-dma-buf`'s write-combining mode (its default mapped buffers as device memory, where
+  unaligned accesses fault), and the `/dev/mem` and UIO register accesses carry memory barriers.
+- `find_uio` also matches a UIO device named after its node with the unit address (`node@...`), as the UltraScale+ PYNQ
+  image names them.
 - Backward compatibility with 2.7.0 is checked in CI (`scripts/check-compat.py`).
 
 ## 2.7.0 (2026-11-21)

@@ -87,7 +87,7 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 | 0 Groundwork | this ADR; compatibility checks in CI (`scripts/check-compat.py`); the libraries kept building for AArch64 | all 2.7 checks pass; PYNQ-Z2 regression (waits for the board) | no |
 | 1 **Bitstream sprint** | the board preset; XSAs built and committed (`fixtures/rfsoc4x2/`): GPIO (which also serves as the processor-only design), interrupt controller, DMA, peripherals in loopback, two HLS kernels, RF loopback | each programmed and probed **over JTAG** (register reads and writes), independently of our libraries | **yes: before 2026-12-29** |
 | 2 First light (done) | start-up, UART, GIC, timers, MMU; `hardroxide run` for the board | QEMU in CI; console, DDR memory test and interrupts on the board | no |
-| 3 RTOS (done; two-hour run outstanding) | AArch64 kernel port | kernel tests in QEMU and on the board; the jitter benchmark (two hours) | no |
+| 3 RTOS (done) | AArch64 kernel port | kernel tests in QEMU and on the board; the jitter benchmark (two hours) | no |
 | 4 Peripherals (done) | SD, Ethernet, I2C; the SD, network and HTTPS programs ported | `fsck.fat` on the card, `curl` and `openssl` interoperability, throughput and handshake figures | no |
 | 5 Generator and PL | UltraScale+ in `hwh` and `gen`; PL loading; clocks; DMA and interrupt drivers verified | the step 1 designs driven by generated crates | no (bitstreams exist) |
 | 6 Linux | `--platform linux` on AArch64 PYNQ; documentation | the Linux tutorials re-run on the board | no |
@@ -134,10 +134,12 @@ The kernel's AArch64 port passes `baremetal/rt-smoke` (one program for both fami
 periodic release, queues, interrupt hand-off, priority inheritance, registers intact across switches (the test fails when any
 tried part of the restore is removed), a fault in a task reported.
 
-**Jitter, RFSoC 4x2, 65 minutes** (`baremetal/rt-jitter`; planned two hours, stopped at the maintainer's request): 0 missed
-releases; lateness of the 10 ms task over 390,086 releases mean 0.89 us, maximum 6.19 us (the earliest 0.38 us before the
-baseline); interrupt to task over 487,736 interrupts mean 3.04 us, maximum 4.65 us. Neither maximum grew after minute 10.
-A full two-hour run remains to be done before 3.0.
+**Jitter, RFSoC 4x2, two hours** (2026-11-25; `baremetal/rt-jitter` as built at `fd9d790`, board over JTAG, same load as
+on the PYNQ-Z2): **0 missed releases**. Lateness of the 10 ms task over 720,223 releases: mean 0.77 us, maximum 5.94 us,
+91.7 % under 1 us and none above 8 us (the earliest release 0.47 us before the baseline). Interrupt to task over 900,407
+interrupts: mean 3.04 us, maximum 4.65 us. The interrupt maximum was reached in the first minute and the release maximum
+in minute 45; neither grew after that. Not covered, as on the PYNQ-Z2: interrupts from the PL under load, a second master
+using DDR, temperature extremes. (An earlier 65-minute run gave a maximum of 6.19 us and the same interrupt figures.)
 
 Found and fixed:
 
@@ -214,7 +216,7 @@ Differences from the plan, and what is left:
   (`apps/rfsoc4x2/`).
 - A network application on the kernel.
 
-## Step 6: Linux (built, not yet run on a board; 2026-11-25)
+## Step 6: Linux (verified on the board except the radio; 2026-11-25)
 
 Read from the PYNQ 4.0.0 image without booting it: kernel 6.12.40-xilinx with the `zynqmp-fpga` manager, device-tree
 overlays, unrestricted `/dev/mem`; `uio_pdrv_genirq` loaded at boot with `of_id=generic-uio`; the device tree has symbols
@@ -234,8 +236,29 @@ natively and as AArch64 binaries (`scripts/test-aarch64.sh`); every RFSoC design
 the interrupt overlay merges onto the image's own `system.dtb`; cross-built programs need glibc 2.34 (the image has
 2.39).
 
-Not done: **anything on the board** (it needs SD boot with the PYNQ card), building `u-dma-buf` for kernel 6.12, tutorials
-for Linux on this board, and `hardroxide doctor` for it.
+**On the board** (PYNQ 4.0.0, programs run as root from memory, `fixtures/board_tests_rfsoc_linux/`): the base overlay
+and the `gpio`, `intc`, `loopback`, `dma`, `hls_vadd` and `hls_scale` designs passed `board_check` (load, PL clocks
+within 1 %, interrupt devices) and their programs: LEDs and GPIO read back; 100 interrupts through the base overlay's
+controller; the Pmod memories; UART, I2C, SPI, FIFO, timer and block RAM of `loopback` with its eight interrupt lines;
+100 calls of `vadd` ending in interrupts; both DMAs (1 MiB, then 500 short transfers with new data, three runs, an
+interrupt for each of the 6,012 channel completions) and `scale` on `u-dma-buf` buffers. The kernel logged no faults.
+
+Found on the board and fixed:
+
+- This kernel names UIO devices after the node **with** its unit address (`fabric@A0000000`), so a line was found only
+  when exactly one device had its block's address; the shared line of the base overlay was not. `find_uio` now also
+  accepts the name before the `@`.
+- `u-dma-buf` maps an `O_SYNC` buffer as *device* memory on AArch64: an ordinary copy to an odd offset ended the program
+  with a bus error (reproduced before the fix). `Udmabuf` now selects the module's write-combining mode, and the Linux
+  register backend gained the barriers that normal memory needs (`dsb sy` before a write, `dsb ld` after a read).
+
+Limits met: a line keeps its first trigger type until a reboot (`loopback` declares SPI cell 90 edge-triggered, `dma`
+level), and `board_check` does not notice, since the device still opens. `u-dma-buf` builds on the board (the image lacks
+`bc`; pass the kernel's version suffix); it was loaded for one boot at a time, never installed.
+
+Not done: the radio blocks and the base overlay's DMA engines; tutorials for Linux on this board; `hardroxide doctor`
+for it. The bare-metal register backend orders writes against memory but has no barrier after reads on AArch64; its board
+DMA tests pass, and the barrier should be added with the next bare-metal board run.
 
 ## Risks
 

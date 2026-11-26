@@ -59,7 +59,7 @@ nothing hardware-related. Before going to the board, read through
 
 Zynq-7000 designs work on every platform. **Zynq UltraScale+** designs (3.0, in progress) work with `--platform
 baremetal` and `--platform rtos` ([the crate](../reference/baremetal.md#zynq-ultrascale)); a Linux crate is generated
-too, but [has not been run on a board yet](linux-ultrascale.md). `generate` and `update` refuse anything else with an
+too ([what has run on a board](linux-ultrascale.md)). `generate` and `update` refuse anything else with an
 `unsupported architecture` error; `hardroxide inspect` still reads it.
 
 ## Naming

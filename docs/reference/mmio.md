@@ -77,7 +77,9 @@ pub fn as_ptr(&self) -> *mut u8
 testing against a regular file) with `O_RDWR|O_SYNC` and `mmap`s the window;
 unaligned `phys` values are handled. Needs root; may be blocked by
 `CONFIG_STRICT_DEVMEM` on some kernels. `SysRegion` is the mapping, unmapped
-on drop; `map_file` maps any open file/device (used by the DMA buffers) and
+on drop. On AArch64 its register writes wait for earlier memory accesses (`dsb sy`) and its reads are completed before
+later ones (`dsb ld`), so that buffers in normal memory are in step with the device. `map_file` maps any open
+file/device (used by the DMA buffers) and
 `as_ptr` exposes the start of the window, valid for `len()` bytes while the
 region lives. This crate contains all of the workspace's `unsafe` hardware
 access; each use is documented in source.

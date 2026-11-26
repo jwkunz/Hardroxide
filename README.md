@@ -55,7 +55,7 @@ QEMU, and the applications listed above (HDMI, audio, SD, Ethernet, HTTPS to cur
 [`docs/08-verification-gaps.md`](docs/08-verification-gaps.md).
 
 **3.0 in progress** (branch `v3`): bare metal and the real-time kernel on Zynq UltraScale+ (RFSoC 4x2), including
-crates generated from its designs; Linux crates are generated but not yet run on a board. See [the tutorials](docs/tutorials/rfsoc/index.md).
+crates generated from its designs; Linux crates run on it too, DMA included. See [the tutorials](docs/tutorials/rfsoc/index.md).
 
 Limits: Zynq-7000 only (UltraScale+ designs are refused with a clear error),
 bare metal and RTOS on core 0 only (no SMP), direct-register-mode DMA only, one register block per

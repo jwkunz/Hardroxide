@@ -246,7 +246,7 @@ pub fn interrupts_dtso(m: &Model, d: &Design) -> Option<String> {
         return None;
     }
     let notes = if d.is_zynq_ultrascale_plus() {
-        "// Requires: a kernel with uio_pdrv_genirq and `uio_pdrv_genirq.of_id=generic-uio`\n// on the command line, and a base device tree built with symbols (for &gic), as the\n// PYNQ image of the RFSoC 4x2 has.\n// Zynq UltraScale+ mapping: pl_ps_irq0 -> SPI cell 89..=96, pl_ps_irq1 -> 104..=111.\n// UNVERIFIED on hardware; see docs/decisions/0005-ultrascale-plus.md.\n"
+        "// Requires: a kernel with uio_pdrv_genirq and `uio_pdrv_genirq.of_id=generic-uio`\n// on the command line, and a base device tree built with symbols (for &gic), as the\n// PYNQ image of the RFSoC 4x2 has (tried with its 4.0.0 release).\n// Zynq UltraScale+ mapping: pl_ps_irq0 -> SPI cell 89..=96, pl_ps_irq1 -> 104..=111.\n"
     } else {
         "// Requires: a kernel with uio_pdrv_genirq and `uio_pdrv_genirq.of_id=generic-uio`\n// on the command line, and a base device tree built with symbols (for &intc).\n// Zynq-7000 mapping: IRQ_F2P[7:0] -> SPI cell 29..=36, [15:8] -> 52..=59.\n// UNVERIFIED on hardware; see docs/08-verification-gaps.md (G11).\n"
     };

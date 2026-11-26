@@ -14,8 +14,11 @@ fn parse_hex(s: &str) -> Option<u64> {
 }
 
 /// Find the `uioN` device for an interrupt by scanning a `/sys/class/uio`
-/// tree: first a device whose `name` equals `node`, otherwise the *only*
-/// device whose `maps/map0/addr` equals `base`. Returns the device number.
+/// tree: first a device whose `name` equals `node`; then one named `node@...`
+/// (some kernels, among them the Zynq UltraScale+ PYNQ image's, name the device
+/// after the node *with* its unit address), preferring the one at `base` if
+/// there are several; otherwise the *only* device whose `maps/map0/addr` equals
+/// `base`. Returns the device number.
 pub fn find_uio(sysfs_uio: &Path, node: &str, base: u64) -> Result<Option<u32>, IrqError> {
     let rd = match std::fs::read_dir(sysfs_uio) {
         Ok(rd) => rd,
@@ -35,24 +38,36 @@ pub fn find_uio(sysfs_uio: &Path, node: &str, base: u64) -> Result<Option<u32>, 
         })
         .collect();
     devs.sort();
-    let mut by_addr = Vec::new();
+    let only = |v: &[u32]| if v.len() == 1 { Some(v[0]) } else { None };
+    let (mut by_stem, mut by_stem_and_addr, mut by_addr) = (Vec::new(), Vec::new(), Vec::new());
     for (n, p) in &devs {
         let name = std::fs::read_to_string(p.join("name")).unwrap_or_default();
         if name.trim() == node {
             return Ok(Some(*n));
         }
-        let addr = std::fs::read_to_string(p.join("maps/map0/addr"))
+        let at_base = std::fs::read_to_string(p.join("maps/map0/addr"))
             .ok()
-            .and_then(|a| parse_hex(&a));
-        if addr == Some(base) {
+            .and_then(|a| parse_hex(&a))
+            == Some(base);
+        if name.trim().split_once('@').is_some_and(|(s, _)| s == node) {
+            by_stem.push(*n);
+            if at_base {
+                by_stem_and_addr.push(*n);
+            }
+        }
+        if at_base {
             by_addr.push(*n);
         }
     }
-    Ok(if by_addr.len() == 1 {
-        Some(by_addr[0])
-    } else {
-        None
-    })
+    Ok(only(&by_stem)
+        .or_else(|| only(&by_stem_and_addr))
+        .or_else(|| {
+            if by_stem.is_empty() {
+                only(&by_addr)
+            } else {
+                None
+            }
+        }))
 }
 
 impl IrqLine {
@@ -273,6 +288,29 @@ mod tests {
         assert_eq!(find_uio(&r, "missing", 0x1000).unwrap(), Some(0));
         assert_eq!(find_uio(&r.join("nonexistent"), "x", 0).unwrap(), None);
         std::fs::remove_dir_all(r).unwrap();
+    }
+
+    #[test]
+    fn finds_uio_devices_named_with_their_unit_address() {
+        // As the Zynq UltraScale+ PYNQ image lists them: two blocks share an address, and its own node is elsewhere
+        // than the block that uses its line.
+        let r = fake_sysfs(
+            "stem",
+            &[
+                ("uio0", "axi-pmon", "0xffa00000"),
+                ("uio4", "fabric@A0000000", "0xa0000000"),
+                ("uio5", "axi_dma_0_s2mm_introut@a0000000", "0xa0000000"),
+                ("uio6", "twice@a0010000", "0xa0010000"),
+                ("uio7", "twice@a0020000", "0xa0020000"),
+            ],
+        );
+        let find = |node, base| find_uio(&r, node, base).unwrap();
+        assert_eq!(find("fabric", 0x8001_0000), Some(4));
+        assert_eq!(find("axi_dma_0_s2mm_introut", 0xa000_0000), Some(5));
+        // Only a whole node name counts.
+        assert_eq!(find("axi_dma_0_s2mm", 0x1234), None);
+        assert_eq!(find("twice", 0xa002_0000), Some(7));
+        assert_eq!(find("twice", 0x1234), None);
     }
 
     #[test]

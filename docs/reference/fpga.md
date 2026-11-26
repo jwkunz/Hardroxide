@@ -76,8 +76,8 @@ not handled ([G3](../08-verification-gaps.md)).
 
 ## Zynq UltraScale+ (`zynqmp`)
 
-New in 3.0, **not yet run on a board** (the register values and the loading steps are those PYNQ uses; the bitstream
-format is checked against `bootgen`).
+New in 3.0, run on an RFSoC 4x2 (PYNQ 4.0.0) with seven designs. The register values and the loading steps are those
+PYNQ uses; the bitstream format is checked against `bootgen`.
 
 ```rust,ignore
 pub const CRL_APB_BASE: u64 = 0xFF5E_0000;

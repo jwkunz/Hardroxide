@@ -10,7 +10,7 @@ matches how you will deploy; all three start from the same `.xsa` and the same g
 | [**Bare metal**](baremetal/index.md) | `baremetal` | the only software on core 0: startup, interrupts, timers, UART and caches come from `hardroxide-ps7`; started over JTAG or from SD | [Bare metal 1: Run over JTAG](baremetal/01-jtag.md) |
 | [**RTOS**](rtos/index.md) | `rtos` | bare metal plus the `hardroxide-rt` kernel: prioritised tasks, semaphores, mutexes, queues, 10 ms control loops | [RTOS 1: A 10 ms control loop](rtos/01-control-loop.md) |
 
-**Zynq UltraScale+** (a 3.0 preview on the RFSoC 4x2: bare metal and the kernel; [Linux](../guide/linux-ultrascale.md) is not yet verified) has
+**Zynq UltraScale+** (a 3.0 preview on the RFSoC 4x2: bare metal and the kernel; for [Linux](../guide/linux-ultrascale.md) there is a guide only) has
 [its own tutorials](rfsoc/index.md).
 
 **Applications** ([setup](apps/index.md)) are programs that do something worth showing on the PYNQ base overlay, built with the bare-metal and RTOS flavors.

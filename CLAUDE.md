@@ -39,7 +39,7 @@ regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and
 (`scripts/check-compat.py`, in CI). Work is on branch `v3` (pushed to GitHub; `main` and releases stay at 2.7.0 until 3.0 is ready). Done: step 0 (except the PYNQ-Z2 board regression) and step 1: seven RFSoC 4x2 designs in
 `fixtures/rfsoc4x2/`, proven on the board over JTAG (`scripts/probe.py` there). Step 2 done: `crates/hardroxide-psu` (AArch64, EL3) and `hardroxide run` for UltraScale+ (`scripts/test-board-rfsoc.sh`,
 `scripts/test-qemu-psu.sh`). Step 3 done: the kernel's AArch64 port (`port/aarch64.rs`; programs in `baremetal/` build for both
-families, shared setup in `baremetal/common/`); a full two-hour jitter run is still owed (65 minutes passed). Step 4 done: SD, Ethernet, I2C
+families, shared setup in `baremetal/common/`; the two-hour jitter run passed on 2026-11-25). Step 4 done: SD, Ethernet, I2C
 (`HRX_SD_SERIAL=0x...` and `HRX_NET=1` for the board script; the SD test erases the card). The board's own hardware is
 done too (`crates/hardroxide-board`, `baremetal/rfsoc-board`; never drive `MIO7`, the LMK04828's reset pin, high). USB,
 Pmod+ and SYZYGY are out by the maintainer's decision; DisplayPort, PL memory and the 100 Gb port go to the Linux
@@ -47,8 +47,10 @@ examples. **Examples and tutorials use the board's base overlay**
 (`fixtures/board/rfsoc4x2_base_overlay.xsa`, `probe.py base`, applications in `apps/rfsoc4x2/`); the other RFSoC designs are driver
 tests. Never build them for speed grade -1 (the preset is rejected); `timing_speed.tcl` checks -1 timing.
 Step 5 (generator) done for bare metal and RTOS: `baremetal_psu.rs`, `fixtures/board_tests_rfsoc/`,
-`--test baremetal_psu` and `board_tests_psu`. Step 6 (Linux) is built but **never run on a board** (`fpga::zynqmp`, `--test linux_psu`,
-`scripts/test-aarch64.sh`, guide `linux-ultrascale.md`); next: board validation on the PYNQ card (needs SD boot).
+`--test baremetal_psu` and `board_tests_psu`. Step 6 (Linux): the base overlay and six test designs, DMA and HLS included,
+pass on the board under PYNQ 4.0.0 (`fpga::zynqmp`, `--test linux_psu`, `scripts/test-aarch64.sh`,
+`fixtures/board_tests_rfsoc_linux/`, guide `linux-ultrascale.md`). DMA needs `u-dma-buf`, built on the board and loaded from memory; ask before
+changing anything on the maintainer's card. Next: Linux tutorials, network on the kernel.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

@@ -29,14 +29,15 @@ RT ALL OK
 ## Timing under load
 
 `baremetal/rt-jitter` runs a 10 ms periodic task and an interrupt-to-task hand-off while other tasks thrash memory and
-print, and reports histograms every minute. A 65-minute run on this board:
+print, and reports histograms every minute. A two-hour run on this board:
 
 | Measured | Mean | Worst | Samples |
 |---|---|---|---|
-| the 10 ms task released after its due time | 0.886 us | 6.19 us | 390,086 |
-| from raising an interrupt to the waiting task running | 3.04 us | 4.65 us | 487,736 |
+| the 10 ms task released after its due time | 0.77 us | 5.94 us | 720,223 |
+| from raising an interrupt to the waiting task running | 3.04 us | 4.65 us | 900,407 |
 
-No release was missed. The planned two-hour run has not been done.
+No release was missed, and neither worst case grew after minute 45. The run did not include interrupts from the PL, a
+second master using DDR, or temperature extremes.
 
 ## What differs from the Zynq-7000
 

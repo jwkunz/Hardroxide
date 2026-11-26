@@ -53,6 +53,11 @@ size from `.../size`. Uncached means the CPU is slow on the buffer but no
 cache maintenance is ever needed (ADR 0001). Verified on hardware
 ([G10](../08-verification-gaps.md)).
 
+On **AArch64** the module's default synchronisation mode (1) maps such a buffer as device memory, where unaligned
+accesses fault: copying to an odd offset of a buffer ends the program with a bus error. `open` and `open_with` therefore
+put a device in mode 1 into mode 2, write-combining, through the `sync_mode` file beside `size`: still uncached, but
+normal memory. The setting belongs to the device, other modes are left alone, and writing it needs root.
+
 Any `DmaBuffer` also works as the memory behind an HLS pointer argument
 ([`set_<arg>_buffer`](ip-hls.md#pointer-arguments-m_axi-offsetslave)).
 

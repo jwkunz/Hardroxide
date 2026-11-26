@@ -75,8 +75,12 @@ controller's own `IRQ_IRQ` line instead.
 `N` of `uioN`: a device whose `name` equals `node` wins; then one named
 `node@...` (some kernels name the device after the node with its unit address;
 if there are several, the only one at `base`); otherwise, if no name matched, the
-*only* device whose `maps/map0/addr` equals `base`; otherwise `None` (also
-`None` if the directory does not exist). `open()` uses `/sys/class/uio` and `/dev`;
+*only* device whose `maps/map0/addr` equals `base`, **not counting the PYNQ
+image's own `fabric` device** (its address says nothing about its interrupt);
+otherwise `None` (also `None` if the directory does not exist). `open()` makes one
+exception: without a device of its own, a level-triggered `IRQ_F2P[0]` (SPI cell
+29) of a Zynq-7000 block at `fabric`'s address uses that device, which holds that
+very line. `open()` uses `/sys/class/uio` and `/dev`;
 `open_in` lets tests substitute both. If no device is found the error is
 `IrqError::NotFound { instance, port, node, base }`, whose message points at
 the overlay. Discovery behaviour on the real kernel is verified

@@ -13,12 +13,24 @@ fn parse_hex(s: &str) -> Option<u64> {
     u64::from_str_radix(t.strip_prefix("0x").unwrap_or(t), 16).ok()
 }
 
+/// The UIO node of its own that a PYNQ image has in its device tree: `fabric@40000000` on a Zynq-7000,
+/// `fabric@A0000000` on a Zynq UltraScale+.
+const IMAGE_NODE: &str = "fabric";
+/// The one line that node holds on a Zynq-7000, level-triggered: `IRQ_F2P[0]`, SPI cell 29.
+const IMAGE_SPI_ZYNQ7000: u32 = 29;
+
+/// Whether the kernel's name of a device is that of the image's own node.
+fn is_image_node(name: &str) -> bool {
+    name.split_once('@').map_or(name, |(stem, _)| stem) == IMAGE_NODE
+}
+
 /// Find the `uioN` device for an interrupt by scanning a `/sys/class/uio`
 /// tree: first a device whose `name` equals `node`; then one named `node@...`
 /// (some kernels, among them the Zynq UltraScale+ PYNQ image's, name the device
 /// after the node *with* its unit address), preferring the one at `base` if
 /// there are several; otherwise the *only* device whose `maps/map0/addr` equals
-/// `base`. Returns the device number.
+/// `base`, not counting the PYNQ image's own `fabric` device: its address says
+/// nothing about which interrupt it has. Returns the device number.
 pub fn find_uio(sysfs_uio: &Path, node: &str, base: u64) -> Result<Option<u32>, IrqError> {
     let rd = match std::fs::read_dir(sysfs_uio) {
         Ok(rd) => rd,
@@ -55,7 +67,7 @@ pub fn find_uio(sysfs_uio: &Path, node: &str, base: u64) -> Result<Option<u32>, 
                 by_stem_and_addr.push(*n);
             }
         }
-        if at_base {
+        if at_base && !is_image_node(name.trim()) {
             by_addr.push(*n);
         }
     }
@@ -87,7 +99,11 @@ impl IrqLine {
                 bit,
             });
         }
-        match find_uio(sysfs_uio, self.dt_node, self.base)? {
+        let found = match find_uio(sysfs_uio, self.dt_node, self.base)? {
+            None => self.in_image_node(sysfs_uio)?,
+            found => found,
+        };
+        match found {
             Some(n) => UioIrq::open(dev_dir.join(format!("uio{n}"))),
             None => Err(IrqError::NotFound {
                 instance: self.instance,
@@ -96,6 +112,21 @@ impl IrqLine {
                 base: self.base,
             }),
         }
+    }
+
+    /// The image's own device, for the one design line it serves without an overlay: a level-triggered `IRQ_F2P[0]` of
+    /// a Zynq-7000, from a block at the address the device is listed with.
+    fn in_image_node(&self, sysfs_uio: &Path) -> Result<Option<u32>, IrqError> {
+        if self.gic_spi != Some(IMAGE_SPI_ZYNQ7000) || self.edge {
+            return Ok(None);
+        }
+        let Some(n) = find_uio(sysfs_uio, IMAGE_NODE, self.base)? else {
+            return Ok(None);
+        };
+        let listed = std::fs::read_to_string(sysfs_uio.join(format!("uio{n}/maps/map0/addr")))
+            .ok()
+            .and_then(|a| parse_hex(&a));
+        Ok((listed == Some(self.base)).then_some(n))
     }
 }
 
@@ -311,6 +342,62 @@ mod tests {
         assert_eq!(find("axi_dma_0_s2mm", 0x1234), None);
         assert_eq!(find("twice", 0xa002_0000), Some(7));
         assert_eq!(find("twice", 0x1234), None);
+    }
+
+    #[test]
+    fn the_images_own_device_is_not_taken_for_a_design_s_by_its_address() {
+        // A Zynq-7000 PYNQ image with no overlay applied.
+        let r = fake_sysfs(
+            "image",
+            &[
+                ("uio0", "audio-codec-ctrl", "0x43c00000"),
+                ("uio1", "fabric", "0x40000000"),
+            ],
+        );
+        assert_eq!(find_uio(&r, "vadd_0_interrupt", 0x4000_0000).unwrap(), None);
+        // Asked for by name it is found.
+        assert_eq!(find_uio(&r, "fabric", 0x4000_0000).unwrap(), Some(1));
+        let devdir = r.join("devs");
+        std::fs::create_dir_all(&devdir).unwrap();
+        std::fs::write(devdir.join("uio1"), "").unwrap();
+        let line = IrqLine {
+            instance: "vadd_0",
+            port: "interrupt",
+            f2p_bit: Some(0),
+            gic_spi: Some(29),
+            dt_node: "vadd_0_interrupt",
+            base: 0x4000_0000,
+            via_intc: None,
+            edge: false,
+        };
+        // It is this block's line, so it serves.
+        line.open_in(&r, &devdir).unwrap();
+        // Another line, an edge-triggered one, or a block elsewhere: the overlay is missing.
+        for other in [
+            IrqLine {
+                f2p_bit: Some(1),
+                gic_spi: Some(30),
+                ..line
+            },
+            IrqLine { edge: true, ..line },
+            IrqLine {
+                gic_spi: None,
+                ..line
+            },
+            IrqLine {
+                base: 0x4180_0000,
+                ..line
+            },
+        ] {
+            let e = other.open_in(&r, &devdir).err().unwrap();
+            assert!(matches!(e, IrqError::NotFound { .. }), "{e}");
+        }
+        std::fs::remove_dir_all(r).unwrap();
+        // The UltraScale+ image lists its device with the unit address; a block there with another line.
+        let r = fake_sysfs("image-us", &[("uio4", "fabric@A0000000", "0xa0000000")]);
+        assert_eq!(find_uio(&r, "gpio_0_irq", 0xa000_0000).unwrap(), None);
+        assert_eq!(find_uio(&r, "fabric", 0xa000_0000).unwrap(), Some(4));
+        std::fs::remove_dir_all(r).unwrap();
     }
 
     #[test]

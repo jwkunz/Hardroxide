@@ -17,6 +17,9 @@ unchanged.
   blank card. New: `CardInfo::serial_matches` in `hardroxide_ps7::sd`.
 - `scripts/board/overlay.sh`: on the PYNQ image of a Zynq-7000 board, releases the image's own UIO device on
   `IRQ_F2P[0]` when the overlay wants that line; before, such a design's interrupt device did not appear.
+- **Fixed:** `hardroxide-irq` could take the PYNQ image's own `fabric` UIO device for a design's interrupt, because the
+  block was at the same address, so `board_check` passed and a program waited on another line. `find_uio` no longer
+  matches it by address; `IrqLine::open` uses it only for a level-triggered `IRQ_F2P[0]`, which is the line it holds.
 - New crate `hardroxide-psu`: bare-metal processor support for the Cortex-A53 (AArch64 at EL3): startup, MMU and caches, GIC,
   generic timer, clocks, console.
 - `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one.

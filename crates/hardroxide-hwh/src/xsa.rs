@@ -31,9 +31,15 @@ impl Xsa {
 }
 
 impl Xsa {
-    /// The raw `.bin` for `fpga_manager` (see `BitFile::to_bin_swapped`).
+    /// The raw `.bin` for `fpga_manager`, in the design's family's form (see `BitFile::to_bin_swapped` and
+    /// `to_bin_zynqmp`).
     pub fn bin(&self) -> Result<Vec<u8>, Error> {
-        Ok(crate::BitFile::parse(&self.bit)?.to_bin_swapped()?)
+        let bit = crate::BitFile::parse(&self.bit)?;
+        Ok(if self.design.is_zynq_ultrascale_plus() {
+            bit.to_bin_zynqmp()?
+        } else {
+            bit.to_bin_swapped()?
+        })
     }
 }
 

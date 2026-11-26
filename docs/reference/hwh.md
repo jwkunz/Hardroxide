@@ -134,6 +134,7 @@ pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32>
 pub fn zynqmp_pl_ps_spi_cell(bit: u32) -> Option<u32>
 pub fn is_zynq_ultrascale_plus(&self) -> bool
 pub fn dma_address_width(&self, instance: &str) -> Option<u32>
+pub fn axi_port_widths(&self) -> Vec<(bool, u8, u32)>
 ```
 
 **Zynq UltraScale+** (3.0): `Design::is_zynq_ultrascale_plus` tells the family. The 16 PL interrupt bits are
@@ -183,12 +184,15 @@ pub time: String,
 pub payload: &'a [u8],
 pub fn parse(data: &'a [u8]) -> Result<Self, BitError>
 pub fn to_bin_swapped(&self) -> Result<Vec<u8>, BitError>
+pub fn to_bin_zynqmp(&self) -> Result<Vec<u8>, BitError>
 ```
 
 `parse` reads the Xilinx container header (the `date`/`time` fields are the
 build timestamps and are never embedded). `to_bin_swapped` byte-swaps each
 32-bit word and pads with `0x20000000` NOP words to 16 bytes, matching bootgen
-(verified byte-for-byte on the fixtures).
+(verified byte-for-byte on the fixtures). `to_bin_zynqmp` (3.0) swaps the same way and adds nothing, which is what
+`bootgen -arch zynqmp` writes (verified byte-for-byte on the RFSoC 4x2 base overlay); `Xsa::bin` chooses by the
+design's family.
 
 ## Errors
 

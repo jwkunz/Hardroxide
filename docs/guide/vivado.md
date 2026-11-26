@@ -11,7 +11,7 @@ they are complete, working recipes for everything below.
 ## What the design needs
 
 **Target.** A Zynq-7000 device. The fixtures use the PYNQ-Z2's `xc7z020clg400-1`
-(PS crystal 50 MHz). A Zynq UltraScale+ design is accepted for bare metal and the RTOS (3.0, in progress); other
+(PS crystal 50 MHz). A Zynq UltraScale+ design is accepted too (3.0, in progress); other
 architectures are refused.
 
 **Processing system.** Add the *ZYNQ7 Processing System* and enable what your design

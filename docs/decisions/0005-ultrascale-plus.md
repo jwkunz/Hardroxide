@@ -214,6 +214,29 @@ Differences from the plan, and what is left:
   (`apps/rfsoc4x2/`).
 - A network application on the kernel.
 
+## Step 6: Linux (built, not yet run on a board; 2026-11-25)
+
+Read from the PYNQ 4.0.0 image without booting it: kernel 6.12.40-xilinx with the `zynqmp-fpga` manager, device-tree
+overlays, unrestricted `/dev/mem`; `uio_pdrv_genirq` loaded at boot with `of_id=generic-uio`; the device tree has symbols
+(`&gic`) and **already a UIO node `fabric` on `pl_ps_irq0[0]`** (SPI cell 89); a 512 MiB CMA pool below 2 GiB;
+`u-dma-buf` absent but `gcc`, `make` and the kernel's build directory present.
+
+Decisions: DMA memory stays `u-dma-buf`, built on the board as for the Zynq-7000 (no new buffer backend; the kernel's
+DMA heaps would need cache maintenance and address lookup from user space). A design's line on SPI cell 89 is served by
+the image's `fabric` node (generated lines take its name and the overlay omits them). Loading follows PYNQ: the
+`fpga_manager`, then the port widths, which the boot loader set for another design.
+
+Done: `hardroxide-fpga::zynqmp` (PL clocks, port widths, loader with this family's PL addresses),
+`BitFile::to_bin_zynqmp` (byte-identical to `bootgen -arch zynqmp` for the base overlay), and the Linux crate for
+UltraScale+ designs (from the same templates; the Zynq-7000 output is unchanged). Checked without a board: unit tests
+natively and as AArch64 binaries (`scripts/test-aarch64.sh`); every RFSoC design's crate type-checks for
+`aarch64-unknown-linux-gnu`; the base overlay's crate loads against mock registers and sets the expected ports and clocks;
+the interrupt overlay merges onto the image's own `system.dtb`; cross-built programs need glibc 2.34 (the image has
+2.39).
+
+Not done: **anything on the board** (it needs SD boot with the PYNQ card), building `u-dma-buf` for kernel 6.12, tutorials
+for Linux on this board, and `hardroxide doctor` for it.
+
 ## Risks
 
 | Risk | Mitigation |

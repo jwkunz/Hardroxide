@@ -3,7 +3,7 @@
 //! examples are the Zynq-7000 bare-metal crate's with the processor crate's name changed; the start-up glue, the linker
 //! script and the target differ.
 
-use crate::render::{HEADER, Model, ctor, irq_lines};
+use crate::render::{HEADER, Model, field_ctor, irq_lines};
 use crate::{Options, Platform, baremetal};
 use hardroxide_hwh::Design;
 use std::fmt::Write;
@@ -102,15 +102,7 @@ pub fn lib_rs(m: &Model, d: &Design, rtos: bool) -> String {
                 i.ident
             );
             match &i.driver {
-                // A DMA engine is told how far it reaches: this family has memory beyond 32 bits. (Part of the
-                // interface hash, like the other constructor values.)
-                Some(t) if d.dma_address_width(&i.inst.name).is_some() => format!(
-                    "            {}: {}.with_address_width({}),\n",
-                    i.ident,
-                    ctor(i, t, &map),
-                    d.dma_address_width(&i.inst.name).unwrap_or(32)
-                ),
-                Some(t) => format!("            {}: {},\n", i.ident, ctor(i, t, &map)),
+                Some(t) => format!("            {}: {},\n", i.ident, field_ctor(i, d, t, &map)),
                 None => format!("            {}: {map},\n", i.ident),
             }
         })

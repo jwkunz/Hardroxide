@@ -7,7 +7,7 @@ pub mod axi_gpio_0 {
     pub const BASE_ADDRESS: u64 = 0xa0000000;
     pub const SIZE: usize = 0x10000;
     /// Interrupt `ip2intc_irpt` (`pl_ps_irq1:pl_ps_irq0` bit Some(0)); open with `.open()`.
-    pub const IRQ_IP2INTC_IRPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_gpio_0", port: "ip2intc_irpt", f2p_bit: Some(0), gic_spi: Some(89), dt_node: "axi_gpio_0_ip2intc_irpt", base: 0xa0000000, via_intc: None, edge: false };
+    pub const IRQ_IP2INTC_IRPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_gpio_0", port: "ip2intc_irpt", f2p_bit: Some(0), gic_spi: Some(89), dt_node: "fabric", base: 0xa0000000, via_intc: None, edge: false };
     pub const IRQS: &[hardroxide_irq::IrqLine] = &[IRQ_IP2INTC_IRPT];
     /// Connected interrupt outputs: `(port, pl_ps_irq1:pl_ps_irq0 bit if routed directly)`.
     pub const INTERRUPTS: &[(&str, Option<u32>)] = &[("ip2intc_irpt", Some(0))];

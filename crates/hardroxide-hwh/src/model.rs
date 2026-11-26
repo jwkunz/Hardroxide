@@ -106,6 +106,40 @@ impl Design {
             .collect()
     }
 
+    /// The AXI ports between a Zynq UltraScale+'s processing system and PL that the design uses, as
+    /// `(whether the processor masters it, number, data width in bits)`: master ports 0 `HPM0_FPD`, 1 `HPM1_FPD`,
+    /// 2 `HPM0_LPD`; slave ports `S_AXI_GP0..6`. Empty for other families.
+    pub fn axi_port_widths(&self) -> Vec<(bool, u8, u32)> {
+        let Some(ps) = self
+            .instances
+            .iter()
+            .find(|i| i.is_ps && i.mod_type == "zynq_ultra_ps_e")
+        else {
+            return Vec::new();
+        };
+        let of = |master: bool, n: u8| {
+            let (use_, width) = if master {
+                (
+                    format!("PSU__USE__M_AXI_GP{n}"),
+                    format!("PSU__MAXIGP{n}__DATA_WIDTH"),
+                )
+            } else {
+                (
+                    format!("PSU__USE__S_AXI_GP{n}"),
+                    format!("PSU__SAXIGP{n}__DATA_WIDTH"),
+                )
+            };
+            if ps.parameters.get(&use_).map(String::as_str) != Some("1") {
+                return None;
+            }
+            Some((master, n, ps.parameters.get(&width)?.parse().ok()?))
+        };
+        (0..3)
+            .filter_map(|n| of(true, n))
+            .chain((0..7).filter_map(|n| of(false, n)))
+            .collect()
+    }
+
     /// The memory address width of the AXI DMA `instance` on a Zynq UltraScale+ (`c_addr_width`), where memory beyond a
     /// 32-bit engine's reach exists. `None` otherwise. Part of the interface hash of those designs.
     pub fn dma_address_width(&self, instance: &str) -> Option<u32> {

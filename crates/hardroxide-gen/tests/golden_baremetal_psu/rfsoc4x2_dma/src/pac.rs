@@ -7,7 +7,7 @@ pub mod axi_dma_0 {
     pub const BASE_ADDRESS: u64 = 0xa0000000;
     pub const SIZE: usize = 0x10000;
     /// Interrupt `mm2s_introut` (`pl_ps_irq1:pl_ps_irq0` bit Some(0)); open with `.open()`.
-    pub const IRQ_MM2S_INTROUT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_dma_0", port: "mm2s_introut", f2p_bit: Some(0), gic_spi: Some(89), dt_node: "axi_dma_0_mm2s_introut", base: 0xa0000000, via_intc: None, edge: false };
+    pub const IRQ_MM2S_INTROUT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_dma_0", port: "mm2s_introut", f2p_bit: Some(0), gic_spi: Some(89), dt_node: "fabric", base: 0xa0000000, via_intc: None, edge: false };
     /// Interrupt `s2mm_introut` (`pl_ps_irq1:pl_ps_irq0` bit Some(1)); open with `.open()`.
     pub const IRQ_S2MM_INTROUT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "axi_dma_0", port: "s2mm_introut", f2p_bit: Some(1), gic_spi: Some(90), dt_node: "axi_dma_0_s2mm_introut", base: 0xa0000000, via_intc: None, edge: false };
     pub const IRQS: &[hardroxide_irq::IrqLine] = &[IRQ_MM2S_INTROUT, IRQ_S2MM_INTROUT];

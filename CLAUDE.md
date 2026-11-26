@@ -47,7 +47,8 @@ examples. **Examples and tutorials use the board's base overlay**
 (`fixtures/board/rfsoc4x2_base_overlay.xsa`, `probe.py base`, applications in `apps/rfsoc4x2/`); the other RFSoC designs are driver
 tests. Never build them for speed grade -1 (the preset is rejected); `timing_speed.tcl` checks -1 timing.
 Step 5 (generator) done for bare metal and RTOS: `baremetal_psu.rs`, `fixtures/board_tests_rfsoc/`,
-`--test baremetal_psu` and `board_tests_psu`. Next: step 6 (Linux).
+`--test baremetal_psu` and `board_tests_psu`. Step 6 (Linux) is built but **never run on a board** (`fpga::zynqmp`, `--test linux_psu`,
+`scripts/test-aarch64.sh`, guide `linux-ultrascale.md`); next: board validation on the PYNQ card (needs SD boot).
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

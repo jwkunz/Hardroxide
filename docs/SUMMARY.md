@@ -14,6 +14,7 @@
 - [Updating a bitstream](guide/updating.md)
 - [Running on hardware](guide/hardware.md)
 - [Running bare metal and RTOS](guide/baremetal.md)
+- [Linux on Zynq UltraScale+ (preview)](guide/linux-ultrascale.md)
 
 # Tutorials
 

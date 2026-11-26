@@ -161,13 +161,6 @@ fn the_kernel_flavour_turns_the_processor_crates_entries_off() {
 }
 
 #[test]
-fn linux_is_refused_for_now() {
-    let e = generate(&fixture(BASE), &Options::default()).unwrap_err();
-    assert!(matches!(e, GenError::UnsupportedArch { .. }));
-    assert!(e.to_string().contains("--platform baremetal"), "{e}");
-}
-
-#[test]
 fn update_keeps_a_crate_in_its_family() {
     let tmp = std::env::temp_dir().join(format!("hrx-psu-update-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);

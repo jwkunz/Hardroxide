@@ -20,8 +20,8 @@ pub enum GenError {
     #[error(transparent)]
     Xsa(#[from] hardroxide_hwh::Error),
     #[error(
-        "unsupported architecture `{arch}` (device `{device}`) for this platform: only Zynq-7000 (`zynq`) supports \
-         every platform; Zynq UltraScale+ supports `--platform baremetal` and `--platform rtos` so far. \
+        "unsupported architecture `{arch}` (device `{device}`): only Zynq-7000 (`zynq`) and Zynq UltraScale+ are \
+         supported; the bitstream conversion, clock programming and interrupt numbering are specific to them. \
          `hardroxide inspect` still works on this design"
     )]
     UnsupportedArch { arch: String, device: String },
@@ -113,14 +113,24 @@ pub(crate) fn bitstream_files(xsa: &Xsa) -> Result<Vec<(PathBuf, Vec<u8>)>, GenE
         ps_clk_hz: xsa.design.ps_clk_hz,
         fclks: xsa.design.enabled_fclks(),
     };
-    Ok(vec![
+    let mut files: Vec<(PathBuf, Vec<u8>)> = vec![
         (
             "bitstream/design.sha256".into(),
             sha256_hex(&bin).into_bytes(),
         ),
         ("bitstream/load.cfg".into(), cfg.to_text().into_bytes()),
         ("bitstream/design.bin".into(), bin),
-    ])
+    ];
+    if xsa.design.is_zynq_ultrascale_plus() {
+        let ports: String = xsa
+            .design
+            .axi_port_widths()
+            .into_iter()
+            .map(|(master, n, bits)| format!("{}{n}={bits}\n", if master { 'm' } else { 's' }))
+            .collect();
+        files.push(("bitstream/ports.cfg".into(), ports.into_bytes()));
+    }
+    Ok(files)
 }
 
 /// What a host-visible instance becomes in the generated crate.
@@ -159,11 +169,9 @@ pub struct Summary {
     pub not_host_visible: Vec<String>,
 }
 
-/// Zynq-7000 on every platform, Zynq UltraScale+ without an operating system; anything else would produce a crate that
-/// programs the wrong registers.
-pub(crate) fn check_arch(d: &hardroxide_hwh::Design, platform: Platform) -> Result<(), GenError> {
-    let ultrascale = d.is_zynq_ultrascale_plus() && platform != Platform::Linux;
-    if d.arch.eq_ignore_ascii_case("zynq") || ultrascale {
+/// Zynq-7000 and Zynq UltraScale+; anything else would produce a crate that programs the wrong registers.
+pub(crate) fn check_arch(d: &hardroxide_hwh::Design) -> Result<(), GenError> {
+    if d.arch.eq_ignore_ascii_case("zynq") || d.is_zynq_ultrascale_plus() {
         Ok(())
     } else {
         Err(GenError::UnsupportedArch {
@@ -312,7 +320,7 @@ fn generate_baremetal_psu(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, G
 }
 
 pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
-    check_arch(&xsa.design, opts.platform)?;
+    check_arch(&xsa.design)?;
     match opts.platform {
         Platform::Linux => {}
         _ if xsa.design.is_zynq_ultrascale_plus() => return generate_baremetal_psu(xsa, opts),
@@ -328,7 +336,7 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     let mut files = BTreeMap::new();
     files.insert(
         "Cargo.toml".into(),
-        render::cargo_toml(&crate_name, opts).into_bytes(),
+        render::cargo_toml(&crate_name, opts, &xsa.design).into_bytes(),
     );
     files.insert(
         "src/pac.rs".into(),

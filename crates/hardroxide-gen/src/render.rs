@@ -130,6 +130,11 @@ pub struct Irq {
     pub trigger: u32,
 }
 
+/// The PYNQ image of a Zynq UltraScale+ board already has a UIO device on `pl_ps_irq0[0]` (GIC SPI cell 89), a node
+/// named `fabric` in its device tree. A design's line there is served by it: a second node could not claim the line.
+const IMAGE_UIO_SPI: u32 = 89;
+const IMAGE_UIO_NODE: &str = "fabric";
+
 pub fn irq_lines(i: &Inst, d: &Design) -> Vec<Irq> {
     let ports: Vec<_> = i
         .inst
@@ -147,17 +152,22 @@ pub fn irq_lines(i: &Inst, d: &Design) -> Vec<Irq> {
                 Some(hardroxide_hwh::IrqRoute::Intc { controller, bit }) => Some((controller, bit)),
                 _ => None,
             };
+            let gic_spi = f2p_bit.and_then(if d.is_zynq_ultrascale_plus() {
+                hardroxide_hwh::zynqmp_pl_ps_spi_cell
+            } else {
+                hardroxide_hwh::zynq7000_f2p_spi_cell
+            });
             Irq {
                 via_intc,
                 port: p.name.clone(),
                 konst: format!("IRQ_{}", k.to_uppercase()),
-                node: format!("{}_{}", i.ident, names::snake(&p.name)),
-                f2p_bit,
-                gic_spi: f2p_bit.and_then(if d.is_zynq_ultrascale_plus() {
-                    hardroxide_hwh::zynqmp_pl_ps_spi_cell
+                node: if d.is_zynq_ultrascale_plus() && gic_spi == Some(IMAGE_UIO_SPI) {
+                    IMAGE_UIO_NODE.into()
                 } else {
-                    hardroxide_hwh::zynq7000_f2p_spi_cell
-                }),
+                    format!("{}_{}", i.ident, names::snake(&p.name))
+                },
+                f2p_bit,
+                gic_spi,
                 trigger: if p.sensitivity.starts_with("EDGE_RISING") {
                     1
                 } else {
@@ -183,21 +193,49 @@ pub fn interrupts_dtso(m: &Model, d: &Design) -> Option<String> {
                 continue;
             }
             match l.gic_spi {
+                Some(IMAGE_UIO_SPI) if d.is_zynq_ultrascale_plus() => {
+                    let _ = writeln!(
+                        skipped,
+                        "// {}.{}: SPI cell {IMAGE_UIO_SPI}, served by the image's own `{IMAGE_UIO_NODE}` UIO node",
+                        i.inst.name, l.port
+                    );
+                }
                 Some(spi) => {
                     let r = i.ranges[0];
                     let _ = write!(
                         nodes,
-                        "\t\t\t{node}@{base:x} {{\n\t\t\t\tcompatible = \"generic-uio\";\n\t\t\t\treg = <{base:#x} {size:#x}>;\n\t\t\t\tinterrupt-parent = <&intc>;\n\t\t\t\tinterrupts = <0 {spi} {trig}>;\n\t\t\t}};\n",
+                        "\t\t\t{node}@{base:x} {{\n\t\t\t\tcompatible = \"generic-uio\";\n\t\t\t\treg = <{reg}>;\n\t\t\t\tinterrupt-parent = <&{parent}>;\n\t\t\t\tinterrupts = <0 {spi} {trig}>;\n\t\t\t}};\n",
                         node = l.node,
                         base = r.base,
-                        size = r.size(),
+                        reg = if d.is_zynq_ultrascale_plus() {
+                            // Two cells for an address and two for a size at the root of this family's tree.
+                            format!(
+                                "{:#x} {:#x} {:#x} {:#x}",
+                                r.base >> 32,
+                                r.base & 0xFFFF_FFFF,
+                                r.size() >> 32,
+                                r.size() & 0xFFFF_FFFF
+                            )
+                        } else {
+                            format!("{:#x} {:#x}", r.base, r.size())
+                        },
+                        parent = if d.is_zynq_ultrascale_plus() {
+                            "gic"
+                        } else {
+                            "intc"
+                        },
                         trig = l.trigger
                     );
                 }
                 None => {
+                    let vector = if d.is_zynq_ultrascale_plus() {
+                        "pl_ps_irq1:pl_ps_irq0"
+                    } else {
+                        "PS7 IRQ_F2P[15:0]"
+                    };
                     let _ = writeln!(
                         skipped,
-                        "// skipped {}.{}: not traceable to PS7 IRQ_F2P[15:0]",
+                        "// skipped {}.{}: not traceable to {vector}",
                         i.inst.name, l.port
                     );
                 }
@@ -207,8 +245,20 @@ pub fn interrupts_dtso(m: &Model, d: &Design) -> Option<String> {
     if nodes.is_empty() {
         return None;
     }
+    let notes = if d.is_zynq_ultrascale_plus() {
+        "// Requires: a kernel with uio_pdrv_genirq and `uio_pdrv_genirq.of_id=generic-uio`\n// on the command line, and a base device tree built with symbols (for &gic), as the\n// PYNQ image of the RFSoC 4x2 has.\n// Zynq UltraScale+ mapping: pl_ps_irq0 -> SPI cell 89..=96, pl_ps_irq1 -> 104..=111.\n// UNVERIFIED on hardware; see docs/decisions/0005-ultrascale-plus.md.\n"
+    } else {
+        "// Requires: a kernel with uio_pdrv_genirq and `uio_pdrv_genirq.of_id=generic-uio`\n// on the command line, and a base device tree built with symbols (for &intc).\n// Zynq-7000 mapping: IRQ_F2P[7:0] -> SPI cell 29..=36, [15:8] -> 52..=59.\n// UNVERIFIED on hardware; see docs/08-verification-gaps.md (G11).\n"
+    };
+    // The root of this family's tree has two cells for an address and two for a size; saying so again lets the overlay
+    // be compiled on its own without warnings about the nodes' `reg`.
+    let cells = if d.is_zynq_ultrascale_plus() {
+        "\t\t\t#address-cells = <2>;\n\t\t\t#size-cells = <2>;\n"
+    } else {
+        ""
+    };
     Some(format!(
-        "// @generated by hardroxide. Do not edit; regenerate from the XSA.\n//\n// Exposes each PL interrupt as a UIO device (one node per interrupt line).\n// Requires: a kernel with uio_pdrv_genirq and `uio_pdrv_genirq.of_id=generic-uio`\n// on the command line, and a base device tree built with symbols (for &intc).\n// Zynq-7000 mapping: IRQ_F2P[7:0] -> SPI cell 29..=36, [15:8] -> 52..=59.\n// UNVERIFIED on hardware; see docs/08-verification-gaps.md (G11).\n{skipped}/dts-v1/;\n/plugin/;\n\n/ {{\n\tfragment@0 {{\n\t\ttarget-path = \"/\";\n\t\t__overlay__ {{\n{nodes}\t\t}};\n\t}};\n}};\n"
+        "// @generated by hardroxide. Do not edit; regenerate from the XSA.\n//\n// Exposes each PL interrupt as a UIO device (one node per interrupt line).\n{notes}{skipped}/dts-v1/;\n/plugin/;\n\n/ {{\n\tfragment@0 {{\n\t\ttarget-path = \"/\";\n\t\t__overlay__ {{\n{cells}{nodes}\t\t}};\n\t}};\n}};\n"
     ))
 }
 
@@ -238,9 +288,14 @@ pub fn irq_example(m: &Model, d: &Design, crate_name: &str) -> Option<String> {
                 "        if let Some((c, bit)) = line.via_intc {{\n            println!(\"{{}}.{{}}: via {{c}} input {{bit}}\", line.instance, line.port);\n            continue;\n        }}"
             );
             let _ = writeln!(s, "        match line.open() {{");
+            let bit = if d.is_zynq_ultrascale_plus() {
+                "pl_ps_irq bit"
+            } else {
+                "IRQ_F2P bit"
+            };
             let _ = writeln!(
                 s,
-                "            Ok(_) => println!(\"{{}}.{{}}: UIO ok (IRQ_F2P bit {{:?}}, SPI cell {{:?}})\", line.instance, line.port, line.f2p_bit, line.gic_spi),"
+                "            Ok(_) => println!(\"{{}}.{{}}: UIO ok ({bit} {{:?}}, SPI cell {{:?}})\", line.instance, line.port, line.f2p_bit, line.gic_spi),"
             );
             let _ = writeln!(
                 s,
@@ -259,13 +314,19 @@ pub fn irq_example(m: &Model, d: &Design, crate_name: &str) -> Option<String> {
 pub(crate) const HEADER: &str =
     "// @generated by hardroxide. Do not edit; regenerate from the XSA.\n";
 
-pub fn cargo_toml(name: &str, opts: &Options) -> String {
+pub fn cargo_toml(name: &str, opts: &Options, d: &Design) -> String {
+    // Zynq UltraScale+ support begins with the 3.0 crates.
+    let version = if d.is_zynq_ultrascale_plus() {
+        "3"
+    } else {
+        "2"
+    };
     let dep = |c: &str| match &opts.hardroxide_path {
         Some(root) => format!(
             "{c} = {{ path = \"{}\" }}",
             root.join("crates").join(c).display()
         ),
-        None => format!("{c} = \"2\""),
+        None => format!("{c} = \"{version}\""),
     };
     format!(
         "# @generated by hardroxide.\n[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[features]\n# Runtime bitstream loading from an XSA (development only).\ndev-bitstream = [\"dep:hardroxide-hwh\"]\n\n[dependencies]\n{}\n{}\n{}\n{}\n{}\n{}\nthiserror = \"2\"\n\n[dev-dependencies]\nembedded-hal = \"1\"\n",
@@ -276,7 +337,10 @@ pub fn cargo_toml(name: &str, opts: &Options) -> String {
         dep("hardroxide-dma"),
         dep("hardroxide-hwh")
             .replace(" }", ", optional = true }")
-            .replace("= \"2\"", "= { version = \"2\", optional = true }"),
+            .replace(
+                &format!("= \"{version}\""),
+                &format!("= {{ version = \"{version}\", optional = true }}")
+            ),
     )
 }
 
@@ -403,7 +467,7 @@ pub fn lib_rs(m: &Model, d: &Design) -> String {
                 i.ident
             );
             match &i.driver {
-                Some(t) => format!("            {}: {},\n", i.ident, ctor(i, t, &map)),
+                Some(t) => format!("            {}: {},\n", i.ident, field_ctor(i, d, t, &map)),
                 None => format!("            {}: {map},\n", i.ident),
             }
         })
@@ -413,13 +477,72 @@ pub fn lib_rs(m: &Model, d: &Design) -> String {
     } else {
         ""
     };
+    let family = if d.is_zynq_ultrascale_plus() {
+        &ZYNQMP_LIB
+    } else {
+        &ZYNQ_LIB
+    };
+    let mut lib = LIB_TEMPLATE.to_string();
+    for (marker, text) in family {
+        assert!(lib.contains(marker), "the template has no {marker}");
+        lib = lib.replace(marker, text);
+    }
     s.push_str(
-        &LIB_TEMPLATE
-            .replace("//MODS//", mods)
+        &lib.replace("//MODS//", mods)
             .replace("//FIELDS//", &fields)
             .replace("//INITS//", &inits),
     );
     s
+}
+
+/// What differs between the families in the Linux crate's `lib.rs`, as `(marker in the template, text)`.
+type Family = [(&'static str, &'static str); 6];
+
+const ZYNQ_LIB: Family = [
+    ("//PORT_STATIC//\n", ""),
+    (
+        "//CLOCKS_DOC//",
+        "/// Apply the FCLK targets through the Zynq SLCR before mapping. Disable\n    /// if the clocks are already configured.",
+    ),
+    ("//EMBEDDED_PORTS//", ""),
+    ("//XSA_PORTS//", ""),
+    ("//PORTS_PARAMETER//", ""),
+    (
+        "//PROGRAM//",
+        "hardroxide_fpga::load_bitstream(&opts.paths, bin, sha)?;\n            if opts.apply_clocks {\n                let slcr = backend.map(hardroxide_fpga::slcr::SLCR_BASE, hardroxide_fpga::slcr::SLCR_SIZE)?;\n                cfg.apply(&slcr)?;\n            }",
+    ),
+];
+
+const ZYNQMP_LIB: Family = [
+    (
+        "//PORT_STATIC//\n",
+        "use hardroxide_fpga::zynqmp::PortConfig;\n\nstatic PORTS_CFG: &str = include_str!(\"../bitstream/ports.cfg\");\n\n/// The widths the design gives the ports between the processing system and the PL.\npub fn embedded_port_config() -> PortConfig {\n    PortConfig::parse(PORTS_CFG).expect(\"embedded bitstream/ports.cfg is malformed\")\n}\n",
+    ),
+    (
+        "//CLOCKS_DOC//",
+        "/// Set the PL clocks to the design's targets before mapping. Disable if\n    /// they are already configured.",
+    ),
+    ("//EMBEDDED_PORTS//", ", &embedded_port_config()"),
+    (
+        "//XSA_PORTS//",
+        ", &PortConfig {\n            widths: xsa\n                .design\n                .axi_port_widths()\n                .into_iter()\n                .filter_map(|(master, n, bits)| {\n                    use hardroxide_fpga::zynqmp::{Port, Width};\n                    let port = if master { Port::Master(n) } else { Port::Slave(n) };\n                    Some((port, Width::from_bits(bits)?))\n                })\n                .collect(),\n        }",
+    ),
+    ("//PORTS_PARAMETER//", "\n        ports: &PortConfig,"),
+    (
+        "//PROGRAM//",
+        "hardroxide_fpga::zynqmp::load_bitstream(&opts.paths, bin, sha)?;\n            // The boot loader set the ports up for another design: give them this one's widths.\n            ports.apply(&backend)?;\n            if opts.apply_clocks {\n                use hardroxide_fpga::zynqmp as fpga;\n                let crl = backend.map(fpga::CRL_APB_BASE, fpga::CRL_APB_SIZE)?;\n                let crf = backend.map(fpga::CRF_APB_BASE, fpga::CRF_APB_SIZE)?;\n                for &(index, hz) in &cfg.fclks {\n                    fpga::set_pl_clock(&crl, &crf, cfg.ps_clk_hz, index, hz)?;\n                }\n            }",
+    ),
+];
+
+/// The constructor for the field of instance `i`, with what its family needs: on Zynq UltraScale+, where memory
+/// beyond 32 bits exists, a DMA engine is told how far it reaches (part of the interface hash, like the other
+/// constructor values).
+pub(crate) fn field_ctor(i: &Inst, d: &Design, driver: &str, map: &str) -> String {
+    let made = ctor(i, driver, map);
+    match d.dma_address_width(&i.inst.name) {
+        Some(bits) => format!("{made}.with_address_width({bits})"),
+        None => made,
+    }
 }
 
 /// Constructor expression for a driver, with HWH-derived arguments.
@@ -463,6 +586,7 @@ pub const BITSTREAM_SHA256: &str = include_str!("../bitstream/design.sha256");
 static BITSTREAM: &[u8] = include_bytes!("../bitstream/design.bin");
 static LOAD_CFG: &str = include_str!("../bitstream/load.cfg");
 static LOADED: AtomicBool = AtomicBool::new(false);
+//PORT_STATIC//
 
 /// The embedded load configuration (PS clock and FCLK targets).
 pub fn embedded_load_config() -> LoadConfig {
@@ -488,8 +612,7 @@ pub enum Error {
 #[derive(Debug, Clone)]
 pub struct LoadOptions {
     pub paths: FpgaPaths,
-    /// Apply the FCLK targets through the Zynq SLCR before mapping. Disable
-    /// if the clocks are already configured.
+    //CLOCKS_DOC//
     pub apply_clocks: bool,
 }
 
@@ -515,7 +638,7 @@ impl Design<DevMem> {
 impl<B: MmioBackend> Design<B> {
     /// Like [`Design::load`] with a custom MMIO backend and options.
     pub fn load_with(backend: B, opts: &LoadOptions) -> Result<Self, Error> {
-        Self::load_image(backend, opts, BITSTREAM, BITSTREAM_SHA256, &embedded_load_config())
+        Self::load_image(backend, opts, BITSTREAM, BITSTREAM_SHA256, &embedded_load_config()//EMBEDDED_PORTS//)
     }
 
     /// Development aid: program a bitstream from `xsa` at runtime instead of
@@ -535,7 +658,7 @@ impl<B: MmioBackend> Design<B> {
         let bin = xsa.bin()?;
         let sha = hardroxide_fpga::sha256_hex(&bin);
         let cfg = LoadConfig { ps_clk_hz: xsa.design.ps_clk_hz, fclks: xsa.design.enabled_fclks() };
-        Self::load_image(backend, opts, &bin, &sha, &cfg)
+        Self::load_image(backend, opts, &bin, &sha, &cfg//XSA_PORTS//)
     }
 
     fn load_image(
@@ -543,17 +666,13 @@ impl<B: MmioBackend> Design<B> {
         opts: &LoadOptions,
         bin: &[u8],
         sha: &str,
-        cfg: &LoadConfig,
+        cfg: &LoadConfig,//PORTS_PARAMETER//
     ) -> Result<Self, Error> {
         if LOADED.swap(true, Ordering::SeqCst) {
             return Err(Error::AlreadyLoaded);
         }
         let r = (|| {
-            hardroxide_fpga::load_bitstream(&opts.paths, bin, sha)?;
-            if opts.apply_clocks {
-                let slcr = backend.map(hardroxide_fpga::slcr::SLCR_BASE, hardroxide_fpga::slcr::SLCR_SIZE)?;
-                cfg.apply(&slcr)?;
-            }
+            //PROGRAM//
             Self::map(&backend, true)
         })();
         if r.is_err() {
@@ -920,10 +1039,29 @@ pub fn board_check_example(m: &Model, d: &Design, crate_name: &str) -> String {
     let lib = crate_name.replace('-', "_");
     let mut s = String::from(HEADER);
     s.push_str("//! First on-board check (docs/08-verification-gaps.md: G1, G2, G4, G11): loads\n//! the bitstream, reads each FCLK back from the SLCR, and opens every interrupt's\n//! UIO device. Touches no IP register. Run as root: `cargo run --example board_check`.\n\n");
-    let _ = writeln!(
-        s,
+    let ultrascale = d.is_zynq_ultrascale_plus();
+    if ultrascale {
+        s = s
+            .replace(
+                "(docs/08-verification-gaps.md: G1, G2, G4, G11)",
+                "(Zynq UltraScale+)",
+            )
+            .replace("from the SLCR", "from the clock registers");
+    }
+    let mut check = format!(
         "use hardroxide_mmio::MmioBackend;\n\nfn main() {{\n    let mut failed = 0;\n    println!(\"1. loading bitstream and applying clocks ...\");\n    let design = match {lib}::Design::load() {{\n        Ok(d) => {{\n            println!(\"   ok\");\n            Some(d)\n        }}\n        Err(e) => {{\n            println!(\"   FAILED: {{e}}\");\n            failed += 1;\n            None\n        }}\n    }};\n    if design.is_some() {{\n        println!(\"2. FCLK readback (SLCR) vs. the design:\");\n        let cfg = {lib}::embedded_load_config();\n        match hardroxide_mmio::DevMem::new().map(hardroxide_fpga::slcr::SLCR_BASE, hardroxide_fpga::slcr::SLCR_SIZE) {{\n            Ok(slcr) => for (i, want) in cfg.fclks {{\n                match hardroxide_fpga::slcr::read_pl_clock(&slcr, cfg.ps_clk_hz, i) {{\n                    Ok(got) if got.abs_diff(want) * 100 <= want => println!(\"   FCLK{{i}}: {{got}} Hz (want {{want}}) ok\"),\n                    Ok(got) => {{\n                        println!(\"   FCLK{{i}}: {{got}} Hz (want {{want}}) MISMATCH\");\n                        failed += 1;\n                    }}\n                    Err(e) => {{\n                        println!(\"   FCLK{{i}}: {{e}}\");\n                        failed += 1;\n                    }}\n                }}\n            }},\n            Err(e) => {{\n                println!(\"   cannot map the SLCR: {{e}}\");\n                failed += 1;\n            }}\n        }}\n    }}"
     );
+    if ultrascale {
+        // Replace the Zynq-7000's SLCR read-back with this family's clock registers.
+        let from = check
+            .find("        println!(\"2. FCLK readback")
+            .expect("clock section");
+        check.truncate(from);
+        check.push_str(&format!(
+            "        println!(\"2. PL clock readback vs. the design:\");\n        let cfg = {lib}::embedded_load_config();\n        use hardroxide_fpga::zynqmp as fpga;\n        let backend = hardroxide_mmio::DevMem::new();\n        match (backend.map(fpga::CRL_APB_BASE, fpga::CRL_APB_SIZE), backend.map(fpga::CRF_APB_BASE, fpga::CRF_APB_SIZE)) {{\n            (Ok(crl), Ok(crf)) => for (i, want) in cfg.fclks {{\n                match fpga::read_pl_clock(&crl, &crf, cfg.ps_clk_hz, i) {{\n                    Ok(got) if got.abs_diff(want) * 100 <= want => println!(\"   pl_clk{{i}}: {{got}} Hz (want {{want}}) ok\"),\n                    Ok(got) => {{\n                        println!(\"   pl_clk{{i}}: {{got}} Hz (want {{want}}) MISMATCH\");\n                        failed += 1;\n                    }}\n                    Err(e) => {{\n                        println!(\"   pl_clk{{i}}: {{e}}\");\n                        failed += 1;\n                    }}\n                }}\n            }},\n            (Err(e), _) | (_, Err(e)) => {{\n                println!(\"   cannot map the clock registers: {{e}}\");\n                failed += 1;\n            }}\n        }}\n    }}"
+        ));
+    }
+    let _ = writeln!(s, "{check}");
     let mut any = false;
     for i in &m.insts {
         if irq_lines(i, d).is_empty() {

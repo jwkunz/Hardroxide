@@ -86,9 +86,11 @@ pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenEr
     let new_text = xsa.design.interface_text();
     let manifest = read(crate_dir, "Cargo.toml")?;
     let platform = platform_of(&manifest);
-    crate::check_arch(&xsa.design, platform)?;
-    // A crate keeps its manifest across updates, so it cannot change processor family.
-    let crate_is_ultrascale = manifest.lines().any(|l| l.starts_with("hardroxide-psu "));
+    crate::check_arch(&xsa.design)?;
+    // A crate keeps its manifest across updates, so it cannot change processor family. An UltraScale+ crate depends on
+    // that family's processor support (bare metal) or carries its port widths (Linux).
+    let crate_is_ultrascale = manifest.lines().any(|l| l.starts_with("hardroxide-psu "))
+        || crate_dir.join("bitstream/ports.cfg").is_file();
     if crate_is_ultrascale != xsa.design.is_zynq_ultrascale_plus() {
         return Err(GenError::UnsupportedArch {
             arch: xsa.design.arch.clone(),
@@ -104,9 +106,12 @@ pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenEr
         let old_sha256 = read(crate_dir, "bitstream/design.sha256")?;
         let files = bitstream_files(xsa)?;
         let new_sha256 = String::from_utf8(files[0].1.clone()).unwrap();
-        if old_sha256 == new_sha256
-            && read(crate_dir, "bitstream/load.cfg")?.as_bytes() == files[1].1
-        {
+        // Unchanged if every file is as it would be written (the bitstream's hash stands for the bitstream).
+        let same = files
+            .iter()
+            .filter(|(path, _)| path.extension().is_some_and(|e| e != "bin"))
+            .all(|(path, data)| std::fs::read(crate_dir.join(path)).is_ok_and(|old| old == *data));
+        if old_sha256 == new_sha256 && same {
             return Ok(Outcome::Unchanged);
         }
         write_all(crate_dir, files)?;

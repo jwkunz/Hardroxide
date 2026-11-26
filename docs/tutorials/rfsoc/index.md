@@ -3,7 +3,8 @@
 **Preview.** Zynq UltraScale+ support is being built for 3.0 ([ADR 0005](../../decisions/0005-ultrascale-plus.md)) and is
 on the `v3` branch only. What works today is **bare metal and the real-time kernel**: processor start-up, the kernel, SD,
 Ethernet, the board's own hardware, and crates generated from your design with the FPGA drivers
-([tutorial 2](02-base-overlay.md)). There is no Linux support yet.
+([tutorial 2](02-base-overlay.md)). [Linux crates](../../guide/linux-ultrascale.md) are generated but have not
+been run on a board.
 
 These pages run ready-made programs on a Real Digital RFSoC 4x2. Those that use the FPGA are applications in
 `apps/rfsoc4x2/`, built against a generated crate; those that test the processor system and the board's own hardware are

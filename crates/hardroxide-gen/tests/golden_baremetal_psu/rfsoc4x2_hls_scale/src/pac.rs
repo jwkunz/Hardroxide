@@ -7,7 +7,7 @@ pub mod scale_0 {
     pub const BASE_ADDRESS: u64 = 0xa0000000;
     pub const SIZE: usize = 0x10000;
     /// Interrupt `interrupt` (`pl_ps_irq1:pl_ps_irq0` bit Some(0)); open with `.open()`.
-    pub const IRQ_INTERRUPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "scale_0", port: "interrupt", f2p_bit: Some(0), gic_spi: Some(89), dt_node: "scale_0_interrupt", base: 0xa0000000, via_intc: None, edge: false };
+    pub const IRQ_INTERRUPT: hardroxide_irq::IrqLine = hardroxide_irq::IrqLine { instance: "scale_0", port: "interrupt", f2p_bit: Some(0), gic_spi: Some(89), dt_node: "fabric", base: 0xa0000000, via_intc: None, edge: false };
     pub const IRQS: &[hardroxide_irq::IrqLine] = &[IRQ_INTERRUPT];
     /// Connected interrupt outputs: `(port, pl_ps_irq1:pl_ps_irq0 bit if routed directly)`.
     pub const INTERRUPTS: &[(&str, Option<u32>)] = &[("interrupt", Some(0))];

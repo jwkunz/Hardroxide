@@ -352,10 +352,10 @@ fn interrupts_overlay_applies_with_fdtoverlay() {
 }
 
 #[test]
-fn non_zynq7000_designs_are_refused_with_a_clear_error() {
+fn designs_of_other_families_are_refused_with_a_clear_error() {
     let mut x = fixture();
-    x.design.arch = "zynquplus".into();
-    x.design.device = "xczu7ev".into();
+    x.design.arch = "versal".into();
+    x.design.device = "xcvc1902".into();
     let e = hardroxide_gen::generate(&x, &Default::default()).unwrap_err();
     assert!(
         matches!(e, hardroxide_gen::GenError::UnsupportedArch { .. }),

@@ -14,9 +14,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-          targets: armv7-unknown-linux-gnueabihf,armv7a-none-eabihf,aarch64-unknown-none
+          targets: armv7-unknown-linux-gnueabihf,armv7a-none-eabihf,aarch64-unknown-none,aarch64-unknown-linux-gnu
       - uses: Swatinem/rust-cache@v2
-      - run: sudo apt-get update && sudo apt-get install -y device-tree-compiler gcc-arm-linux-gnueabihf qemu-user qemu-system-arm dosfstools
+      - run: sudo apt-get update && sudo apt-get install -y device-tree-compiler gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu qemu-user qemu-system-arm dosfstools
       - run: cargo fmt --all --check
       - run: cd baremetal/ps7-smoke && cargo fmt --check
       - run: cd baremetal/rt-smoke && cargo fmt --check
@@ -45,3 +45,5 @@ jobs:
       - run: scripts/check-compat.py
       # Runtime crates' tests as real armv7 binaries under qemu-arm.
       - run: scripts/test-armv7.sh
+      # And as AArch64 Linux binaries (Zynq UltraScale+).
+      - run: scripts/test-aarch64.sh

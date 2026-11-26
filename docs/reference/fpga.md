@@ -73,3 +73,36 @@ not handled ([G3](../08-verification-gaps.md)).
 
 `FpgaError` variants: `HashMismatch`, `Io`, `NotOperating`, `BadClockIndex`,
 `ClockUnreachable`, `PllNotRunning`, `Mmio`.
+
+## Zynq UltraScale+ (`zynqmp`)
+
+New in 3.0, **not yet run on a board** (the register values and the loading steps are those PYNQ uses; the bitstream
+format is checked against `bootgen`).
+
+```rust,ignore
+pub const CRL_APB_BASE: u64 = 0xFF5E_0000;
+pub const CRF_APB_BASE: u64 = 0xFD1A_0000;
+pub fn read_pl_clock(
+pub fn set_pl_clock(
+pub enum Port
+pub fn exists(self) -> bool
+pub enum Width
+pub fn from_bits(bits: u32) -> Option<Self>
+pub fn bits(self) -> u32
+pub fn set_port_width(
+pub struct PortConfig
+pub fn to_text(&self) -> String
+pub fn parse(text: &str) -> Result<Self, String>
+pub fn apply(&self, backend: &impl MmioBackend) -> Result<(), FpgaError>
+pub const PL_ADDRESSES: [RangeInclusive<u64>; 3]
+```
+
+- `read_pl_clock` and `set_pl_clock(crl, crf, ps_ref_hz, index, ...)` are this family's `pl_clk0..3`, through the two
+  clock-register blocks; setting keeps the clock's source and switches it on, within 1 %.
+- `Port::Master(0..=2)` is `HPM0_FPD`, `HPM1_FPD`, `HPM0_LPD`; `Port::Slave(0..=6)` is `S_AXI_GP0..6`. A boot loader sets
+  their widths for its own design, so a bitstream loaded later needs its widths applied; `set_port_width` writes the
+  registers PYNQ writes.
+- `zynqmp::load_bitstream` is `load_bitstream` with this family's PL addresses (`PL_ADDRESSES`) for the check of bound
+  drivers (std).
+- `PortConfig` is a generated crate's `bitstream/ports.cfg` (`m0=128`, `s2=64`), std.
+

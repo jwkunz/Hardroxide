@@ -73,8 +73,9 @@ fn main() -> ! {
         }
         let colour = sw.read(Channel::One).unwrap() & 0b11;
         if pressed & 0b1000 != 0 {
-            // Both RGB LEDs: switches 00 = off, 01 = red, 10 = green, 11 = blue.
-            let bits = [0b000, 0b001, 0b010, 0b100][colour as usize];
+            // Both RGB LEDs: switches 00 = off, 01 = red, 10 = green, 11 = blue. One LED's bits are blue (1),
+            // green (2) and red (4).
+            let bits = [0b000, 0b100, 0b010, 0b001][colour as usize];
             rgb.write(Channel::One, bits | bits << 3).unwrap();
         }
         leds.write(Channel::One, count).unwrap();

@@ -9,9 +9,6 @@ your program is the only software on the processor, started over JTAG by `hardro
 carries the board's start-up settings (`ps7_init`), which the program needs for its console
 ([why](../../reference/base-overlay.md)).
 
-> **Status:** `board_check` below was captured on a PYNQ-Z2. This tutorial's own program is new: it builds against the
-> generated crate and has **not yet been run on a board**.
-
 ## 1. Check the host
 
 ```console
@@ -40,7 +37,7 @@ gives each processor mode a stack; `.cargo/config.toml` selects the `armv7a-none
 ```console
 $ cargo build --release --examples
 $ hardroxide run target/armv7a-none-eabihf/release/examples/board_check --xsa ../../fixtures/board/pynq_base_overlay.xsa
-== board check (base) ==
+== board check (design_1) ==
 PL configured, interface c52ebef9797f3034499e0948a5b9e93ca326eeb6367a4d69b5630111b5195f09
 FCLK0: 100000000 Hz (want 100000000) ok
 FCLK1: 142857142 Hz (want 142857132) ok
@@ -71,7 +68,28 @@ $ hardroxide run target/armv7a-none-eabihf/release/examples/leds --xsa ../../fix
 ```
 
 Press the buttons and move the switches while it runs: the LEDs follow the buttons, the switches choose the colour of
-the colour LEDs, and each change is printed.
+the colour LEDs, and each change is printed. On a PYNQ-Z2, pressing each button and trying the switches:
+
+```text
+== leds: the LEDs, one at a time ==
+== press the buttons and move the switches (20 s) ==
+buttons 0000, switches 11
+buttons 0001, switches 11
+buttons 0000, switches 11
+buttons 0010, switches 11
+buttons 0000, switches 11
+buttons 0100, switches 11
+buttons 0000, switches 11
+buttons 1000, switches 11
+buttons 0000, switches 11
+buttons 0000, switches 01
+buttons 0000, switches 00
+buttons 0000, switches 10
+buttons 0000, switches 11
+buttons 0000, switches 10
+buttons 0000, switches 00
+done
+```
 
 ## 5. Booting without the cable
 

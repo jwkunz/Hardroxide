@@ -7,8 +7,6 @@ With no operating system there is no UIO: the interrupt goes from the PL to the 
 **GIC**), and `hardroxide-ps7` programs the GIC for you. The generated crate knows from the design which GIC line each
 interrupt uses and whether it is level or edge triggered.
 
-> **Status:** new in 3.0: the program builds against the generated crate and has **not yet been run on a board**.
-
 ## 1. The route
 
 `board_check` printed it in tutorial 1: `irq system_interrupts.irq -> GIC id 61 (level)`. All of the overlay's
@@ -35,7 +33,32 @@ $ hardroxide run target/armv7a-none-eabihf/release/examples/button_irq --xsa ../
 ```
 
 It first raises the buttons' interrupt from software, so the path is checked with nobody at the board, then waits for
-real presses.
+real presses. On a PYNQ-Z2:
+
+```text
+== button_irq: the buttons' interrupt is input 13 of the controller ==
+buttons interrupt: quiet before true, arrived true, cleared true
+SELF TEST OK
+
+now press the buttons (20 s)
+buttons 0001 pressed: count 1
+buttons 0010 pressed: count 0
+buttons 0100 pressed: count 0
+buttons 0001 pressed: count 1
+buttons 0001 pressed: count 2
+buttons 0001 pressed: count 3
+buttons 0001 pressed: count 4
+buttons 0001 pressed: count 5
+buttons 0010 pressed: count 4
+buttons 0010 pressed: count 3
+buttons 0010 pressed: count 2
+buttons 0100 pressed: count 0
+buttons 0100 pressed: count 0
+buttons 0010 pressed: count 15
+done
+```
+
+Counting down from 0 gives 15: the count has the four LEDs' four bits.
 
 For a periodic interrupt from a timer, measured to the microsecond, see
 [Your own design 8](../own-design/08-baremetal-timer.md). For several things happening at once, each with its own

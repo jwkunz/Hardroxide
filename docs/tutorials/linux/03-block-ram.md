@@ -14,8 +14,6 @@ $ hardroxide inspect fixtures/board/pynq_base_overlay.xsa | grep bram
 0x46000000      64 KiB  iop_rpi_mb_bram_ctrl  ->  hardroxide_ip::bram::AxiBram  (xilinx.com:ip:axi_bram_ctrl:4.1)
 ```
 
-> **Status:** new in 3.0: the program builds against the generated crate and has **not yet been run on a board**.
-
 ## 1. Fill a whole memory and read it back
 
 The generated `bram_test` does that for any of them; with several in a design it takes the name:
@@ -40,7 +38,16 @@ $ cp apps/base/linux/block_ram.rs work/base/examples/
 $ scripts/board/run.sh work/base block_ram
 ```
 
-It ends with `BLOCK RAM OK`. The rules it shows:
+```text
+block RAM: 65536 bytes
+16384 words written and read back: 0 wrong
+bytes 0..16: [00, 00, 00, 00, 48, 45, 4c, 4c, 4f, 21, 21, 3c, 2b, 6d, a6, da]
+only bytes 4..11 changed
+write at offset 5 -> Err(Unaligned(5))
+BLOCK RAM OK
+```
+
+The rules it shows:
 
 - Offsets must be word aligned. A misaligned offset is an **error** (`Unaligned(5)`), not silently rounded.
 - Writing 7 bytes at offset 4 changes bytes 4 to 10. Byte 11 lives in the same word as the last written bytes and keeps

@@ -5,8 +5,6 @@
 [Tutorial 1](01-lights.md)'s program asked the buttons their state fifty times a second. An **interrupt** is the other
 way round: the program sleeps, and the hardware wakes it when something happens.
 
-> **Status:** new in 3.0: the program builds against the generated crate and has **not yet been run on a board**.
-
 ## 1. Where the interrupts go
 
 ```console
@@ -35,6 +33,10 @@ Linux learns about the line from a small *device-tree overlay*, which the genera
 
 ```console
 $ scp work/base/interrupts.dtso $BOARD: && ssh -t $BOARD sudo sh overlay.sh interrupts.dtso
+released the image's 40000000.fabric device, which held IRQ_F2P[0] (a reboot restores it)
+overlay status: applied
+uio0: audio-codec-ctrl
+uio1: system_interrupts_irq
 ```
 
 The script says that it released the image's `40000000.fabric` device: the PYNQ image holds this line for itself until
@@ -66,7 +68,22 @@ $ scripts/board/run.sh work/base interrupts
 ```
 
 It prints the self test's result, then waits. Button 0 counts up on the LEDs, button 1 counts down, button 2 clears,
-and button 3 ends the program.
+and button 3 ends the program. On a PYNQ-Z2:
+
+```text
+the buttons' interrupt is input 13 of the controller
+buttons interrupt: quiet before true, arrived true, cleared true
+SELF TEST OK
+
+now press the buttons (30 s; button 3 ends)
+buttons 0010 pressed: count 15
+buttons 0001 pressed: count 0
+buttons 0010 pressed: count 15
+buttons 0100 pressed: count 0
+done
+```
+
+Counting down from 0 gives 15: the count has the four LEDs' four bits.
 
 ## What you did
 

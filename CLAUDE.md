@@ -58,9 +58,9 @@ no 2.x patch release or further 2.x support). Linux passed on the Z2 under PYNQ 
 (2026-11-26; shut down and power-cycle it rather than `reboot`, apply one overlay per boot). HDMI, audio and the cable
 loopback passed. The Z2's SD card tests were
 not run (no spare card; run them only with a card the maintainer names). The Z2 examples and tutorials moved to the
-base overlay (3.0); **the new programs are not yet run on the board** (run them, capture the outputs, remove the pages'
-status notes, and check the colour LEDs' wiring: new programs take blue, green, red from bit 0, `baremetal/lights`
-assumes red at bit 0). Then 3.0.0.
+base overlay (3.0); all of them passed on the board,
+Linux included. The maintainer's PYNQ card then failed twice with write errors (cause unknown): Linux tests on the Z2 need
+another card. Then 3.0.0.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

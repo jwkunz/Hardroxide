@@ -6,9 +6,6 @@
 The PYNQ base overlay is the FPGA design that comes with your board. You will inspect it, generate a Rust crate from it,
 check it on the board, and write to the LEDs. Everything you do here is what you will do with any design.
 
-> **Status:** `board_check` below was captured on a PYNQ-Z2. This tutorial's own program is new: it builds against the
-> generated crate and has **not yet been run on a board**.
-
 ## 1. Look at the design
 
 ```console
@@ -96,7 +93,32 @@ $ scripts/board/run.sh work/base lights
 
 The four LEDs light one after the other. Then press the buttons and move the switches for half a minute: each LED
 follows its button, the switches choose the colour of the two colour LEDs (off, red, green, blue), and each change is
-printed.
+printed. On a PYNQ-Z2:
+
+```text
+== the LEDs, one at a time ==
+== press the buttons and move the switches (30 s) ==
+buttons 0000, switches 10
+buttons 0001, switches 10
+buttons 0000, switches 10
+buttons 0010, switches 10
+buttons 0000, switches 10
+buttons 0100, switches 10
+buttons 0000, switches 10
+buttons 1000, switches 10
+buttons 0000, switches 10
+buttons 0000, switches 00
+buttons 0000, switches 01
+buttons 0000, switches 00
+buttons 0000, switches 01
+buttons 0000, switches 11
+buttons 1000, switches 11
+buttons 0000, switches 11
+buttons 0100, switches 11
+buttons 0000, switches 11
+buttons 0010, switches 11
+done
+```
 
 ## 5. Test your logic without a board
 

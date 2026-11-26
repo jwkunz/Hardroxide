@@ -5,9 +5,6 @@
 Real-time control wants a loop that runs every 10 ms however busy the rest of the program is. `hardroxide-rt` is a
 small kernel for that: tasks with priorities, where a more urgent task preempts a less urgent one at once.
 
-> **Status:** moved to the base overlay for 3.0: the program builds against the generated crate and has **not yet been
-> run on a board** in this form. The output below is from the same program on a small test design.
-
 ## 1. Generate an RTOS crate
 
 ```console

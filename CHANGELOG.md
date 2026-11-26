@@ -18,6 +18,8 @@ unchanged.
 - Tutorials, PYNQ-Z2: the first tutorials of every flavor run on the board's base overlay, with their programs in
   `apps/base/` (new: `linux/lights`, `interrupts`, `block_ram`; `baremetal/leds`, `button_irq`; `rtos/control`). Those
   on their own small designs moved to a "Your own design" section; old page addresses redirect.
+- Fixed: `baremetal/lights` and `rtos/rt_lights` (PYNQ-Z2) swapped red and blue on the colour LEDs, whose pins are
+  blue, green, red.
 - `scripts/board/overlay.sh`: on the PYNQ image of a Zynq-7000 board, releases the image's own UIO device on
   `IRQ_F2P[0]` when the overlay wants that line; before, such a design's interrupt device did not appear.
 - **Fixed:** `hardroxide-irq` could take the PYNQ image's own `fabric` UIO device for a design's interrupt, because the

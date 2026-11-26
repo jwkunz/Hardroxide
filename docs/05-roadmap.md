@@ -88,8 +88,9 @@ Plan and results: [ADR 0005](decisions/0005-ultrascale-plus.md). Done: the FPGA 
 with the drivers, the base overlay applications on generated crates, and a two-hour timing run of the kernel. Linux
 crates run on the board, DMA included, with tutorials (the FPGA's DDR4 among them); the kernel serves a web page beside a
 control loop. To do: the 3.0.0 release; the radio driver is 3.1. Not in the plan yet: starting from SD (`hardroxide package`). Left out: USB, Pmod+ and
-SYZYGY, and DisplayPort and the 100 Gb port (nothing to test them with). Still owed: the PYNQ-Z2
-board regression.
+SYZYGY, and DisplayPort and the 100 Gb port (nothing to test them with). The PYNQ-Z2
+board regression ran on 2026-11-26 and found a register-saving bug of the 2.x releases, now fixed here; its SD, audio
+loopback and Linux checks are still owed.
 
 ## Documentation site
 

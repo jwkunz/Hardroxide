@@ -114,7 +114,8 @@ pub fn unhandled_count() -> usize
 ```
 
 A table of plain functions indexed by GIC ID, held in atomics (no locking). The IRQ
-vector entry saves the caller-saved registers and VFP state, acknowledges the interrupt,
+vector entry saves the caller-saved registers and VFP/NEON state (`d0`-`d7`, `d16`-`d31`, `FPSCR`; up to 2.7.0 it left
+out `d16`-`d31`, which corrupted data in interrupted code), acknowledges the interrupt,
 calls `dispatch`, signals end-of-interrupt and returns. Handlers run on the IRQ stack with
 interrupts masked; they may use floating point. `register` does not enable the interrupt
 in the GIC.

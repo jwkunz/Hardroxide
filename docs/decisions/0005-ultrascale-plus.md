@@ -97,6 +97,17 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 Why the bitstream sprint comes second: the license is time-limited and the repository already treats built XSAs as fixtures, so every design the later steps need is built while the license lasts and proven with raw register access. Uncompressed bitstreams for this part are about
 34 MB, so the fixtures enable bitstream compression.
 
+**The PYNQ-Z2 regression owed by step 0 ran on 2026-11-26** (JTAG; Ethernet to the host; no card in the slot): all 15
+programs of `scripts/test-board.sh` and its three network checks passed unchanged, and `ps7-smoke`, `rt-smoke` and
+`net-smoke` with `net_check.py` (HTTP 14.5 MB/s, 10.7 new TLS connections a second). Loading `rt_station` with HTTPS
+clients then showed 7 to 19 "bad signature" failures in each run of about 440 requests, on this branch and on 2.7.0:
+**`ps7`'s interrupt entry and the Cortex-A9 context switch did not save `d16`-`d31`**, which the compiler uses to copy
+memory. Checks added to both smoke programs failed on the board before the fix (199 of 200 register checks broken) and
+pass after it, there and under QEMU; four loaded runs of `rt_station` then had no failure (control loop within 4 us, no
+audio underrun, interrupt share unchanged). The UltraScale+ code already saved every register. **Maintainer's decision
+(2026-11-26): no 2.7.1 and no further 2.x support**; the fix ships in 3.0.0. Still open for the Z2:
+the SD card tests, the audio loopback cable, eyes and ears on HDMI and audio, and Linux.
+
 ## Step 1 results (2026-11-25)
 
 All seven designs are built, meet timing and pass their JTAG probes on the board (104 checks; `fixtures/rfsoc4x2/README.md`). The vendor's preset gives working DDR in both address ranges. With SMA cables from the DACs to the ADCs, each DAC's tone arrives at its input at about

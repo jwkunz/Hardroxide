@@ -2,8 +2,15 @@
 
 ## 3.0.0 (unreleased)
 
-Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale-plus.md)). Zynq-7000 behaviour is unchanged.
+Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale-plus.md)). The Zynq-7000 interface is
+unchanged.
 
+- **Fixed, Zynq-7000 bare metal and RTOS, in every 2.x release: interrupts and task switches did not preserve `d16`-`d31`.**
+  The compiler copies memory through these NEON registers, so data could be silently corrupted; found as about 3 % of TLS
+  handshakes failing ("bad signature") in `rt_station` under load, the same on 2.7.0. `hardroxide-ps7`'s interrupt entry
+  and `hardroxide-rt`'s context switch save them now, and clear the exclusive monitor on the way out. A saved task context
+  is 128 bytes larger. Rebuild programs against the fixed crates. Linux programs and UltraScale+ were not affected.
+  There will be no 2.x patch release: upgrade to 3.0.
 - New crate `hardroxide-psu`: bare-metal processor support for the Cortex-A53 (AArch64 at EL3): startup, MMU and caches, GIC,
   generic timer, clocks, console.
 - `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one.

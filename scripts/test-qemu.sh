@@ -34,6 +34,7 @@ need "== hardroxide-ps7 smoke test =="
 need "core 0"
 need "timer interrupts: 20 in"
 need "unhandled interrupts: 0"
+need "all 32 double registers whole across 5 interrupts: true"
 need "ALL OK"
 need "EXCEPTION: undefined instruction"
 # Timing: sleep(100 ms) within 5%, 20 ticks of 10 ms within 5% of 200 ms (virtual time).

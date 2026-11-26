@@ -3,7 +3,7 @@
 //! A task's context lives on its own (System-mode) stack while it is not running:
 //!
 //! ```text
-//! low   d0-d15 (32 words)   fpscr + pad (2)   r0-r12, lr (14)   pc, cpsr (2)   high
+//! low   d16-d31 (32 words)   d0-d15 (32)   fpscr + pad (2)   r0-r12, lr (14)   pc, cpsr (2)   high
 //! ```
 //!
 //! Both entries (an interrupt, and the `svc` that a blocking call executes) push the
@@ -61,14 +61,14 @@ pub(crate) mod platform {
 }
 
 /// Words in a saved context.
-pub const FRAME_WORDS: usize = 50;
+pub const FRAME_WORDS: usize = 82;
 /// System mode, IRQ and FIQ enabled, ARM state.
 pub const TASK_CPSR: u32 = 0x1F;
 
 global_asm!(
     r#"
     .arm
-    .fpu vfpv3-d16
+    .fpu vfpv3
     .section .text.hrx_rt_port,"ax"
 
     @ Save the interrupted context onto the System-mode stack (already switched to).
@@ -77,13 +77,16 @@ global_asm!(
     vmrs    r1, fpscr
     push    {{r1, r2}}
     vpush   {{d0-d15}}
+    vpush   {{d16-d31}}              @ the compiler uses these too (NEON copies)
     .endm
 
     .macro RESTORE_CONTEXT
+    vpop    {{d16-d31}}
     vpop    {{d0-d15}}
     pop     {{r1, r2}}
     vmsr    fpscr, r1
     pop     {{r0-r12, lr}}
+    clrex                           @ the next task must not complete an exclusive access it did not begin
     rfeia   sp!
     .endm
 
@@ -147,10 +150,10 @@ pub fn init_frame(stack: &'static mut [u8], entry: fn(), on_return: extern "C" f
         for i in 0..FRAME_WORDS {
             frame.add(i).write(0);
         }
-        // r0-r12 are words 34..47, lr is 47, pc 48, cpsr 49.
-        frame.add(47).write(on_return as usize as u32);
-        frame.add(48).write(entry as usize as u32);
-        frame.add(49).write(TASK_CPSR);
+        // r0-r12 are words 66..79, lr is 79, pc 80, cpsr 81.
+        frame.add(79).write(on_return as usize as u32);
+        frame.add(80).write(entry as usize as u32);
+        frame.add(81).write(TASK_CPSR);
     }
     sp
 }

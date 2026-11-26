@@ -88,14 +88,14 @@ pub fn survive_a_switch(seed: u64, other: &AtomicU32) -> bool {
     buffer.0[..200] == buffer.0[720..920] && buffer.0[208..720] == buffer.0[928..1440]
 }
 
-/// The same with r3..r5, r8..r10, r12 and d0..d15.
+/// The same with r3..r5, r8..r10, r12 and d0..d31.
 #[cfg(target_arch = "arm")]
 pub fn survive_a_switch(seed: u64, other: &AtomicU32) -> bool {
-    // 7 general registers (28 bytes, 4 of padding), then 16 double registers; the values found again at 160.
+    // 7 general registers (28 bytes, 4 of padding), then 32 double registers; the values found again at 288.
     #[repr(C, align(8))]
-    struct Buffer([u8; 320]);
-    let mut buffer = Buffer([0; 320]);
-    for (i, b) in buffer.0[..160].iter_mut().enumerate() {
+    struct Buffer([u8; 576]);
+    let mut buffer = Buffer([0; 576]);
+    for (i, b) in buffer.0[..288].iter_mut().enumerate() {
         *b = pattern(seed, i);
     }
     let before = other.load(core::sync::atomic::Ordering::SeqCst);
@@ -110,30 +110,34 @@ pub fn survive_a_switch(seed: u64, other: &AtomicU32) -> bool {
             "ldr r10, [r0, #20]",
             "ldr r12, [r0, #24]",
             "add lr, r0, #32",
-            "vldmia lr, {{d0-d15}}",
+            "vldmia lr!, {{d0-d15}}",
+            "vldmia lr, {{d16-d31}}",
             "2:",
             "ldr lr, [r1]",
             "cmp lr, r2",
             "beq 2b",
-            "str r3, [r0, #160]",
-            "str r4, [r0, #164]",
-            "str r5, [r0, #168]",
-            "str r8, [r0, #172]",
-            "str r9, [r0, #176]",
-            "str r10, [r0, #180]",
-            "str r12, [r0, #184]",
-            "add lr, r0, #192",
-            "vstmia lr, {{d0-d15}}",
+            "str r3, [r0, #288]",
+            "str r4, [r0, #292]",
+            "str r5, [r0, #296]",
+            "str r8, [r0, #300]",
+            "str r9, [r0, #304]",
+            "str r10, [r0, #308]",
+            "str r12, [r0, #312]",
+            "add lr, r0, #320",
+            "vstmia lr!, {{d0-d15}}",
+            "vstmia lr, {{d16-d31}}",
             in("r0") buffer.0.as_mut_ptr(),
             in("r1") other.as_ptr(),
             inout("r2") before => _,
             out("r3") _, out("r4") _, out("r5") _, out("r8") _, out("r9") _, out("r10") _, out("r12") _, out("lr") _,
             out("d0") _, out("d1") _, out("d2") _, out("d3") _, out("d4") _, out("d5") _, out("d6") _, out("d7") _,
             out("d8") _, out("d9") _, out("d10") _, out("d11") _, out("d12") _, out("d13") _, out("d14") _, out("d15") _,
+            out("d16") _, out("d17") _, out("d18") _, out("d19") _, out("d20") _, out("d21") _, out("d22") _, out("d23") _,
+            out("d24") _, out("d25") _, out("d26") _, out("d27") _, out("d28") _, out("d29") _, out("d30") _, out("d31") _,
             options(nostack)
         );
     }
-    buffer.0[..28] == buffer.0[160..188] && buffer.0[32..160] == buffer.0[192..320]
+    buffer.0[..28] == buffer.0[288..316] && buffer.0[32..288] == buffer.0[320..576]
 }
 
 /// Raise an undefined-instruction exception.

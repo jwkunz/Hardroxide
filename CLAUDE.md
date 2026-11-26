@@ -36,7 +36,7 @@ regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and
 ## 3.0 in progress: Zynq UltraScale+
 
 [ADR 0005](docs/decisions/0005-ultrascale-plus.md) (accepted): RFSoC 4x2 first, Zynq-7000 stays and everything must remain **backward compatible with 2.7.0**
-(`scripts/check-compat.py`, in CI). Work is on branch `v3` (pushed to GitHub; `main` and releases stay at 2.7.0 until 3.0 is ready). Done: step 0 (except the PYNQ-Z2 board regression) and step 1: seven RFSoC 4x2 designs in
+(`scripts/check-compat.py`, in CI). Work is on branch `v3` (pushed to GitHub; `main` and releases stay at 2.7.0 until 3.0 is ready). Done: step 0 (PYNQ-Z2 regression run 2026-11-26) and step 1: seven RFSoC 4x2 designs in
 `fixtures/rfsoc4x2/`, proven on the board over JTAG (`scripts/probe.py` there). Step 2 done: `crates/hardroxide-psu` (AArch64, EL3) and `hardroxide run` for UltraScale+ (`scripts/test-board-rfsoc.sh`,
 `scripts/test-qemu-psu.sh`). Step 3 done: the kernel's AArch64 port (`port/aarch64.rs`; programs in `baremetal/` build for both
 families, shared setup in `baremetal/common/`; the two-hour jitter run passed on 2026-11-25). Step 4 done: SD, Ethernet, I2C
@@ -52,8 +52,10 @@ pass on the board under PYNQ 4.0.0 (`fpga::zynqmp`, `--test linux_psu`, `scripts
 `fixtures/board_tests_rfsoc_linux/`, guide `linux-ultrascale.md`). DMA needs `u-dma-buf`, built on the board and loaded from memory; ask before
 changing anything on the maintainer's card. Linux examples: `apps/rfsoc4x2/linux/`, tutorials
 `rfsoc/08` to `10` (never touch the FPGA's DDR4 before the clock chip is programmed). Network on the
-kernel: `apps/rfsoc4x2/rtos/rt_dashboard.rs` (done). Next: the PYNQ-Z2 regression and moving its examples to the base
-overlay, then 3.0.0.
+kernel: `apps/rfsoc4x2/rtos/rt_dashboard.rs` (done). The PYNQ-Z2 regression found that 2.x did not save
+`d16`-`d31` across interrupts and task switches (fixed on `v3`; 2.7.0 is affected, and by the maintainer's decision there is
+no 2.x patch release or further 2.x support). Next: the rest of the Z2 checks (SD
+only with a card the maintainer names, audio loopback, Linux), moving its examples to the base overlay, then 3.0.0.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

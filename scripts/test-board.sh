@@ -45,6 +45,26 @@ run_check() {
   fi
 }
 
+# smoke <label> <program in baremetal/> <expected text>...: the processor's and the kernel's own tests, which among other
+# things check that interrupts and task switches preserve every register.
+smoke() {
+  local label=$1 program=$2; shift 2
+  [ -n "$FILTER" ] && [[ "$label" != *$FILTER* ]] && return
+  local out missing=
+  out=$( (cd "baremetal/$program" && cargo build -q --release 2>&1) &&
+    timeout 90 "$HRX" run "baremetal/$program/target/armv7a-none-eabihf/release/$program" \
+      --xsa fixtures/board/pynq_base_overlay.xsa --watch 15 2>&1)
+  for expect in "$@"; do grep -qF -- "$expect" <<<"$out" || missing=$expect; done
+  if [ -z "$missing" ]; then
+    echo "PASS  $label"; pass=$((pass + 1))
+  else
+    echo "FAIL  $label (expected: $missing)"; echo "$out" | tail -8 | sed 's/^/      /'
+    fail=$((fail + 1)); failed+=("$label")
+  fi
+}
+smoke "processor/ps7-smoke" ps7-smoke "all 32 double registers whole across 5 interrupts: true" "ALL OK"
+smoke "processor/rt-smoke" rt-smoke "0 broken (preserved)" "RT ALL OK"
+
 B=fixtures/board_tests_bm
 gen gpio-bm fixtures/board/pynq_z2_gpio.xsa baremetal "$B/baremetal_gpio" && {
   run_check "baremetal/gpio board_check" gpio-bm board_check fixtures/board/pynq_z2_gpio.xsa 8 "all checks passed"

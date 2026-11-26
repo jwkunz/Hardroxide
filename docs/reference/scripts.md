@@ -4,7 +4,8 @@ The scripts in `scripts/board/` are for the **Linux** flavor. Bare-metal and RTO
 `hardroxide run` and `hardroxide package` ([CLI](cli.md)) instead, and tested with `scripts/test-qemu.sh` (QEMU),
 which sits next to `test-armv7.sh`, `check-no-std.sh` (the runtime crates build for `armv7a-none-eabihf` and `aarch64-unknown-none`) and
 `build-site.sh` (the documentation site into `target/site`), and `test-board.sh`: the board regression, which generates, builds and runs
-the self-checking bare-metal and RTOS programs of the tutorials on a board over JTAG and checks each one's console output
+the processor's and the kernel's own tests (`baremetal/ps7-smoke`, `rt-smoke`) and the self-checking bare-metal and RTOS
+programs of the tutorials on a board over JTAG and checks each one's console output
 (`scripts/test-board.sh [filter]`; needs the Vitis tools and the board in JTAG boot mode). It runs the video, audio and RTOS audio programs always (a monitor on HDMI OUT and headphones are only needed to see and hear them; the checks read the console). Three
 environment variables switch on what needs something connected: `HRX_AUDIO_LOOPBACK=1` (a cable from HPH OUT to LINE IN, for the audio loopback tests), `HRX_NET=1` (an Ethernet cable to a PC or router, for `net_ping`, `net_web`, `net_https` and the integrated `rt_station`) and
 `HRX_SD_SERIAL=0x...` (a card **that may be erased**, named by the serial number `sd_info` prints: the SD tests format it, and the format program refuses any other card that holds data). `scripts/test-qemu.sh` also runs the SD card (with `fsck.fat` on the image it wrote) and the network stack

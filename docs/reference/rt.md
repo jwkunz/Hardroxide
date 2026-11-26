@@ -19,8 +19,9 @@ with `default-features = false` (otherwise the link fails with duplicate symbols
 
 **Priorities: a higher number is more urgent**; `0` is the idle task (the kernel's own), user tasks use 1 and up.
 The most urgent ready task runs; equals share the processor round-robin, one tick each; a more urgent task
-that becomes ready preempts at once. Tasks have their own stacks (`task_stack!`), at least 512 bytes on the Zynq-7000 and 2048
-on UltraScale+ (a saved context there is 800 bytes). All state is static: at most 16 tasks and 32 semaphores/mutexes.
+that becomes ready preempts at once. Tasks have their own stacks (`task_stack!`), at least 512 bytes on the Zynq-7000 (a
+saved context there is 328 bytes) and 2048 on UltraScale+ (800 bytes). All state is static: at most 16 tasks and 32
+semaphores/mutexes.
 Interrupts are masked only inside the kernel's short critical sections.
 
 ```rust,ignore
@@ -33,8 +34,12 @@ macro_rules! task_stack
 runs the most urgent task; the GIC must already be initialised (the generated `Design::init` does it). `periph_hz` is the clock
 of the tick's timer: on the Zynq-7000 the private timer's (`hardroxide_ps7::clocks::periph_hz`), on UltraScale+ the system
 counter's (`hardroxide_psu::clocks::timestamp_hz`; the timer is the secure physical timer). A task function that returns ends
-the task. Floating point may be used in tasks and handlers: the context switch saves `d0`-`d15` and `FPSCR` on the Cortex-A9,
+the task. Floating point may be used in tasks and handlers: the context switch saves `d0`-`d31` and `FPSCR` on the Cortex-A9,
 all of `q0`-`q31`, `FPCR` and `FPSR` on the Cortex-A53.
+
+> **Update from 2.x on the Zynq-7000.** Up to 2.7.0 the kernel did not save `d16`-`d31`, nor did
+> [`hardroxide-ps7`](ps7.md)'s interrupt entry. The compiler uses those registers to copy memory, so an interrupt or a task
+> switch could silently corrupt data. Fixed in 3.0.0.
 
 **Before `start`** no task runs: `main` may create semaphores, give them and take what is there, and enable interrupts (their
 handlers run and return to `main`). A call that would have to wait returns at once with its failure value, and `delay` does

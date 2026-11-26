@@ -55,9 +55,10 @@ changing anything on the maintainer's card. Linux examples: `apps/rfsoc4x2/linux
 kernel: `apps/rfsoc4x2/rtos/rt_dashboard.rs` (done). The PYNQ-Z2 regression found that 2.x did not save
 `d16`-`d31` across interrupts and task switches (fixed on `v3`; 2.7.0 is affected, and by the maintainer's decision there is
 no 2.x patch release or further 2.x support). Linux passed on the Z2 under PYNQ 3.1 too
-(2026-11-26; shut down and power-cycle it rather than `reboot`, apply one overlay per boot). Next: the rest of the Z2
-checks (SD only with a card the maintainer names, audio loopback, HDMI and audio by eye and ear), moving its examples to
-the base overlay, then 3.0.0.
+(2026-11-26; shut down and power-cycle it rather than `reboot`, apply one overlay per boot). HDMI, audio and the cable
+loopback passed. The Z2's SD card tests were
+not run (no spare card; run them only with a card the maintainer names). Next: moving the Z2 examples to the base
+overlay, then 3.0.0.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

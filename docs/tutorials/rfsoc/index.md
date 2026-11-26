@@ -1,10 +1,9 @@
 # Zynq UltraScale+ on the RFSoC 4x2 (3.0 preview)
 
 **Preview.** Zynq UltraScale+ support is being built for 3.0 ([ADR 0005](../../decisions/0005-ultrascale-plus.md)) and is
-on the `v3` branch only. What works today is **bare metal and the real-time kernel**: processor start-up, the kernel, SD,
-Ethernet, the board's own hardware, and crates generated from your design with the FPGA drivers
-([tutorial 2](02-base-overlay.md)). For [Linux](../../guide/linux-ultrascale.md) there is a guide, no tutorial
-yet.
+on the `v3` branch only. What works today: **bare metal and the real-time kernel** (processor start-up, the kernel, SD,
+Ethernet, the board's own hardware) and **Linux** under the board's PYNQ image, each with crates generated from your
+design and the FPGA drivers.
 
 These pages run ready-made programs on a Real Digital RFSoC 4x2. Those that use the FPGA are applications in
 `apps/rfsoc4x2/`, built against a generated crate; those that test the processor system and the board's own hardware are
@@ -19,6 +18,9 @@ in `baremetal/`. The output shown was captured on one; addresses and serial numb
 | 5 | [The board's hardware as tasks](05-kernel-board.md) | slow and urgent work together, sharing data safely |
 | 6 | [The kernel's tests and timing](06-kernel-timing.md) | what the kernel guarantees, measured |
 | 7 | [Network and SD card](07-network-sd.md) | a web and HTTPS server; FAT32, with care |
+| 8 | [The base overlay under Linux](08-linux.md) | the same design from a Linux program: loading, interrupts |
+| 9 | [A web page for the board](09-linux-web.md) | the network and the kernel's drivers alongside the FPGA |
+| 10 | [The FPGA's own memory](10-linux-memory.md) | the second 4 GiB of DDR4, and what must come first |
 
 ## One FPGA design: the base overlay
 
@@ -35,6 +37,8 @@ need no Vivado license. Loading it over JTAG takes about half a minute.
 - The command-line tool **from this checkout** (the released one is 2.x): `cargo install --path crates/hardroxide-cli`.
 
 ## Board setup
+
+For tutorials 8 to 10 (Linux), see [tutorial 8](08-linux.md). For the others:
 
 1. Set the board's boot mode switch to **JTAG**.
 2. Connect the 12 V supply and the USB port labelled `PROG UART` (JTAG and the console, usually `/dev/ttyUSB1`).

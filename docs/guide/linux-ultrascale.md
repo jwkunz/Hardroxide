@@ -2,8 +2,9 @@
 
 **Status:** on an RFSoC 4x2 with the PYNQ 4.0.0 image, generated crates have driven the base overlay and the six test
 designs other than the radio one: registers, interrupts, DMA and both HLS kernels
-([results](../decisions/0005-ultrascale-plus.md)). The radio blocks are untouched, and there are no tutorials for Linux
-on this board yet.
+([results](../decisions/0005-ultrascale-plus.md)). The radio blocks are untouched. To start with the base overlay, follow
+the tutorials: [first programs](../tutorials/rfsoc/08-linux.md), [a web page](../tutorials/rfsoc/09-linux-web.md),
+[the FPGA's memory](../tutorials/rfsoc/10-linux-memory.md).
 
 ## What the crate does
 
@@ -24,7 +25,10 @@ on this board yet.
 | the line `pl_ps_irq0[0]` | already a UIO device, `fabric@A0000000`: the generated crate uses it, and its overlay leaves it out | yes |
 | memory for DMA and HLS pointers | `u-dma-buf` is **not** shipped: build and load it ([below](#dma-memory-u-dma-buf)). The kernel's pool for it is 512 MiB below 2 GiB | yes |
 
-Nothing needs to be stopped before loading: the only driver the image binds in the PL's addresses is that UIO device,
+**Wait about two minutes after power-on.** The image's `/boot/boot.py` programs the clock chips and loads the base
+overlay while starting (it was observed some 90 seconds after power-on), which replaces whatever you loaded before.
+
+Nothing else needs to be stopped before loading: the only driver the image binds in the PL's addresses is that UIO device,
 which the loader allows. A notebook that is using an overlay should be shut down first, since a new bitstream replaces it.
 
 ## Building and running
@@ -50,8 +54,10 @@ $ ssh -t xilinx@<board> sudo ./board_check
 all checks passed; next run the per-IP examples
 ```
 
-Run `board_check` first. For interrupts, compile and apply `interrupts.dtso` as on the Zynq-7000
-([Interrupts](interrupts.md)); the base overlay needs none, its one line being the image's. The programs used for the
+Run `board_check` first. For interrupts, compile `interrupts.dtso` on your computer (the image has no `dtc`:
+`dtc -@ -I dts -O dtb -o interrupts.dtbo interrupts.dtso`), copy it over and apply it with
+[`overlay.sh`](../reference/scripts.md) as on the Zynq-7000 ([Interrupts](interrupts.md)); the base overlay needs none,
+its one line being the image's. The programs used for the
 board results are in `fixtures/board_tests_rfsoc_linux/`.
 
 Two cautions:

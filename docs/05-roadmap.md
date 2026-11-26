@@ -86,9 +86,9 @@ bank fixes; `fsck.fat` on a card the board formatted; listening to the audio pum
 Plan and results: [ADR 0005](decisions/0005-ultrascale-plus.md). Done: the FPGA fixture designs, processor support,
 `hardroxide run`, the kernel, SD, Ethernet, I2C, the board's own hardware, and code generation (bare metal and RTOS)
 with the drivers, the base overlay applications on generated crates, and a two-hour timing run of the kernel. Linux
-crates run on the board, DMA included. To do: a network program on the kernel, Linux tutorials, the 3.0.0
+crates run on the board, DMA included, with tutorials (the FPGA's DDR4 among them). To do: a network program on the kernel, the 3.0.0
 release; the radio driver is 3.1. Not in the plan yet: starting from SD (`hardroxide package`). Left out: USB, Pmod+ and
-SYZYGY; DisplayPort, the PL's memory and the 100 Gb port are for the Linux examples. Still owed: the PYNQ-Z2
+SYZYGY, and DisplayPort and the 100 Gb port (nothing to test them with). Still owed: the PYNQ-Z2
 board regression.
 
 ## Documentation site

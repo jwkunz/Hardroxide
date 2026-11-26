@@ -1,4 +1,4 @@
-//! The applications in `apps/` build for their board's processor against a freshly generated crate of the platform
+//! The applications in `apps/` build (Linux ones: type-check) for their board's processor against a freshly generated crate of the platform
 //! their directory is named after, from the board's base overlay.
 
 use hardroxide_gen::{Options, Platform, generate};
@@ -39,6 +39,12 @@ const APPS: &[(&str, &str, Platform, &str)] = &[
         Platform::Rtos,
         "fixtures/board/rfsoc4x2_base_overlay.xsa",
     ),
+    (
+        "rfsoc4x2",
+        "linux",
+        Platform::Linux,
+        "fixtures/board/rfsoc4x2_base_overlay.xsa",
+    ),
 ];
 
 #[test]
@@ -50,7 +56,10 @@ fn applications_build() {
         .unwrap_or_default();
     for &(set, dir, platform, design) in APPS {
         let ultrascale = set == "rfsoc4x2";
-        let target = if ultrascale {
+        let linux = platform == Platform::Linux;
+        let target = if linux {
+            "aarch64-unknown-linux-gnu"
+        } else if ultrascale {
             "aarch64-unknown-none"
         } else {
             "armv7a-none-eabihf"
@@ -109,15 +118,15 @@ fn applications_build() {
             &libraries
         });
         std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();
+        // A Linux application is only checked: that needs no cross linker.
+        let command: &[&str] = if linux {
+            &["check", "--examples"]
+        } else {
+            &["build", "--release", "--examples"]
+        };
         let out = Command::new(env!("CARGO"))
-            .args([
-                "build",
-                "--release",
-                "--examples",
-                "--target",
-                target,
-                "--manifest-path",
-            ])
+            .args(command)
+            .args(["--target", target, "--manifest-path"])
             .arg(tmp.join("Cargo.toml"))
             .env(
                 "CARGO_TARGET_DIR",

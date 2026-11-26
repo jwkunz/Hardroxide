@@ -43,6 +43,9 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
 - Linux crates for Zynq UltraScale+ designs, run on an RFSoC 4x2 (DMA and HLS included; not the radio blocks): `hardroxide-fpga::zynqmp` (PL clocks, AXI port
   widths, loader), `BitFile::to_bin_zynqmp`, `Design::axi_port_widths`, a port-width file in the crate, and the interrupt
   overlay for this family. `scripts/test-aarch64.sh` runs the runtime crates' tests as AArch64 binaries.
+- RFSoC 4x2 Linux applications and tutorials: `lights`, a web `dashboard` and `pl_memory` (the FPGA's DDR4) on the base
+  overlay. `scripts/board/run.sh`
+  builds for AArch64 crates; `overlay.sh` takes a compiled `.dtbo` and keeps the image's own UIO device.
 - On AArch64, `Udmabuf` selects `u-dma-buf`'s write-combining mode (its default mapped buffers as device memory, where
   unaligned accesses fault), and the `/dev/mem` and UIO register accesses carry memory barriers.
 - `find_uio` also matches a UIO device named after its node with the unit address (`node@...`), as the UltraScale+ PYNQ

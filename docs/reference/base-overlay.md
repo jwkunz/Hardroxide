@@ -69,7 +69,16 @@ The programs in `apps/base/` build against this crate (`cargo test -p hardroxide
 unchanged from the 4.0.0 SD card image) with the `psu_init` that running without Linux needs, generated for the board's
 preset plus the overlay's processor-to-FPGA settings ([fixtures](fixtures.md#rfsoc-4x2-base-overlay)). `hardroxide run`
 starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for the whole overlay
-([bare-metal crate](baremetal.md#zynq-ultrascale)). Its applications are in `apps/rfsoc4x2/`.
+([bare-metal crate](baremetal.md#zynq-ultrascale)); without `--platform`, one for Linux
+([guide](../guide/linux-ultrascale.md)). Its applications are in `apps/rfsoc4x2/`:
+
+| Application | Platform | What it does |
+|---|---|---|
+| `lights` | bare metal | self test, then buttons and switches drive the LEDs through interrupts ([RFSoC 2](../tutorials/rfsoc/02-base-overlay.md)) |
+| `rt_lights` | RTOS | a mood light: several tasks on the kernel ([RFSoC 4](../tutorials/rfsoc/04-mood-light.md)) |
+| `lights` | Linux | the first one as a Linux program ([RFSoC 8](../tutorials/rfsoc/08-linux.md)) |
+| `dashboard` | Linux | a web page: temperature, buttons, switches, LEDs, power monitors ([RFSoC 9](../tutorials/rfsoc/09-linux-web.md)) |
+| `pl_memory` | Linux | the FPGA's 4 GiB of DDR4: address lines, patterns, speed ([RFSoC 10](../tutorials/rfsoc/10-linux-memory.md)) |
 
 | Block | Address | What it is | Interrupt controller input |
 |---|---|---|---|
@@ -85,8 +94,9 @@ starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for
 | `CMAC_*` | `0xA000_0000`, `0xA001_0000` | the 100 Gbit/s Ethernet MAC and its DMA | 6 |
 | `ddr4_0` | `0x10_0000_0000` | the FPGA's DDR4: **4 GiB**, which repeats through the 8 GiB the design maps | |
 
-> **Warning.** The blocks in the converters' clock domains do not answer until the clock chips are programmed
-> ([`hardroxide-board`](board.md)); an access before that can stall the processor until the next reset.
+> **Warning.** The blocks in the converters' clock domains, and `ddr4_0` (its reference clock is the clock chip's), do
+> not answer until the clock chips are programmed ([`hardroxide-board`](board.md); under PYNQ, `/boot/boot.py` does it
+> while starting). An access before that can stall the processor until the next reset.
 
 **Checked on a board** (`fixtures/rfsoc4x2/scripts/probe.py base`, raw register accesses): the LEDs, buttons and
 switches; the interrupt path from both GPIOs to the processor; the temperature; both Pmod memories; after programming

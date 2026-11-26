@@ -42,15 +42,16 @@ regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and
 families, shared setup in `baremetal/common/`; the two-hour jitter run passed on 2026-11-25). Step 4 done: SD, Ethernet, I2C
 (`HRX_SD_SERIAL=0x...` and `HRX_NET=1` for the board script; the SD test erases the card). The board's own hardware is
 done too (`crates/hardroxide-board`, `baremetal/rfsoc-board`; never drive `MIO7`, the LMK04828's reset pin, high). USB,
-Pmod+ and SYZYGY are out by the maintainer's decision; DisplayPort, PL memory and the 100 Gb port go to the Linux
-examples. **Examples and tutorials use the board's base overlay**
+Pmod+ and SYZYGY are out by the maintainer's decision, and so are DisplayPort and the 100 Gb port (nothing to test
+them with). **Examples and tutorials use the board's base overlay**
 (`fixtures/board/rfsoc4x2_base_overlay.xsa`, `probe.py base`, applications in `apps/rfsoc4x2/`); the other RFSoC designs are driver
 tests. Never build them for speed grade -1 (the preset is rejected); `timing_speed.tcl` checks -1 timing.
 Step 5 (generator) done for bare metal and RTOS: `baremetal_psu.rs`, `fixtures/board_tests_rfsoc/`,
 `--test baremetal_psu` and `board_tests_psu`. Step 6 (Linux): the base overlay and six test designs, DMA and HLS included,
 pass on the board under PYNQ 4.0.0 (`fpga::zynqmp`, `--test linux_psu`, `scripts/test-aarch64.sh`,
 `fixtures/board_tests_rfsoc_linux/`, guide `linux-ultrascale.md`). DMA needs `u-dma-buf`, built on the board and loaded from memory; ask before
-changing anything on the maintainer's card. Next: Linux tutorials, network on the kernel.
+changing anything on the maintainer's card. Linux examples: `apps/rfsoc4x2/linux/`, tutorials
+`rfsoc/08` to `10` (never touch the FPGA's DDR4 before the clock chip is programmed). Next: network on the kernel.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

@@ -55,3 +55,5 @@ in 4 KiB pieces, 11 MB/s in one large read, and the file system passed `fsck.fat
 
 Starting a program from the card, without a host, is not supported on this family yet (`hardroxide package` handles the
 Zynq-7000 only).
+
+Next: [the base overlay under Linux](08-linux.md).

@@ -175,7 +175,7 @@ into an open-drain output held low (TI datasheet, register `0x14A` = `0x06`), so
 version of the program, which pulsed it high, drove against it (briefly; both drivers limit the current, and everything
 works since); and the processor's GPIO ignores a level written to a pin while it is an input, so "write low, then enable"
 drives whatever the pin last had. USB and the Pmod+ and SYZYGY connectors were left out by decision; DisplayPort, the
-PL's memory and the 100 Gb port are left to the Linux examples.
+PL's memory and the 100 Gb port were left to the Linux examples (step 6: the memory was done, the other two dropped).
 
 ## The base overlay (2026-11-25)
 
@@ -256,8 +256,21 @@ Limits met: a line keeps its first trigger type until a reboot (`loopback` decla
 level), and `board_check` does not notice, since the device still opens. `u-dma-buf` builds on the board (the image lacks
 `bc`; pass the kernel's version suffix); it was loaded for one boot at a time, never installed.
 
-Not done: the radio blocks and the base overlay's DMA engines; tutorials for Linux on this board; `hardroxide doctor`
-for it. The bare-metal register backend orders writes against memory but has no barrier after reads on AArch64; its board
+Tutorials 8 and 9 (`apps/rfsoc4x2/linux/`, run with `scripts/board/run.sh`, which now builds for AArch64 too): the
+base overlay's lights and interrupts as a Linux program, and a web page serving its inputs, LEDs, temperature and the
+nine power monitors (through the kernel's drivers; 12.5 W in sum, as on bare metal), checked from the host over the
+network and through an SSH tunnel, its script run against a stand-in document (not looked at in a browser; the buttons
+and switches were not moved by hand). `scripts/board/overlay.sh` unbound the image's `fabric` device when replacing an
+overlay, until the next boot; it no longer does, and takes a compiled overlay since the image has no `dtc`.
+
+Tutorial 10, `pl_memory`: the FPGA's DDR4 from Linux, 30 address lines, 12 MiB of patterns at the start, middle and
+end, 19.1 MB/s writing and 15.1 MB/s reading a word at a time. Its reference clock is an output of the LMK04828 (board
+manual), which the image's `boot.py` programs with the same register values as ours; the program refuses to touch the
+memory unless that service has succeeded. That script also loads the base overlay about 90 s after power-on, replacing
+anything loaded earlier.
+
+Not done: the radio blocks and the base overlay's DMA engines; `hardroxide doctor` for this family. **DisplayPort and
+the 100 Gb port are dropped from the examples** (maintainer, 2026-11-25: nothing to test them with). The bare-metal register backend orders writes against memory but has no barrier after reads on AArch64; its board
 DMA tests pass, and the barrier should be added with the next bare-metal board run.
 
 ## Risks

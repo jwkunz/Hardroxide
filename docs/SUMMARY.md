@@ -68,6 +68,9 @@
   - [5. The board's hardware as tasks](tutorials/rfsoc/05-kernel-board.md)
   - [6. The kernel's tests and timing](tutorials/rfsoc/06-kernel-timing.md)
   - [7. Network and SD card](tutorials/rfsoc/07-network-sd.md)
+  - [8. The base overlay under Linux](tutorials/rfsoc/08-linux.md)
+  - [9. A web page for the board](tutorials/rfsoc/09-linux-web.md)
+  - [10. The FPGA's own memory](tutorials/rfsoc/10-linux-memory.md)
 
 # Reference
 

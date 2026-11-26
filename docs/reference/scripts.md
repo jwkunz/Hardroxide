@@ -62,8 +62,9 @@ overlay status: applied
 uio0: axi_timer_0_interrupt
 ```
 
-Compiles the generated `interrupts.dtso` with `dtc` and applies it through configfs,
-replacing the overlay this script applied before, then lists the UIO devices. A GIC
+Compiles the generated `interrupts.dtso` with `dtc` (or takes a `.dtbo` compiled elsewhere, for an image without
+`dtc`, as the RFSoC 4x2's) and applies it through configfs, replacing the overlay this script applied before (the image's
+own `fabric` device stays), then lists the UIO devices. A GIC
 interrupt line keeps the trigger type (level or edge) of the first overlay that used
 it until the board reboots; if a UIO device later returns `EIO`, reboot. See
 [Interrupts](../guide/interrupts.md).
@@ -74,15 +75,16 @@ it until the board reboots; if a UIO device later returns `EIO`, reboot. See
 $ scripts/board/run.sh <crate-dir> <example> [args...]
 ```
 
-Builds `<example>` of the generated crate in `<crate-dir>` for
-`armv7-unknown-linux-gnueabihf`, copies the binary to the board's home directory and
+Builds `<example>` of the generated crate in `<crate-dir>` for its board
+(`armv7-unknown-linux-gnueabihf`, or `aarch64-unknown-linux-gnu` for a Zynq UltraScale+ crate, told by its
+`bitstream/ports.cfg`), copies the binary to the board's home directory and
 runs it with `sudo`; extra arguments are passed to the program (for example an instance
 name). Environment variables:
 
 | Variable | Meaning | Default |
 |---|---|---|
 | `BOARD` | ssh target | `xilinx@pynq` |
-| `LINKER` | cross linker | `arm-linux-gnueabihf-gcc` on `PATH`, else the one bundled with Vitis (`$XILINX_ROOT`, default `~/AMD/2025.2`) |
+| `LINKER` | cross linker | the board processor's `gcc` on `PATH` (`arm-linux-gnueabihf-gcc` or `aarch64-linux-gnu-gcc`), else the one bundled with Vitis (`$XILINX_ROOT`, default `~/AMD/2025.2`) |
 | `HRX_SSH`, `HRX_SCP` | replace `ssh` and `scp` (to add options or a wrapper) | `ssh`, `scp` |
 
 `sudo` asks for the password on the board (`xilinx` on the stock image) each run.

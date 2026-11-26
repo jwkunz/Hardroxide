@@ -17,7 +17,7 @@ in `baremetal/`. The output shown was captured on one; addresses and serial numb
 | 4 | [A mood light on the kernel](04-mood-light.md) | tasks, priorities, interrupts that wake tasks, periodic work |
 | 5 | [The board's hardware as tasks](05-kernel-board.md) | slow and urgent work together, sharing data safely |
 | 6 | [The kernel's tests and timing](06-kernel-timing.md) | what the kernel guarantees, measured |
-| 7 | [Network and SD card](07-network-sd.md) | a web and HTTPS server; FAT32, with care |
+| 7 | [Network and SD card](07-network-sd.md) | a web and HTTPS server, also as a task beside a control loop; FAT32, with care |
 | 8 | [The base overlay under Linux](08-linux.md) | the same design from a Linux program: loading, interrupts |
 | 9 | [A web page for the board](09-linux-web.md) | the network and the kernel's drivers alongside the FPGA |
 | 10 | [The FPGA's own memory](10-linux-memory.md) | the second 4 GiB of DDR4, and what must come first |

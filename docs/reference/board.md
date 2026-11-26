@@ -102,4 +102,6 @@ pub const LMK_CLOCK_SELECT: [u32; 2] = [8, 12];
 
 `RAILS` lists the nine monitored supplies with their I2C addresses and shunt resistors. One observation from the board:
 the ADCs' synthesizer reports lock even with the LMK04828 freshly reset, so a clock reaches it then; only the converters
-show whether it is the right one.
+show whether it is the right one. And once, on the first access to the clock chips after switching on (following a
+Linux session), the DACs' synthesizer reported lock too with the LMK04828 reset; six repeats right after did not, nor
+did the first run after a later power cycle.

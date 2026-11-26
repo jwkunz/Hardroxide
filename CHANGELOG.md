@@ -43,6 +43,8 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
 - Linux crates for Zynq UltraScale+ designs, run on an RFSoC 4x2 (DMA and HLS included; not the radio blocks): `hardroxide-fpga::zynqmp` (PL clocks, AXI port
   widths, loader), `BitFile::to_bin_zynqmp`, `Design::axi_port_widths`, a port-width file in the crate, and the interrupt
   overlay for this family. `scripts/test-aarch64.sh` runs the runtime crates' tests as AArch64 binaries.
+- RFSoC 4x2 on the kernel: `rt_dashboard`, a web page served beside a 10 ms control loop. The bare-metal register backend
+  completes a read before later accesses on AArch64.
 - RFSoC 4x2 Linux applications and tutorials: `lights`, a web `dashboard` and `pl_memory` (the FPGA's DDR4) on the base
   overlay. `scripts/board/run.sh`
   builds for AArch64 crates; `overlay.sh` takes a compiled `.dtbo` and keeps the image's own UIO device.

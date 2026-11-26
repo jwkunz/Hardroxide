@@ -44,6 +44,6 @@ second master using DDR, or temperature extremes.
 - Task stacks need at least 2048 bytes: a saved context, with all the vector registers, is 800 bytes.
 - The tick comes from the 33.333 MHz system counter; periods differ by one count so that the average is exact.
 
-There is no network program on the kernel for this board yet.
+The kernel's network program is in [tutorial 7](07-network-sd.md#a-web-page-on-the-kernel).
 
 Next: [network and SD card](07-network-sd.md).

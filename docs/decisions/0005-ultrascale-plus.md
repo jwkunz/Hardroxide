@@ -259,8 +259,8 @@ level), and `board_check` does not notice, since the device still opens. `u-dma-
 Tutorials 8 and 9 (`apps/rfsoc4x2/linux/`, run with `scripts/board/run.sh`, which now builds for AArch64 too): the
 base overlay's lights and interrupts as a Linux program, and a web page serving its inputs, LEDs, temperature and the
 nine power monitors (through the kernel's drivers; 12.5 W in sum, as on bare metal), checked from the host over the
-network and through an SSH tunnel, its script run against a stand-in document (not looked at in a browser; the buttons
-and switches were not moved by hand). `scripts/board/overlay.sh` unbound the image's `fabric` device when replacing an
+network and through an SSH tunnel. The maintainer then checked both by hand: 20 button presses, each registered once,
+the switches, the colours, and the page in a browser. `scripts/board/overlay.sh` unbound the image's `fabric` device when replacing an
 overlay, until the next boot; it no longer does, and takes a compiled overlay since the image has no `dtc`.
 
 Tutorial 10, `pl_memory`: the FPGA's DDR4 from Linux, 30 address lines, 12 MiB of patterns at the start, middle and
@@ -270,8 +270,20 @@ memory unless that service has succeeded. That script also loads the base overla
 anything loaded earlier.
 
 Not done: the radio blocks and the base overlay's DMA engines; `hardroxide doctor` for this family. **DisplayPort and
-the 100 Gb port are dropped from the examples** (maintainer, 2026-11-25: nothing to test them with). The bare-metal register backend orders writes against memory but has no barrier after reads on AArch64; its board
-DMA tests pass, and the barrier should be added with the next bare-metal board run.
+the 100 Gb port are dropped from the examples** (maintainer, 2026-11-25: nothing to test them with). The bare-metal register backend now also completes a read before later accesses on AArch64 (`dsb ld`), as the Linux one
+does.
+
+**The kernel's network program** (`apps/rfsoc4x2/rtos/rt_dashboard.rs`, tutorial 7): the base overlay's page served by a
+priority-3 task beside a priority-5 control loop. On the board: 10,742 requests from four clients in 20 s, none failed,
+the 10 ms loop within 1 us throughout.
+
+**Full board test after both** (`HRX_NET=1 scripts/test-board-rfsoc.sh`, without the SD card test): everything passed but
+one check in `rfsoc-board`, which expects the DAC's synthesizer to report no lock while the LMK04828 is reset and read
+"locked"; both synthesizers locked once it was programmed. Six repeats straight afterwards, three with the new read
+barrier and three without, all reported no lock, so the barrier is not the cause. The failing run was the first access
+to the clock chips since the board was switched on, after a Linux session. After a later power cycle (2026-11-26, JTAG
+mode), `rfsoc-board` run first reported no lock and passed, so being the first access is not enough to cause it; a
+preceding Linux session was not repeated. The cause is **unknown** (one failure in eight runs); the check is unchanged.
 
 ## Risks
 

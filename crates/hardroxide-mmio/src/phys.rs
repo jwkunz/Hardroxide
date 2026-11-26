@@ -68,6 +68,18 @@ fn barrier() {
     };
 }
 
+/// On AArch64, keep later memory accesses (to a buffer a device wrote) after the register read that says it is done.
+/// The 32-bit ARM build is as it was.
+#[inline(always)]
+fn after_read() {
+    core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+    #[cfg(target_arch = "aarch64")]
+    // SAFETY: a data synchronisation barrier has no memory-safety effect.
+    unsafe {
+        core::arch::asm!("dsb ld", options(nostack, preserves_flags))
+    };
+}
+
 impl Mmio for PhysRegion {
     fn len(&self) -> usize {
         self.len
@@ -77,7 +89,7 @@ impl Mmio for PhysRegion {
         // SAFETY: `check` keeps `offset..offset+4` inside the window, 4-byte aligned;
         // the window's validity is the contract of `PhysMem::new`.
         let v = unsafe { ptr::read_volatile(self.base.add(offset) as *const u32) };
-        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        after_read();
         Ok(v)
     }
     fn write32(&self, offset: usize, value: u32) -> Result<(), MmioError> {

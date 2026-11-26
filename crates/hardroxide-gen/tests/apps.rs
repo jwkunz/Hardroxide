@@ -112,6 +112,20 @@ fn applications_build() {
             root().join("crates/hardroxide-tls"),
             root().join("crates/hardroxide-ps7")
         );
+        // The RFSoC's network application adds the network stack and the Ethernet driver's feature to the crate's
+        // development dependencies, as its tutorial says.
+        if ultrascale && platform == Platform::Rtos {
+            let section = "[dev-dependencies]\n";
+            assert!(manifest.contains(section), "{manifest}");
+            manifest = manifest.replace(
+                section,
+                &format!(
+                    "{section}hardroxide-net = {{ path = {:?} }}\nhardroxide-psu = {{ path = {:?}, default-features = false, features = [\"net\"] }}\n",
+                    root().join("crates/hardroxide-net"),
+                    root().join("crates/hardroxide-psu")
+                ),
+            );
+        }
         manifest.push_str(if ultrascale {
             "\n[workspace]\n"
         } else {

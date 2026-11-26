@@ -76,6 +76,7 @@ starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for
 |---|---|---|
 | `lights` | bare metal | self test, then buttons and switches drive the LEDs through interrupts ([RFSoC 2](../tutorials/rfsoc/02-base-overlay.md)) |
 | `rt_lights` | RTOS | a mood light: several tasks on the kernel ([RFSoC 4](../tutorials/rfsoc/04-mood-light.md)) |
+| `rt_dashboard` | RTOS | a web page served beside a 10 ms control loop ([RFSoC 7](../tutorials/rfsoc/07-network-sd.md#a-web-page-on-the-kernel)) |
 | `lights` | Linux | the first one as a Linux program ([RFSoC 8](../tutorials/rfsoc/08-linux.md)) |
 | `dashboard` | Linux | a web page: temperature, buttons, switches, LEDs, power monitors ([RFSoC 9](../tutorials/rfsoc/09-linux-web.md)) |
 | `pl_memory` | Linux | the FPGA's 4 GiB of DDR4: address lines, patterns, speed ([RFSoC 10](../tutorials/rfsoc/10-linux-memory.md)) |

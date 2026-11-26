@@ -8,7 +8,8 @@
 # chips, which forget at power-off), and the overlay and the board hardware on the kernel (apps/rfsoc4x2/rtos/rt_lights,
 # baremetal/rt-board). What the display shows, the buttons and the switches are for a person to check.
 # HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
-# HRX_NET=1 adds the Ethernet test (the board cabled to this computer, which serves DHCP on that link).
+# HRX_NET=1 adds the Ethernet tests (bare metal, and the web page on the kernel; the board cabled to this computer,
+# which serves DHCP on that link).
 #
 #   scripts/test-board-rfsoc.sh                 HRX_TTY: the console port (default /dev/ttyUSB1)
 set -euo pipefail
@@ -192,6 +193,13 @@ PY
   fi
 fi
 
+# Stop showing the console of the program run in the background (either may find nothing left to stop).
+stop_console() {
+  pkill -P "$RUN_PID" 2>/dev/null || true
+  kill "$RUN_PID" 2>/dev/null || true
+  wait "$RUN_PID" 2>/dev/null || true
+}
+
 # Ethernet: only with HRX_NET=1 and a cable from the board to this computer (which must give it an address by DHCP).
 if [ -n "${HRX_NET:-}" ]; then
   echo "== Ethernet"
@@ -211,10 +219,39 @@ if [ -n "${HRX_NET:-}" ]; then
   else
     fail=1
   fi
-  # Stop showing the console (either may find nothing left to stop).
-  pkill -P "$RUN_PID" 2>/dev/null || true
-  kill "$RUN_PID" 2>/dev/null || true
-  wait "$RUN_PID" 2>/dev/null || true
+  stop_console
+
+  echo "== Ethernet on the kernel: the base overlay's web page beside its control loop"
+  dir=$GEN/apps-network
+  rm -rf "$dir"
+  target/debug/hardroxide generate "$XSA" --platform rtos --name design_1 -o "$dir" --hardroxide-path "$ROOT" >/dev/null
+  cp apps/rfsoc4x2/rtos/rt_dashboard.rs "$dir/examples/"
+  # The lines its tutorial has a student add.
+  sed -i "s|^\[dev-dependencies\]\$|&\nhardroxide-net = { path = \"$ROOT/crates/hardroxide-net\" }\nhardroxide-psu = { path = \"$ROOT/crates/hardroxide-psu\", default-features = false, features = [\"net\"] }|" "$dir/Cargo.toml"
+  printf '\n[workspace]\n' >>"$dir/Cargo.toml"
+  (cd "$dir" && CARGO_TARGET_DIR="$GEN/target-apps-rtos" cargo build -q --release --example rt_dashboard)
+  : >"$OUT"
+  target/debug/hardroxide run "$GEN/target-apps-rtos/aarch64-unknown-none/release/examples/rt_dashboard" \
+    --xsa "$XSA" --tty "$TTY" --watch 60 >"$OUT" 2>&1 &
+  RUN_PID=$!
+  for _ in $(seq 1 160); do grep -q "DASHBOARD READY\|no link" "$OUT" && break; sleep 0.5; done
+  tr -d '\r' <"$OUT"
+  IP=$(sed -n 's/.*DASHBOARD READY: http:\/\/\([0-9.]*\)\/.*/\1/p' "$OUT" | head -1)
+  if [ -n "$IP" ]; then
+    curl -sf -m 4 -o /dev/null "http://$IP/" || { echo "MISSING: the page" >&2; fail=1; }
+    curl -sf -m 4 -X POST "http://$IP/colour?value=2" || { echo "MISSING: setting a colour" >&2; fail=1; }
+    answered=0
+    for _ in $(seq 1 500); do curl -sf -m 3 -o /dev/null "http://$IP/state" && answered=$((answered + 1)); done
+    state=$(curl -s -m 4 "http://$IP/state")
+    echo "$answered of 500 requests answered; $state"
+    [ "$answered" = 500 ] || { echo "MISSING: an answer to every request" >&2; fail=1; }
+    grep -q '"colour":2,' <<<"$state" || { echo "MISSING: the chosen colour" >&2; fail=1; }
+    grep -q '"worst_us":[0-9],' <<<"$state" || { echo "MISSING: the control loop within 10 us of its period" >&2; fail=1; }
+    curl -sf -m 4 -X POST "http://$IP/colour?value=0" || true
+  else
+    echo "MISSING: DASHBOARD READY" >&2; fail=1
+  fi
+  stop_console
 fi
 
 [ "$fail" = 0 ] && echo "RFSoC 4x2 board test: ok" || { echo "RFSoC 4x2 board test: FAILED" >&2; exit 1; }

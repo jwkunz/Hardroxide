@@ -51,7 +51,9 @@ Step 5 (generator) done for bare metal and RTOS: `baremetal_psu.rs`, `fixtures/b
 pass on the board under PYNQ 4.0.0 (`fpga::zynqmp`, `--test linux_psu`, `scripts/test-aarch64.sh`,
 `fixtures/board_tests_rfsoc_linux/`, guide `linux-ultrascale.md`). DMA needs `u-dma-buf`, built on the board and loaded from memory; ask before
 changing anything on the maintainer's card. Linux examples: `apps/rfsoc4x2/linux/`, tutorials
-`rfsoc/08` to `10` (never touch the FPGA's DDR4 before the clock chip is programmed). Next: network on the kernel.
+`rfsoc/08` to `10` (never touch the FPGA's DDR4 before the clock chip is programmed). Network on the
+kernel: `apps/rfsoc4x2/rtos/rt_dashboard.rs` (done). Next: the PYNQ-Z2 regression and moving its examples to the base
+overlay, then 3.0.0.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

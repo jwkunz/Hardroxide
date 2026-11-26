@@ -54,8 +54,12 @@ The programs in `apps/base/` build against this crate (`cargo test -p hardroxide
 
 | Program | Flavor | What it does |
 |---|---|---|
+| `leds` | bare metal | the LEDs follow the buttons, the switches choose the colour ([Bare metal 1](../tutorials/baremetal/01-jtag.md)) |
+| `button_irq` | bare metal | wait for a button through the interrupt controller ([Bare metal 2](../tutorials/baremetal/02-interrupt.md)) |
+| `control` | RTOS | a 10 ms control loop copying the buttons to the LEDs ([RTOS 1](../tutorials/rtos/01-control-loop.md)) |
+| `lights`, `interrupts`, `block_ram` | Linux | LEDs and switches; a button interrupt through UIO; block RAM ([Linux tutorials](../tutorials/linux/index.md)) |
 | `selftest` | bare metal | an automated check of the clocks, LEDs, RGB LEDs and the interrupt path (controller to GIC to processor) |
-| `lights` | bare metal | buttons through the interrupt controller: count on the LEDs, colours from the switches |
+| `lights` (in `baremetal/`) | bare metal | buttons through the interrupt controller: count on the LEDs, colours from the switches |
 | `rt_lights` | RTOS | a mood light: four tasks with PWM, rainbow patterns, brightness and on/off from the buttons |
 | `rt_irq_latency` | RTOS | interrupt-to-task latency under load, as a histogram |
 | `video_demo` | bare metal | HDMI at 1280x720: test pattern and a double-buffered animation ([Applications 2](../tutorials/apps/02-hdmi.md); not yet run on a board) |

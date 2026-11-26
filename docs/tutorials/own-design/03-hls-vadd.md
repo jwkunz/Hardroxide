@@ -1,7 +1,7 @@
-# Linux 4: An HLS kernel
+# Your own design 3: An HLS kernel
 
 **Design:** `fixtures/pynq_z2_hls_vadd.xsa` · **Time:** 10 minutes · **Needs:**
-[setup](index.md#before-you-start-once); the interrupt overlay for step 4
+[setup](../linux/index.md#before-you-start-once); the interrupt overlay for step 4
 
 A Vitis HLS kernel is C++ compiled into FPGA logic. This one adds two numbers:
 
@@ -74,7 +74,7 @@ the "output valid" bit HLS provides for each output register.
 
 Polling `wait_done` is fine for a few microseconds; for longer kernels let the
 processor sleep. Apply this design's overlay
-([Linux 2, step 4](02-timer-spi-irq.md#4-apply-the-overlay)), then:
+([tutorial 1, step 4](01-timer-spi-irq.md#4-apply-the-overlay)), then:
 
 ```rust,ignore
 {{#include ../../../fixtures/board_tests/hls_vadd/vadd_irq.rs}}
@@ -98,4 +98,4 @@ You ran HLS-generated hardware from Rust with named, typed registers, both by
 polling and by interrupt. For your own kernel, the only change is the design you
 point `generate` at.
 
-Continue with [Linux 5: An HLS kernel that reads memory](05-hls-pointers.md).
+Continue with [An HLS kernel that reads memory](04-hls-pointers.md).

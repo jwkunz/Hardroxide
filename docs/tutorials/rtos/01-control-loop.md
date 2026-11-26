@@ -1,16 +1,18 @@
 # RTOS 1: A 10 ms control loop on the kernel
 
-**Design:** `fixtures/board/pynq_z2_gpio.xsa` · **Time:** 20 minutes · **Needs:** [Bare metal 1](../baremetal/01-jtag.md) (the host setup)
+**Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 20 minutes · **Needs:** [Bare metal 1](../baremetal/01-jtag.md) (the host setup)
 
 Real-time control wants a loop that runs every 10 ms however busy the rest of the program is. `hardroxide-rt` is a
 small kernel for that: tasks with priorities, where a more urgent task preempts a less urgent one at once.
 
+> **Status:** moved to the base overlay for 3.0: the program builds against the generated crate and has **not yet been
+> run on a board** in this form. The output below is from the same program on a small test design.
+
 ## 1. Generate an RTOS crate
 
 ```console
-$ hardroxide generate fixtures/board/pynq_z2_gpio.xsa --platform rtos -o work/rt --hardroxide-path .
-generated 9 files in work/rt
-$ ls work/rt/examples
+$ hardroxide generate fixtures/board/pynq_base_overlay.xsa --platform rtos -o work/base-rt --hardroxide-path . --name design_1
+$ ls work/base-rt/examples
 rt_control.rs
 ```
 
@@ -19,7 +21,7 @@ interrupt entries that the plain bare-metal programs use.
 
 ## 2. The program
 
-Copy `fixtures/board_tests_bm/rtos_gpio/control.rs` into `examples/`. Two tasks share the design through a `Shared`, a value behind
+Copy `apps/base/rtos/control.rs` into `examples/`. Two tasks share the design through a `Shared`, a value behind
 a mutex with priority inheritance:
 
 ```rust,ignore
@@ -30,8 +32,8 @@ fn control() {                         // priority 5
     loop {
         every.wait_next();             // sleeps until the next 10 ms release: no drift
         let d = DESIGN.lock(WAIT_FOREVER).unwrap();
-        let buttons = d.axi_gpio_0.read(Channel::Two).unwrap() & 0xF;
-        d.axi_gpio_0.write(Channel::One, buttons).unwrap();
+        let buttons = d.btns_gpio.read(Channel::One).unwrap() & 0xF;
+        d.leds_gpio.write(Channel::One, buttons).unwrap();
     }
 }
 
@@ -57,8 +59,10 @@ shift later ones; `wait_next` returns `false` if an iteration overran its period
 ## 3. Run it
 
 ```console
+$ cd work/base-rt
+$ cp ../../apps/base/rtos/control.rs examples/
 $ cargo build --release --examples
-$ hardroxide run target/armv7a-none-eabihf/release/examples/control --xsa ../../fixtures/board/pynq_z2_gpio.xsa --watch 8
+$ hardroxide run target/armv7a-none-eabihf/release/examples/control --xsa ../../fixtures/board/pynq_base_overlay.xsa --watch 8
 
 == control: buttons -> LEDs every 10 ms ==
 control: 100 runs, worst deviation from the 10 ms period 1 us

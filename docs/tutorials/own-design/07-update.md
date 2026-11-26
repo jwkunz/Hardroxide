@@ -1,8 +1,8 @@
-# Linux 10: Updating a bitstream
+# Your own design 7: Updating a bitstream
 
 **Designs:** `fixtures/pynq_z2_peripherals.xsa` and two variants in
 `fixtures/variants/` · **Time:** 15 minutes · **Needs:**
-[setup](index.md#before-you-start-once)
+[setup](../linux/index.md#before-you-start-once)
 
 FPGA development is a loop: change the logic, rebuild in Vivado, test. Most rebuilds
 **do not change what software sees**: the same IP at the same addresses with the same
@@ -10,7 +10,7 @@ registers. For those, Hardroxide swaps only the bitstream and leaves your Rust
 code and the generated crate untouched. This tutorial shows the loop and its safety
 rail.
 
-The two variants are rebuilds of the Linux 2 design:
+The two variants are rebuilds of the tutorial 1 design:
 
 | File | What changed |
 |---|---|
@@ -126,4 +126,5 @@ See [Updating a bitstream](../../guide/updating.md). Do not enable it in a relea
 You rebuilt hardware without touching software, saw `update` replace exactly the
 bitstream, and saw it refuse a change that would have silently broken a driver.
 
-Continue with [Linux 11: A design you did not build](11-base-overlay.md).
+Continue with [a timer's interrupt on bare metal](08-baremetal-timer.md), or use your own design: [Exporting an XSA from
+Vivado](../../guide/vivado.md).

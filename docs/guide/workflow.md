@@ -94,7 +94,7 @@ register, so a mistake shows up there rather than as a frozen board. See
 | Logic only (same IP, addresses, registers, interrupts) | `hardroxide update new.xsa --crate-dir my_design` | only `bitstream/` changes; your code does not |
 | Anything software sees (an address, a register, an IP, an interrupt, or a setting a driver is built with, such as a clock) | the same, then `--regen` | `update` refuses and prints the diff; `--regen` regenerates `src/` and `examples/` |
 
-See [Updating a bitstream](updating.md) and [Linux 10](../tutorials/linux/10-update.md).
+See [Updating a bitstream](updating.md) and [the update tutorial](../tutorials/own-design/07-update.md).
 
 ## Choosing a flavor
 

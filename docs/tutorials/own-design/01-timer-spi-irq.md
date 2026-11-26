@@ -1,7 +1,7 @@
-# Linux 2: Timer, SPI and interrupts
+# Your own design 1: Timer, SPI and interrupts
 
 **Design:** `fixtures/pynq_z2_peripherals.xsa` · **Time:** 15 minutes · **Needs:**
-[setup](index.md#before-you-start-once); the interrupt overlay (step 4)
+[setup](../linux/index.md#before-you-start-once); the interrupt overlay (step 4)
 
 Three peripherals the board can run with no wiring: an **AXI Timer**, an
 **AXI Quad SPI** (its internal loopback mode), and an **AXI IIC**. Their three
@@ -140,4 +140,4 @@ its `/dev/uioN` instead of `/dev/mem`; `lifecycle.rs`, which loads the design
 repeatedly; and `async_bench.rs`, which waits asynchronously (it needs the `async`
 feature of `hardroxide-irq`). All are in `fixtures/board_tests/peripherals/`.
 
-Continue with [Linux 3: UART and I2C without wires](03-uart-iic-loopback.md).
+Continue with [UART and I2C without wires](02-uart-iic-loopback.md).

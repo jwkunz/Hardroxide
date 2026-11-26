@@ -1,7 +1,7 @@
-# Linux 3: UART and I2C without wires
+# Your own design 2: UART and I2C without wires
 
 **Design:** `fixtures/pynq_z2_loopback.xsa` · **Time:** 15 minutes · **Needs:**
-[setup](index.md#before-you-start-once); the interrupt overlay for step 5
+[setup](../linux/index.md#before-you-start-once); the interrupt overlay for step 5
 
 To test a serial port you normally need a jumper wire. This design wires the
 peripherals to each other **inside the FPGA** instead: two AXI UART Lite cores with
@@ -81,7 +81,7 @@ program queues the controller's bytes first and then drains the target's FIFO.
 
 ## 3. Interrupts
 
-Apply this design's overlay as in [Linux 2](02-timer-spi-irq.md#4-apply-the-overlay), then
+Apply this design's overlay as in [tutorial 1](01-timer-spi-irq.md#4-apply-the-overlay), then
 run the interrupt programs. Their output on a real board:
 
 ```console
@@ -117,4 +117,4 @@ You exercised two UARTs and two I2C cores with real data, checked timing against
 baud rate, and used interrupts, all without a single wire. This design is also how
 Hardroxide's own UART and IIC drivers were validated.
 
-Continue with [Linux 4: An HLS kernel](04-hls-vadd.md).
+Continue with [An HLS kernel](03-hls-vadd.md).

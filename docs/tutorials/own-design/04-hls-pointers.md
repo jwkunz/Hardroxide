@@ -1,7 +1,7 @@
-# Linux 5: An HLS kernel that reads memory
+# Your own design 4: An HLS kernel that reads memory
 
 **Design:** `fixtures/pynq_z2_hls_scale.xsa` · **Time:** 15 minutes · **Needs:**
-[setup](index.md#before-you-start-once) and the `u-dma-buf` module
+[setup](../linux/index.md#before-you-start-once) and the `u-dma-buf` module
 
 Real kernels work on arrays in memory. This one multiplies every element of an input
 array by a constant and writes an output array:
@@ -92,4 +92,4 @@ arguments.
 > [G17](../../08-verification-gaps.md#g17-the-ps-pl-hp-port-can-wedge-after-many-design-switches):
 > power-cycle the board.
 
-Continue with [Linux 6: AXI DMA](06-dma.md).
+Continue with [AXI DMA](05-dma.md).

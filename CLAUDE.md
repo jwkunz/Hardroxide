@@ -57,8 +57,10 @@ kernel: `apps/rfsoc4x2/rtos/rt_dashboard.rs` (done). The PYNQ-Z2 regression foun
 no 2.x patch release or further 2.x support). Linux passed on the Z2 under PYNQ 3.1 too
 (2026-11-26; shut down and power-cycle it rather than `reboot`, apply one overlay per boot). HDMI, audio and the cable
 loopback passed. The Z2's SD card tests were
-not run (no spare card; run them only with a card the maintainer names). Next: moving the Z2 examples to the base
-overlay, then 3.0.0.
+not run (no spare card; run them only with a card the maintainer names). The Z2 examples and tutorials moved to the
+base overlay (3.0); **the new programs are not yet run on the board** (run them, capture the outputs, remove the pages'
+status notes, and check the colour LEDs' wiring: new programs take blue, green, red from bit 0, `baremetal/lights`
+assumes red at bit 0). Then 3.0.0.
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step
@@ -73,7 +75,7 @@ overlay (ADR 0004): video, gfx, audio, fat, net, crypto, tls (`docs/reference/li
 third-party designs (PYNQ overlays) are in `fixtures/real/`.
 
 **The mdBook (`docs/`, deployed by `.github/workflows/pages.yml`) is the
-authoritative documentation**, including twenty-one tutorials (`docs/tutorials/`, grouped by flavor: `linux/`, `baremetal/`, `rtos/`, and `apps/` for applications) whose code lives in `fixtures/board_tests/` (Linux) and `fixtures/board_tests_bm/` (bare metal, RTOS; compiled by `cargo test -p hardroxide-gen --test board_tests` and `--test baremetal`) and whose outputs were captured on a board; board helper scripts are in `scripts/board/`. When you change a public API or the CLI, update
+authoritative documentation**, including the tutorials (`docs/tutorials/`: `linux/`, `baremetal/`, `rtos/` and `apps/` on the PYNQ base overlay with programs in `apps/base/`, compiled by `cargo test -p hardroxide-gen --test apps`; `own-design/` on the small fixture designs with programs in `fixtures/board_tests/` and `fixtures/board_tests_bm/`, compiled by `--test board_tests` and `--test baremetal`; `rfsoc/`). Their outputs are captured on a board: a page says when its program is not yet run there; board helper scripts are in `scripts/board/`. When you change a public API or the CLI, update
 `docs/reference/` in the same change; `cargo test -p hardroxide-cli --test book`
 fails if signatures, help text or links drift. Guide examples are compile-tested
 (`cargo test -p hardroxide-gen --test guide`; tag blocks

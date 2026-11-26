@@ -1,8 +1,8 @@
-# Linux 6: AXI DMA
+# Your own design 5: AXI DMA
 
 **Design:** `fixtures/pynq_z2_dma_loopback.xsa` · **Time:** 15 minutes · **Needs:**
-[setup](index.md#before-you-start-once), `u-dma-buf` (see
-[Linux 5](05-hls-pointers.md#1-get-u-dma-buf)), the interrupt overlay for step 4
+[setup](../linux/index.md#before-you-start-once), `u-dma-buf` (see
+[tutorial 4](04-hls-pointers.md#1-get-u-dma-buf)), the interrupt overlay for step 4
 
 An **AXI DMA** engine moves data between memory and an AXI4-Stream port by itself.
 In this design its stream output (MM2S: memory to stream) is looped back into its
@@ -49,7 +49,7 @@ is still using. Arm the receiver first, then start the sender.
 ## 2. Interrupt-driven transfers
 
 Instead of spinning in `wait`, sleep on the DMA's interrupts. Apply the overlay
-([Linux 2](02-timer-spi-irq.md#4-apply-the-overlay)), then:
+([tutorial 1](01-timer-spi-irq.md#4-apply-the-overlay)), then:
 
 ```rust,ignore
 {{#include ../../../fixtures/board_tests/dma_loopback/dma_irq.rs}}
@@ -100,4 +100,4 @@ You moved data with a DMA engine under compiler-enforced buffer ownership, by
 polling and by interrupt, and measured the throughput. For your own design,
 connect the stream ports to your logic instead of back to each other.
 
-Continue with [Linux 7: Many interrupts, one controller](07-interrupt-controller.md).
+Continue with [AXI4-Stream FIFO](06-stream-fifo.md).

@@ -23,24 +23,16 @@
 # Linux tutorials
 
 - [Setup](tutorials/linux/index.md)
-  - [1. LEDs, buttons and switches](tutorials/linux/01-gpio.md)
-  - [2. Timer, SPI and interrupts](tutorials/linux/02-timer-spi-irq.md)
-  - [3. UART and I2C without wires](tutorials/linux/03-uart-iic-loopback.md)
-  - [4. An HLS kernel](tutorials/linux/04-hls-vadd.md)
-  - [5. An HLS kernel that reads memory](tutorials/linux/05-hls-pointers.md)
-  - [6. AXI DMA](tutorials/linux/06-dma.md)
-  - [7. Many interrupts, one controller](tutorials/linux/07-interrupt-controller.md)
-  - [8. Block RAM and UART](tutorials/linux/08-bram-uart.md)
-  - [9. AXI4-Stream FIFO](tutorials/linux/09-stream-fifo.md)
-  - [10. Updating a bitstream](tutorials/linux/10-update.md)
-  - [11. A design you did not build](tutorials/linux/11-base-overlay.md)
+  - [1. LEDs, buttons and switches](tutorials/linux/01-lights.md)
+  - [2. Interrupts: wait for a button](tutorials/linux/02-interrupts.md)
+  - [3. Memory inside the FPGA](tutorials/linux/03-block-ram.md)
+  - [4. The whole overlay](tutorials/linux/04-base-overlay.md)
 
 # Bare-metal tutorials
 
 - [Setup](tutorials/baremetal/index.md)
   - [1. Run over JTAG](tutorials/baremetal/01-jtag.md)
-  - [2. A PL interrupt through the GIC](tutorials/baremetal/02-timer-interrupt.md)
-  - [3. DMA with the caches on](tutorials/baremetal/03-dma.md)
+  - [2. A PL interrupt through the GIC](tutorials/baremetal/02-interrupt.md)
 
 # RTOS tutorials
 
@@ -57,6 +49,19 @@
   - [5. Ethernet and a web server](tutorials/apps/05-network.md)
   - [6. HTTPS with a self-signed certificate](tutorials/apps/06-https.md)
   - [7. Everything at once](tutorials/apps/07-integration.md)
+
+# Your own design
+
+- [Beyond the base overlay](tutorials/own-design/index.md)
+  - [1. Timer, SPI and interrupts](tutorials/own-design/01-timer-spi-irq.md)
+  - [2. UART and I2C without wires](tutorials/own-design/02-uart-iic-loopback.md)
+  - [3. An HLS kernel](tutorials/own-design/03-hls-vadd.md)
+  - [4. An HLS kernel that reads memory](tutorials/own-design/04-hls-pointers.md)
+  - [5. AXI DMA](tutorials/own-design/05-dma.md)
+  - [6. AXI4-Stream FIFO](tutorials/own-design/06-stream-fifo.md)
+  - [7. Updating a bitstream](tutorials/own-design/07-update.md)
+  - [8. A timer's interrupt on bare metal](tutorials/own-design/08-baremetal-timer.md)
+  - [9. DMA on bare metal](tutorials/own-design/09-baremetal-dma.md)
 
 # Zynq UltraScale+ (3.0 preview)
 

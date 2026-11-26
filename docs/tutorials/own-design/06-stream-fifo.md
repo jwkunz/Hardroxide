@@ -1,7 +1,7 @@
-# Linux 9: AXI4-Stream FIFO
+# Your own design 6: AXI4-Stream FIFO
 
 **Design:** `fixtures/pynq_z2_fifo.xsa` · **Time:** 10 minutes · **Needs:**
-[setup](index.md#before-you-start-once); the interrupt overlay for step 3
+[setup](../linux/index.md#before-you-start-once); the interrupt overlay for step 3
 
 The **AXI4-Stream FIFO** lets software send and receive *packets* on an AXI4-Stream
 port through registers, no DMA needed. In this design the FIFO's stream output is
@@ -85,4 +85,4 @@ Things to notice:
 You moved packets through a stream port from ordinary register accesses, learned
 the word-granularity rule, and used the receive interrupt.
 
-Continue with [Linux 10: Updating a bitstream](10-update.md).
+Continue with [Updating a bitstream](07-update.md).

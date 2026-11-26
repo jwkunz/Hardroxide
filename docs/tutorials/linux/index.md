@@ -1,32 +1,34 @@
 # Linux tutorials
 
-Eleven hands-on tutorials for the **Linux** flavor (`--platform linux`, the default): your Rust program runs
-as a Linux process on the board's ARM cores and manages the programmable logic. There is one tutorial for each test design (fixture) in the
-repository. Every tutorial takes the same path you will follow with your own
-design:
+Four hands-on tutorials for the **Linux** flavor (`--platform linux`, the default): your Rust program runs as a Linux
+process on the board's ARM cores and manages the programmable logic. All four use the **PYNQ base overlay**, the design
+every PYNQ-Z2 already has, so there is one FPGA design and one generated crate to learn. Afterwards,
+[Your own design](../own-design/index.md) goes through DMA, HLS kernels, timers and serial buses on small designs of
+their own.
 
 ```text
-  design.xsa  ->  hardroxide inspect  ->  hardroxide generate  ->  cross-build  ->  run on the board
+  design.xsa  ->  hardroxide generate  ->  cross-build  ->  run on the board
 ```
 
-You do **not** need Vivado: the `.xsa` files are in `fixtures/`. The output
-shown in each tutorial was captured on a PYNQ-Z2 (PYNQ 3.1, kernel 6.6); yours
-should match except for timings. Do the first one in full; the rest assume you
-have. (For the other flavors see [bare metal](../baremetal/index.md) and [RTOS](../rtos/index.md).)
+You do **not** need Vivado: the design is `fixtures/board/pynq_base_overlay.xsa`. (For the other flavors see
+[bare metal](../baremetal/index.md) and [RTOS](../rtos/index.md).)
 
-| # | Tutorial | Design (`fixtures/`) | You learn |
-|---|---|---|---|
-| 1 | [LEDs, buttons and switches](01-gpio.md) | `pynq_z2_gpio.xsa` | the whole workflow, end to end |
-| 2 | [Timer, SPI and interrupts](02-timer-spi-irq.md) | `pynq_z2_peripherals.xsa` | waiting for an interrupt; applying the overlay |
-| 3 | [UART and I2C without wires](03-uart-iic-loopback.md) | `pynq_z2_loopback.xsa` | two cores wired together inside the FPGA |
-| 4 | [An HLS kernel](04-hls-vadd.md) | `pynq_z2_hls_vadd.xsa` | typed registers for a Vitis HLS kernel |
-| 5 | [An HLS kernel that reads memory](05-hls-pointers.md) | `pynq_z2_hls_scale.xsa` | pointer arguments and DMA buffers |
-| 6 | [AXI DMA](06-dma.md) | `pynq_z2_dma_loopback.xsa` | moving data with ownership-checked buffers |
-| 7 | [Many interrupts, one controller](07-interrupt-controller.md) | `pynq_z2_intc.xsa` | AXI interrupt controller fan-in |
-| 8 | [Block RAM and UART](08-bram-uart.md) | `pynq_z2_mem_uart.xsa` | memory as a byte buffer |
-| 9 | [AXI4-Stream FIFO](09-stream-fifo.md) | `pynq_z2_fifo.xsa` | packets, and why lengths round up |
-| 10 | [Updating a bitstream](10-update.md) | `variants/` | swapping a rebuilt design without touching code |
-| 11 | [A design you did not build](11-base-overlay.md) | `real/pynq_base_overlay.xsa` | the PYNQ base overlay: 70 IP, one command |
+| # | Tutorial | You learn |
+|---|---|---|
+| 1 | [LEDs, buttons and switches](01-lights.md) | the whole workflow, end to end |
+| 2 | [Interrupts: wait for a button](02-interrupts.md) | the interrupt overlay; the interrupt controller; sleeping until something happens |
+| 3 | [Memory inside the FPGA](03-block-ram.md) | block RAM as words and bytes |
+| 4 | [The whole overlay](04-base-overlay.md) | what else is in the design, and how Hardroxide shows it |
+
+## The one crate they share
+
+From the root of the checkout, once:
+
+```console
+$ hardroxide generate fixtures/board/pynq_base_overlay.xsa -o work/base --hardroxide-path . --name design_1
+```
+
+Each tutorial copies a program from `apps/base/linux/` into `work/base/examples/` and runs it.
 
 ## Before you start (once)
 
@@ -84,40 +86,32 @@ bundled with Vitis); set `LINKER=/path/to/arm-linux-gnueabihf-gcc` to override.
    Run this **once per boot, a couple of minutes after the board has finished
    starting**: services that start late can bind drivers again, and then the
    next step fails with `PlInUse`; just run `prep.sh` again. It only changes the
-   running system; a reboot brings the desktop back. The password for `sudo` is
-   `xilinx`.
+   running system: restarting the board (shut down, then switch off and on) brings
+   the desktop back. The password for `sudo` is `xilinx`.
 
-### The three commands you will use all the time
+### The commands you will use all the time
 
 ```console
-$ hardroxide inspect fixtures/<design>.xsa                    # what is in this design?
-$ hardroxide generate fixtures/<design>.xsa -o work/<name> --hardroxide-path .
-$ scripts/board/run.sh work/<name> <example> [args]           # build, copy, run as root
+$ hardroxide inspect fixtures/board/pynq_base_overlay.xsa     # what is in this design?
+$ scripts/board/run.sh work/base <example> [args]             # build, copy, run as root
 ```
 
-`run.sh` cross-compiles one example of the generated crate, copies it to
-`$BOARD`, and runs it with `sudo` (it asks for the password each time unless you
-set up passwordless `sudo`). Examples are the files in the crate's `examples/`;
-the tutorials add your own by copying a program from `fixtures/board_tests/`
-there.
+`run.sh` cross-compiles one example of the generated crate, copies it to `$BOARD`, and runs it with `sudo` (it asks for
+the password each time unless you set up passwordless `sudo`). Examples are the files in the crate's `examples/`.
 
 ### Extras some tutorials need
 
-| Need | Tutorials | How |
+| Need | Tutorial | How |
 |---|---|---|
-| Interrupt overlay | 2, 3, 4, 5, 6, 7, 9 | `scp work/<name>/interrupts.dtso $BOARD:` then `ssh -t $BOARD sudo sh overlay.sh interrupts.dtso` ([why](../../guide/interrupts.md)) |
-| `u-dma-buf` kernel module | 5, 6 | [Building u-dma-buf](../../guide/hardware.md#building-u-dma-buf), then `sudo insmod u-dma-buf.ko udmabuf0=1048576 udmabuf1=1048576` |
-| Pressing buttons | 1 | none; the design uses the board's real buttons and LEDs |
-| Wiring | none | all other designs work without wires |
+| Interrupt overlay | 2 | `scp work/base/interrupts.dtso $BOARD:` then `ssh -t $BOARD sudo sh overlay.sh interrupts.dtso` ([why](../../guide/interrupts.md)) |
+| Pressing buttons | 1, 2 | the board's real buttons, switches and LEDs |
 
 ### If something goes wrong
 
-- **The board stops answering** (SSH times out, nothing on the serial port):
-  power-cycle it. A software `reboot` did not recover a board in this state.
+- **The board stops answering** (SSH times out, nothing on the serial port): switch it off and on. A software `reboot`
+  did not recover a board in this state.
+- **To put the board back** as it was (the desktop, the image's own drivers): shut it down, then switch it off and on.
+  On the PYNQ 3.1 image `reboot` has ended in `Reboot failed -- System halted`.
 - **`Fpga(PlInUse(..))`**: run `prep.sh` again.
-- **A UIO device returns `EIO`** or **`IrqError::NotFound`**: see
-  [Interrupts](../../guide/interrupts.md) and the table in
-  [Running on hardware](../../guide/hardware.md#troubleshooting).
-- **A DMA or HLS transfer loses its last bytes, or `StuckChannel`** right after a
-  design switch: a known board-state problem, see
-  [Known issue: wedged HP port](../../08-verification-gaps.md#g17-the-ps-pl-hp-port-can-wedge-after-many-design-switches).
+- **A UIO device returns `EIO`** or **`IrqError::NotFound`**: see [Interrupts](../../guide/interrupts.md) and the table
+  in [Running on hardware](../../guide/hardware.md#troubleshooting).

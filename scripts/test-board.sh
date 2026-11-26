@@ -85,10 +85,14 @@ gen dma fixtures/board/pynq_z2_dma_loopback.xsa baremetal "$B/baremetal_dma" && 
 gen base-bm fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremetal && {
   run_check "base/board_check" base-bm board_check fixtures/board/pynq_base_overlay.xsa 8 "all checks passed"
   run_check "base/selftest" base-bm selftest fixtures/board/pynq_base_overlay.xsa 10 "SELFTEST OK"
+  # The tutorials' first programs; the buttons are for a person to press.
+  run_check "base/leds (bare metal tutorial 1)" base-bm leds fixtures/board/pynq_base_overlay.xsa 25 "done"
+  run_check "base/button_irq (bare metal tutorial 2)" base-bm button_irq fixtures/board/pynq_base_overlay.xsa 25 "SELF TEST OK"
 }
 gen base-rt fixtures/board/pynq_base_overlay.xsa rtos apps/base/rtos && {
   run_check "base/rt_irq_latency" base-rt rt_irq_latency fixtures/board/pynq_base_overlay.xsa 20 "LATENCY OK"
   run_check "base/rt_lights" base-rt rt_lights fixtures/board/pynq_base_overlay.xsa 8 "mood light"
+  run_check "base/control (RTOS tutorial 1)" base-rt control fixtures/board/pynq_base_overlay.xsa 8 "worst deviation from the 10 ms period"
 }
 
 # The video programs need a monitor on HDMI OUT to be seen; this only checks that the pipeline comes up and the

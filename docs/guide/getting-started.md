@@ -117,7 +117,7 @@ You can run the runtime crates' own tests as armv7 binaries without a board, und
 
 ## Next
 
-- **Learn by doing:** [Linux 1: LEDs, buttons and switches](../tutorials/linux/01-gpio.md), or for the other
+- **Learn by doing:** [Linux 1: LEDs, buttons and switches](../tutorials/linux/01-lights.md), or for the other
   flavors [Bare metal 1](../tutorials/baremetal/01-jtag.md) and [RTOS 1](../tutorials/rtos/01-control-loop.md).
 - **The whole picture:** [The workflow](workflow.md), then
   [How it works](concepts.md).

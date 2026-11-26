@@ -34,10 +34,11 @@ Real designs from other sources are in `fixtures/real/` (see its README).
 board). The bare-metal and RTOS flavors need these, because `ps7_init` takes the console pins and clocks from the XSA; the
 plain fixtures above leave the PS UART disabled, so a bare-metal program built from them prints nothing.
 
-Each [Linux tutorial](../tutorials/linux/index.md) uses one of these designs and the matching
-programs in `fixtures/board_tests/`; `cargo test -p hardroxide-gen --test board_tests`
-compiles every one of those programs against a freshly generated crate, so the
-tutorial code cannot drift from the API.
+The [tutorials](../tutorials/index.md) start on the base overlay, with programs from `apps/base/`; the tutorials of
+[Your own design](../tutorials/own-design/index.md) each use one of these designs and programs in
+`fixtures/board_tests/` (Linux) and `fixtures/board_tests_bm/` (bare metal), which also serve as driver tests. The tests
+`--test apps`, `--test board_tests` and `--test baremetal` of `hardroxide-gen` build every one of those programs against
+a freshly generated crate, so the tutorial code cannot drift from the API.
 
 Rebuild one (Vivado 2025.2 required; not needed to use Hardroxide):
 

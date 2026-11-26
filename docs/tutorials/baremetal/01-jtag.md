@@ -1,13 +1,16 @@
 # Bare metal 1: Run over JTAG
 
-**Design:** `fixtures/board/pynq_z2_gpio.xsa` · **Time:** 20 minutes · **Needs:** the
+**Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 20 minutes · **Needs:** the
 [bare-metal host setup](index.md#host-setup) (Vitis 2025.2, the JTAG udev rule, the board in
 JTAG boot mode)
 
-The [Linux tutorials](../linux/index.md) run under Linux. Here the same GPIO design runs with **no operating system**: your
-program is the only software on the processor, started over JTAG by `hardroxide run`. The design is
-the board-accurate variant in `fixtures/board/` (the plain fixtures leave the PS UART disabled, so a
-bare-metal program built from them could not print).
+The [Linux tutorials](../linux/index.md) run under Linux. Here the same base overlay runs with **no operating system**:
+your program is the only software on the processor, started over JTAG by `hardroxide run`. The file in `fixtures/board/`
+carries the board's start-up settings (`ps7_init`), which the program needs for its console
+([why](../../reference/base-overlay.md)).
+
+> **Status:** `board_check` below was captured on a PYNQ-Z2. This tutorial's own program is new: it builds against the
+> generated crate and has **not yet been run on a board**.
 
 ## 1. Check the host
 
@@ -24,10 +27,8 @@ If a line says FAIL, the message says what to fix (usually the udev rule from th
 ## 2. Generate a bare-metal crate
 
 ```console
-$ hardroxide generate fixtures/board/pynq_z2_gpio.xsa --platform baremetal -o work/bm --hardroxide-path .
-generated 10 files in work/bm
-$ cd work/bm && ls
-build.rs  Cargo.toml  examples  interface.sha256  interface.txt  link.ld  src  (and .cargo/config.toml)
+$ hardroxide generate fixtures/board/pynq_base_overlay.xsa --platform baremetal -o work/base-bm --hardroxide-path . --name design_1
+$ cd work/base-bm && ls
 ```
 
 There is no bitstream in the crate: `hardroxide run` takes it from the XSA. `link.ld` places the program in DDR and
@@ -38,61 +39,47 @@ gives each processor mode a stack; `.cargo/config.toml` selects the `armv7a-none
 
 ```console
 $ cargo build --release --examples
-$ hardroxide run target/armv7a-none-eabihf/release/examples/board_check --xsa ../../fixtures/board/pynq_z2_gpio.xsa
-running; console below (10 s) ...
-
-== board check (design_1) ==
-PL configured, interface 0ec1a9e337a346ed08114c3c125241809c6a9100b5f6f79127ddc5fcbab56471
+$ hardroxide run target/armv7a-none-eabihf/release/examples/board_check --xsa ../../fixtures/board/pynq_base_overlay.xsa
+== board check (base) ==
+PL configured, interface c52ebef9797f3034499e0948a5b9e93ca326eeb6367a4d69b5630111b5195f09
 FCLK0: 100000000 Hz (want 100000000) ok
+FCLK1: 142857142 Hz (want 142857132) ok
+FCLK2: 200000000 Hz (want 200000000) ok
+FCLK3: 100000000 Hz (want 100000000) ok
+irq system_interrupts.irq -> GIC id 61 (level)
 all checks passed; next run the per-IP examples
 ```
 
-`hardroxide run` reset the board, ran the XSA's own `ps7_init`, programmed the PL, loaded the program and started
-it. `Design::init()` turned on the MMU and caches, brought up the console and mapped the GPIO, and failed with a clear error
-rather than hanging if the PL were not configured.
+`hardroxide run` reset the board, ran the XSA's `ps7_init`, programmed the PL, loaded the program and started it.
+`Design::init()` turned on the MMU and caches, brought up the console and mapped the blocks, and would have failed with a
+clear error rather than hanging if the PL were not configured.
 
 ## 4. Your own program
 
-Copy `fixtures/board_tests_bm/baremetal_gpio/leds.rs` into `examples/`. It mirrors the buttons onto the LEDs
-for 20 seconds and prints each change:
-
 ```rust,ignore
-let gpio = &d.axi_gpio_0;
-gpio.set_input_mask(Channel::One, 0).unwrap(); // channel 1: LEDs, all outputs
-let mut last = u32::MAX;
-for _ in 0..400 {
-    let inputs = gpio.read(Channel::Two).unwrap(); // buttons 3:0, switches 5:4
-    gpio.write(Channel::One, inputs & 0xF).unwrap();
-    if inputs != last {
-        println!("buttons {:04b}, switches {:02b}", inputs & 0xF, inputs >> 4);
-        last = inputs;
-    }
-    sleep(Duration::from_millis(50));
-}
+{{#include ../../../apps/base/baremetal/leds.rs}}
 ```
 
-```console
-$ cargo build --release --examples
-$ hardroxide run target/armv7a-none-eabihf/release/examples/leds --xsa ../../fixtures/board/pynq_z2_gpio.xsa --watch 25
-running; console below (25 s) ...
+Compare it with [Linux tutorial 1](../linux/01-lights.md): the driver calls are the same. What differs is the start
+(`Design::init()` instead of `Design::load()`), no operating system (`#![no_std]`, `ps7::entry!(main)`, a `main` that
+never returns) and `halt()` at the end, which parks the core.
 
-== leds: buttons and switches -> LEDs for 20 s (press something) ==
-buttons 0000, switches 00
+```console
+$ cp ../../apps/base/baremetal/leds.rs examples/
+$ cargo build --release --example leds
+$ hardroxide run target/armv7a-none-eabihf/release/examples/leds --xsa ../../fixtures/board/pynq_base_overlay.xsa --watch 25
 ```
 
-Press buttons while it runs and each change is printed, with the LEDs following. A program is `ps7::entry!(main);
-fn main() -> ! { ... }`: it never returns, and `halt()` parks the core. The driver calls are exactly those of
-[Linux tutorial 1](../linux/01-gpio.md); only the setup (`Design::init()` instead of `Design::load()`) and `no_std` differ.
+Press the buttons and move the switches while it runs: the LEDs follow the buttons, the switches choose the colour of
+the colour LEDs, and each change is printed.
 
-## 5. Interrupts and DMA
-
-The other designs work the same way: [Bare metal 2](02-timer-interrupt.md) takes a PL interrupt through the GIC, and
-[Bare metal 3](03-dma.md) moves data with the DMA engine and the caches on.
-
-## 6. Booting without the cable
+## 5. Booting without the cable
 
 ```console
-$ hardroxide package target/armv7a-none-eabihf/release/examples/leds --xsa fixtures/board/pynq_z2_gpio.xsa -o BOOT.BIN
+$ cd ../..
+$ hardroxide package work/base-bm/target/armv7a-none-eabihf/release/examples/leds --xsa fixtures/board/pynq_base_overlay.xsa -o BOOT.BIN
 ```
 
 builds a `BOOT.BIN` (see [Booting on its own](../../guide/baremetal.md#booting-on-its-own)).
+
+Next: [an interrupt](02-interrupt.md).

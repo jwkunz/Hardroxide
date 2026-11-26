@@ -1,8 +1,8 @@
-# Bare metal 2: A PL interrupt through the GIC
+# Your own design 8: A timer's interrupt on bare metal
 
-**Design:** `fixtures/board/pynq_z2_peripherals.xsa` · **Time:** 15 minutes · **Needs:** [Bare metal 1](01-jtag.md)
+**Design:** `fixtures/board/pynq_z2_peripherals.xsa` · **Time:** 15 minutes · **Needs:** [Bare metal 1](../baremetal/01-jtag.md)
 
-In the [Linux tutorials](../linux/02-timer-spi-irq.md) an interrupt from the programmable logic arrives as a read on a UIO
+Under [Linux](01-timer-spi-irq.md) an interrupt from the programmable logic arrives as a read on a UIO
 device. With no operating system there is no UIO: the interrupt goes from the PL to the processor's interrupt controller (the
 GIC), and `hardroxide-ps7` programs the GIC for you. The generated crate knows from the design which GIC line each
 interrupt uses and whether it is level or edge triggered.
@@ -81,5 +81,5 @@ running; console below (8 s) ...
 Two seconds for 200 events, and no gap more than 1 us from 10 ms: the period comes from the PL timer, so it does not drift
 with whatever the processor is doing. Acknowledging the PL flag and re-enabling the line after each event is all this timer needs.
 
-Next: [DMA](03-dma.md). For several things happening at once, each with its own deadline, see the
+Next: [DMA](09-baremetal-dma.md). For several things happening at once, each with its own deadline, see the
 [RTOS tutorials](../rtos/index.md).

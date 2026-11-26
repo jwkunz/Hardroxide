@@ -45,7 +45,7 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 
 | You want to | Go to |
 |---|---|
-| see it work, step by step, with real output | [Tutorials](tutorials/index.md), by flavor: eleven for Linux (LEDs to DMA to a 70-IP third-party design), then three for bare metal and one for the RTOS |
+| see it work, step by step, with real output | [Tutorials](tutorials/index.md): start on the board's base overlay (Linux, bare metal, the real-time kernel, applications), then DMA, HLS and more on designs of your own |
 | decide between Linux, bare metal and RTOS | [Choosing a flavor](guide/workflow.md#choosing-a-flavor) |
 | understand the whole flow in one page | [The workflow](guide/workflow.md) |
 | use your own Vivado design | [Exporting an XSA from Vivado](guide/vivado.md), then [The workflow](guide/workflow.md) |
@@ -57,8 +57,9 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 
 - **User Guide**: install, generate, use and update a crate; the workflow, and how
   to prepare a board.
-- **Tutorials**: twenty-one hands-on walk-throughs grouped by flavor (eleven Linux, three bare metal, one RTOS, six applications), each on
-  one of the test designs in `fixtures/`, with output captured on a PYNQ-Z2.
+- **Tutorials**: for the PYNQ-Z2, twenty-three hands-on walk-throughs (four Linux, two bare metal, one RTOS and seven
+  applications on the base overlay, then nine on small designs of their own) with output captured on the board, except
+  where a page says its program is new; for the RFSoC 4x2, ten on its base overlay.
 - **Reference**: the authoritative description of the CLI, the generated crate, the
   board scripts and every public runtime crate. Function signatures in the reference
   chapters are checked against the source by the test suite, and the CLI help text

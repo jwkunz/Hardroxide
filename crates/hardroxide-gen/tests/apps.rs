@@ -28,6 +28,12 @@ const APPS: &[(&str, &str, Platform, &str)] = &[
         "fixtures/board/pynq_base_overlay.xsa",
     ),
     (
+        "base",
+        "linux",
+        Platform::Linux,
+        "fixtures/board/pynq_base_overlay.xsa",
+    ),
+    (
         "rfsoc4x2",
         "baremetal",
         Platform::BareMetal,
@@ -57,12 +63,11 @@ fn applications_build() {
     for &(set, dir, platform, design) in APPS {
         let ultrascale = set == "rfsoc4x2";
         let linux = platform == Platform::Linux;
-        let target = if linux {
-            "aarch64-unknown-linux-gnu"
-        } else if ultrascale {
-            "aarch64-unknown-none"
-        } else {
-            "armv7a-none-eabihf"
+        let target = match (ultrascale, linux) {
+            (true, true) => "aarch64-unknown-linux-gnu",
+            (true, false) => "aarch64-unknown-none",
+            (false, true) => "armv7-unknown-linux-gnueabihf",
+            (false, false) => "armv7a-none-eabihf",
         };
         if !targets.contains(target) {
             eprintln!("skipping {set}/{dir}: `rustup target add {target}` to build it");
@@ -126,7 +131,8 @@ fn applications_build() {
                 ),
             );
         }
-        manifest.push_str(if ultrascale {
+        // The Linux applications need nothing beyond what the generated crate depends on.
+        manifest.push_str(if ultrascale || linux {
             "\n[workspace]\n"
         } else {
             &libraries

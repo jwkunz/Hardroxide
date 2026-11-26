@@ -119,6 +119,22 @@ pub struct CardInfo {
     pub clock_hz: u32,
 }
 
+impl CardInfo {
+    /// Whether `named` is this card's serial number, in hexadecimal with or without `0x`. A program that writes to a card
+    /// asks its owner's leave with this, naming one card when it is built:
+    /// `info.serial_matches(option_env!("HRX_WRITE_SERIAL"))`. Nothing named, or anything else, is `false`.
+    pub fn serial_matches(&self, named: Option<&str>) -> bool {
+        named.is_some_and(|text| {
+            let text = text.trim();
+            let digits = text
+                .strip_prefix("0x")
+                .or_else(|| text.strip_prefix("0X"))
+                .unwrap_or(text);
+            u32::from_str_radix(digits, 16) == Ok(self.serial)
+        })
+    }
+}
+
 /// `(divisor register value, achieved Hz)` for a bus clock of at most `target` from `base_hz`:
 /// the register holds 0 (base clock) or a power of two up to 128, giving `base / (2 * value)`.
 pub fn clock_divisor(base_hz: u32, target_hz: u32) -> (u32, u32) {
@@ -577,6 +593,40 @@ mod tests {
         assert_eq!(cid_manufacturer(&cid), 0x02);
         assert_eq!(&cid_product(&cid), b"SA32G");
         assert_eq!(cid_serial(&cid), 0x2df4_3e3b);
+    }
+
+    #[test]
+    fn only_the_named_card_may_be_written() {
+        let card = CardInfo {
+            blocks: 0,
+            high_capacity: true,
+            manufacturer: 2,
+            product: *b"SA32G",
+            serial: 0x0abc_12de,
+            rca: 1,
+            clock_hz: 25_000_000,
+        };
+        for yes in [
+            "0x0abc12de",
+            "0xabc12de",
+            "0X0ABC12DE",
+            "abc12de",
+            " 0x0abc12de\n",
+        ] {
+            assert!(card.serial_matches(Some(yes)), "{yes:?}");
+        }
+        for no in [
+            "",
+            "0x",
+            "0x0abc12df",
+            "0x2abc12de",
+            "yes",
+            "*",
+            "0x10abc12de",
+        ] {
+            assert!(!card.serial_matches(Some(no)), "{no:?}");
+        }
+        assert!(!card.serial_matches(None));
     }
 
     #[test]

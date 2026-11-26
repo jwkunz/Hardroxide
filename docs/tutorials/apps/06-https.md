@@ -89,9 +89,10 @@ The processor is the limit: two X25519 and one ECDSA signature per handshake, in
 
 ## 3. The random numbers (the weak point)
 
-A TLS handshake needs bytes nobody can predict, and the Zynq-7000 has no random number generator. The example feeds a generator (`Drbg`) with the clock, the timing of every connection and a seed file on the SD card that it replaces at each start (`random generator: seeded
+A TLS handshake needs bytes nobody can predict, and the Zynq-7000 has no random number generator. The example feeds a generator (`Drbg`) with the clock, the timing of every connection and a seed file on the SD card (`random generator: seeded
 from the clock and the seed file on the card` above; the first run after formatting says `from the clock only (no seed file yet: weak)`). **That is not good randomness.** For a better first seed, put 32 bytes from a real source in `/RNGSEED` on
-the card: `head -c 32 /dev/urandom > /media/$USER/CARD/RNGSEED`. The [reference](../../reference/tls.md#where-the-random-bytes-come-from) says what each input is worth.
+the card: `head -c 32 /dev/urandom > /media/$USER/CARD/RNGSEED`. **The program only reads the card** unless you name it when building
+(`HRX_WRITE_SERIAL=0x...`, the serial number `sd_info` prints); then it replaces the seed at each start, which it should, since a seed used twice is worth less. The [reference](../../reference/tls.md#where-the-random-bytes-come-from) says what each input is worth.
 
 ## 4. The RTOS variant: TLS beside a 10 ms control loop
 

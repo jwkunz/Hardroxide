@@ -11,6 +11,10 @@ unchanged.
   and `hardroxide-rt`'s context switch save them now, and clear the exclusive monitor on the way out. A saved task context
   is 128 bytes larger. Rebuild programs against the fixed crates. Linux programs and UltraScale+ were not affected.
   There will be no 2.x patch release: upgrade to 3.0.
+- **Changed: the example programs write to an SD card only when built with its serial number.** `net_https` and
+  `rt_station` read a card's random seed and renew it only with `HRX_WRITE_SERIAL=0x...`; `sd_logger`, `sd_bmp` and
+  `sd_wav` (when it has to write its sound file) need the same; `sd_erase_and_test` needs `HRX_ERASE_SERIAL` even for a
+  blank card. New: `CardInfo::serial_matches` in `hardroxide_ps7::sd`.
 - New crate `hardroxide-psu`: bare-metal processor support for the Cortex-A53 (AArch64 at EL3): startup, MMU and caches, GIC,
   generic timer, clocks, console.
 - `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one.

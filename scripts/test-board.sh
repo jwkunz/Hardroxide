@@ -12,6 +12,8 @@ HRX=${HARDROXIDE:-target/debug/hardroxide}
 [ -x "$HRX" ] || { cargo build -q -p hardroxide-cli && HRX=target/debug/hardroxide; }
 WORK=${WORK:-work/board-regression}
 FILTER=${1:-}
+# Only HRX_SD_SERIAL below gives a program leave to write to a card, whatever the shell has set.
+unset HRX_ERASE_SERIAL HRX_WRITE_SERIAL
 mkdir -p "$WORK"
 pass=0; fail=0; failed=()
 
@@ -128,9 +130,10 @@ gen base-audio fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremeta
       run_check "base/net_https (TLS 1.3 server up)" base-audio net_https fixtures/board/pynq_base_overlay.xsa 45 "NET HTTPS READY"
     fi
     # SD card: ERASES the card in the slot, so it runs only when HRX_SD_SERIAL names that card (the serial number
-    # `sd_info` prints, for example 0x2df43e3b); the format test refuses any other card that holds data.
+    # `sd_info` prints, for example 0x2df43e3b). The programs are built for that card alone and refuse any other.
     if [ -n "${HRX_SD_SERIAL:-}" ]; then
-      (cd "$WORK/base-audio" && HRX_ERASE_SERIAL="$HRX_SD_SERIAL" cargo build -q --release --example sd_erase_and_test 2>&1) &&
+      (cd "$WORK/base-audio" && HRX_ERASE_SERIAL="$HRX_SD_SERIAL" HRX_WRITE_SERIAL="$HRX_SD_SERIAL" cargo build -q --release \
+        --example sd_erase_and_test --example sd_logger --example sd_wav --example sd_bmp 2>&1) &&
         run_check "base/sd_erase_and_test (formats the card!)" base-audio sd_erase_and_test fixtures/board/pynq_base_overlay.xsa 150 "SD TEST OK"
       run_check "base/sd_logger" base-audio sd_logger fixtures/board/pynq_base_overlay.xsa 25 "SD LOGGER OK"
       run_check "base/sd_wav" base-audio sd_wav fixtures/board/pynq_base_overlay.xsa 30 "SD WAV OK"

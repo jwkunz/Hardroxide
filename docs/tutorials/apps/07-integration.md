@@ -21,6 +21,9 @@ The whole stack of this series in one RTOS program, [`apps/base/rtos/rt_station.
 | `report` | 2 | the console line every 5 seconds |
 | `hog` | 1 | burns the processor when the page says so (to show the others do not suffer) |
 
+The card is **only read**, unless the program was built with that card's serial number (`HRX_WRITE_SERIAL`,
+[Applications 4](04-sd.md#4-applications-that-use-the-card)): then it also renews the random seed at each start.
+
 `display` and `network` share a priority and so share the processor in turn, one kernel tick each; both are below `feed` and `control`, which sleep between short jobs. Everything above `hog` finishes its work and sleeps, so `hog` gets what is left.
 
 ## 2. Run it

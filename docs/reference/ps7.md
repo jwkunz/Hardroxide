@@ -246,6 +246,7 @@ driven by software so that one stays asserted for a whole transfer. `configure` 
 ```rust,ignore
 pub enum SdError
 pub struct CardInfo
+pub fn serial_matches(&self, named: Option<&str>) -> bool
 pub fn clock_divisor(base_hz: u32, target_hz: u32) -> (u32, u32)
 pub fn clock_divisor_v3(base_hz: u32, target_hz: u32) -> (u32, u32)
 pub fn csd_blocks(r: &[u32; 4]) -> u64
@@ -268,7 +269,14 @@ bring-up: it applies the 3.3 V card power, runs the identification at 400 kHz (C
 switches the bus to four bits and the clock to 25 MHz, and returns a `CardInfo` (capacity in 512-byte blocks, SDHC or standard capacity, the manufacturer,
 the five-character product name and the serial number from the CID, and the bus clock). `init_ignoring_card_detect` skips the card-detect pin, for a board
 whose pin is not wired. `read` and `write` move whole 512-byte blocks (any number per call) and wait for the card to leave its programming state after
-a write. `SdHost` implements [`BlockDevice`](mmio.md#block-devices), so it plugs straight into [`hardroxide-fat`](fat.md). The card is expected to be a
+a write.
+
+`CardInfo::serial_matches(named)` is true when `named` is that card's serial number in hexadecimal, with or without `0x`.
+The programs of this repository that write to a card ask with it, so that building them names the one card they may
+change: `info.serial_matches(option_env!("HRX_WRITE_SERIAL"))` (`HRX_ERASE_SERIAL` for those that erase). Do the same in
+your own programs.
+
+`SdHost` implements [`BlockDevice`](mmio.md#block-devices), so it plugs straight into [`hardroxide-fat`](fat.md). The card is expected to be a
 standard SD card: SDSC, SDHC and SDXC work; MMC and eMMC do not. `SdError::NoResponse` means the card did not answer the first commands (a card that is not
 seated, a dead card or one that is not an SD card).
 

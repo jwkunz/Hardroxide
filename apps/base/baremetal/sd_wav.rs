@@ -2,7 +2,8 @@
 //!
 //! The card must carry a FAT32 file system (`sd_erase_and_test` makes one). If it has no `/chime.wav` yet, the
 //! program first writes the built-in one there (`apps/base/data/chime.wav`, copy it to the crate's `examples/`
-//! directory), so the first run also exercises writing. It then reads `/chime.wav` from the card into RAM, parses it,
+//! directory), so the first run also exercises writing; **it does that only on the card named when building**
+//! (`HRX_WRITE_SERIAL=0x...`, the serial number `sd_info` prints). It then reads `/chime.wav` from the card into RAM, parses it,
 //! resamples it to the codec's 48.8 kHz and plays it twice; replace the file with any 16-bit PCM WAV of up
 //! to 512 KiB (on a PC) to play your own sound. Plug headphones into the **HPH OUT** jack.
 //! Needs `hardroxide-audio` and `hardroxide-fat`. Base overlay application 15.
@@ -51,6 +52,11 @@ fn main() -> ! {
     let mut vol = Volume::mount(sd).unwrap_or_else(|e| fail("mount (format the card with sd_erase_and_test first)", &e));
 
     if vol.stat("/chime.wav").is_err() {
+        if !info.serial_matches(option_env!("HRX_WRITE_SERIAL")) {
+            println!("REFUSING: the card has no /chime.wav. To let this program write one to the card in the slot, build it with HRX_WRITE_SERIAL={:#010x}", info.serial);
+            println!("SD WAV FAILED: not allowed to write");
+            halt()
+        }
         let mut f = vol.open("/chime.wav", OpenMode::Write).unwrap_or_else(|e| fail("create /chime.wav", &e));
         f.write(&mut vol, CHIME).unwrap_or_else(|e| fail("write /chime.wav", &e));
         f.close(&mut vol).unwrap_or_else(|e| fail("close /chime.wav", &e));

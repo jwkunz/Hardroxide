@@ -104,7 +104,9 @@ clients then showed 7 to 19 "bad signature" failures in each run of about 440 re
 **`ps7`'s interrupt entry and the Cortex-A9 context switch did not save `d16`-`d31`**, which the compiler uses to copy
 memory. Checks added to both smoke programs failed on the board before the fix (199 of 200 register checks broken) and
 pass after it, there and under QEMU; four loaded runs of `rt_station` then had no failure (control loop within 4 us, no
-audio underrun, interrupt share unchanged). The UltraScale+ code already saved every register. **Maintainer's decision
+audio underrun, interrupt share unchanged). The UltraScale+ code already saved every register.
+The same session showed that `net_https` and `rt_station` wrote to whatever card was in the slot; the example programs
+now write only to a card named by serial number when built (checked under QEMU, not yet with a card on the board). **Maintainer's decision
 (2026-11-26): no 2.7.1 and no further 2.x support**; the fix ships in 3.0.0. Still open for the Z2:
 the SD card tests, the audio loopback cable, eyes and ears on HDMI and audio, and Linux.
 

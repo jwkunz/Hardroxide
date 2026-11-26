@@ -71,7 +71,9 @@ sends its alert and closes the socket; a connection that never finishes its hand
 
 The server needs unpredictable bytes for every handshake, and **the Zynq-7000 has no hardware random number generator**. The examples use [`Drbg`](crypto.md#the-random-bit-generator), fed with:
 the clock at start (a value an observer of the board's start-up could largely guess); the timing in nanoseconds of every new connection (a few bits each, partly observable by the peer); and, in `net_https`,
-a 32-byte seed kept in `/RNGSEED` on the SD card and replaced from the generator at every start, so entropy accumulates over runs. `rt_https` has no card and only the clock and the connection timing. **That is weak.**
+a 32-byte seed kept in `/RNGSEED` on the SD card (`rt_station` too). A program renews it from the generator at every start, so that entropy
+accumulates over runs, only on the card named when it was built (`HRX_WRITE_SERIAL`); any other card is only read, and its seed stays the same
+from start to start. `rt_https` has no card and only the clock and the connection timing. **That is weak.**
 An attacker who can predict those inputs can predict the ephemeral keys and so decrypt recorded sessions. The honest options are a seed generated on a host with a real random source and written to the card (the
 `/RNGSEED` file is just bytes: `head -c 32 /dev/urandom` onto a FAT32 card gives a strong first seed), a hardware source in the PL (a ring-oscillator or the XADC noise; planned, not done), or not
 using the server outside a trusted network. The generator hashes everything it is given, so adding more entropy never hurts.

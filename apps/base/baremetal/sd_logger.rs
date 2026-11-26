@@ -3,7 +3,9 @@
 //! Every run appends ten timestamped lines to `/LOG.TXT` (creating it the first time), then reads the whole file
 //! back and checks that the earlier runs' lines are still there and the new ones follow them. Run it several times:
 //! the run number goes up and the file grows, and the card can be read on a PC afterwards (a plain text file).
-//! The card must carry a FAT32 file system (`sd_erase_and_test` makes one). Needs `hardroxide-fat`. Base overlay application 17.
+//! The card must carry a FAT32 file system (`sd_erase_and_test` makes one). **It writes only to the card named when
+//! building** (`HRX_WRITE_SERIAL=0x...`, the serial number `sd_info` prints) and leaves any other untouched.
+//! Needs `hardroxide-fat`. Base overlay application 17.
 
 #![no_std]
 #![no_main]
@@ -70,7 +72,12 @@ fn main() -> ! {
     let base = ps7::clocks::sdio_ref_hz(&slcr, 50_000_000).unwrap() as u32;
     let mut sd = SdHost::new(be.map(ps7::map::SDIO0_BASE as u64, ps7::map::SDIO_SIZE).unwrap(), base);
     println!("\n== sd_logger ==");
-    sd.init().or_else(|_| sd.init_ignoring_card_detect()).unwrap_or_else(|e| fail("card initialisation", &e));
+    let card = sd.init().or_else(|_| sd.init_ignoring_card_detect()).unwrap_or_else(|e| fail("card initialisation", &e));
+    if !card.serial_matches(option_env!("HRX_WRITE_SERIAL")) {
+        println!("REFUSING: this program writes files to the card. To allow that for the card in the slot, build it with HRX_WRITE_SERIAL={:#010x}", card.serial);
+        println!("SD LOGGER FAILED: not allowed to write");
+        halt()
+    }
     let mut vol = Volume::mount(sd).unwrap_or_else(|e| fail("mount (format the card with sd_erase_and_test first)", &e));
 
     let before = if vol.stat("/LOG.TXT").is_ok() { scan(&mut vol, "/LOG.TXT").0 } else { 0 };

@@ -39,6 +39,10 @@ pub const GPIO_SIZE: usize = 0x1000;
 pub const SYSMON_BASE: usize = 0xFFA5_0000;
 pub const SYSMON_SIZE: usize = 0x1000;
 
+/// The configuration security unit ([`crate::pl`]).
+pub const CSU_BASE: usize = 0xFFCA_0000;
+pub const CSU_SIZE: usize = 0x4000;
+
 /// The system counter's control registers; it drives the processors' generic timers.
 pub const SYSTEM_COUNTER_BASE: usize = 0xFF26_0000;
 

@@ -38,3 +38,28 @@ drivers expect). DMA buffers: `hardroxide_dma::static_dma_buffer!(size)` (non-ca
 The console needs the PS UART's pins and clocks, which `ps7_init` sets from the design's PS
 configuration: a design built without a board preset has UART0 disabled and prints nothing. The
 board-accurate fixture scripts in `fixtures/scripts/board/` show how to build one.
+
+## Zynq UltraScale+
+
+Since 3.0 the same command writes a crate for a Zynq UltraScale+ design: core 0 of the Cortex-A53 at EL3, built on
+[`hardroxide-psu`](psu.md). It has the same `Design`, `pac`, drivers, HLS wrappers and examples; the differences:
+
+| | Zynq-7000 | Zynq UltraScale+ |
+|---|---|---|
+| processor support | `design::ps7` | `design::psu`, also as `design::ps` |
+| target | `armv7a-none-eabihf` | `aarch64-unknown-none` |
+| memory | 511 MiB from 1 MiB; `DDR_BYTES` 512 MiB | below 2 GiB, from 1 MiB; `DDR_BYTES` 4 GiB (the RFSoC 4x2's), also mapped above 4 GiB |
+| PL interrupts | `IRQ_F2P[15:0]` | `pl_ps_irq0` (IDs 121..=128) and `pl_ps_irq1` (136..=143) |
+| `periph_hz()` | the Cortex-A9 peripheral clock | the system counter's clock |
+| dependencies | version 2 | version 3, without `hardroxide-fpga`; `embedded-hal` as a dev-dependency |
+| `hardroxide package` | yes | not yet |
+
+`DDR_BYTES` assumes the RFSoC 4x2's memory; the design's own settings are not a reliable source (the board's base overlay
+describes twice what the board has). `hardroxide run` clears the PL when it resets, so with `--no-pl` `Design::init`
+fails with `PlNotConfigured`.
+
+**Checked on an RFSoC 4x2** (`scripts/test-board-rfsoc.sh`, programs in `fixtures/board_tests_rfsoc/`): every design in
+`fixtures/rfsoc4x2/` except the radio one, and the base overlay: GPIO with interrupts, timer, UART Lite, IIC (as
+controller), Quad SPI, stream FIFO, block RAM, the AXI interrupt controller, both DMAs (one with 40-bit addresses and
+cached buffers above 4 GiB) and both HLS kernels; interrupts on both ports; the kernel's example.
+

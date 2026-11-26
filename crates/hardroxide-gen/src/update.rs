@@ -82,11 +82,19 @@ fn platform_of(manifest: &str) -> crate::Platform {
 }
 
 pub fn update(crate_dir: &Path, xsa: &Xsa, regen: bool) -> Result<Outcome, GenError> {
-    crate::check_arch(&xsa.design)?;
     let old_text = read(crate_dir, "interface.txt")?;
     let new_text = xsa.design.interface_text();
     let manifest = read(crate_dir, "Cargo.toml")?;
     let platform = platform_of(&manifest);
+    crate::check_arch(&xsa.design, platform)?;
+    // A crate keeps its manifest across updates, so it cannot change processor family.
+    let crate_is_ultrascale = manifest.lines().any(|l| l.starts_with("hardroxide-psu "));
+    if crate_is_ultrascale != xsa.design.is_zynq_ultrascale_plus() {
+        return Err(GenError::UnsupportedArch {
+            arch: xsa.design.arch.clone(),
+            device: xsa.design.device.clone(),
+        });
+    }
     if old_text == new_text && platform != crate::Platform::Linux {
         // A bare-metal crate embeds no bitstream (the loader takes it from the XSA), so a
         // rebuild with the same interface leaves the crate exactly as it is.

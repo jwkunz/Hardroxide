@@ -2,8 +2,8 @@
 
 **Preview.** Zynq UltraScale+ support is being built for 3.0 ([ADR 0005](../../decisions/0005-ultrascale-plus.md)) and is
 on the `v3` branch only. What works today is **bare metal and the real-time kernel**: processor start-up, the kernel, SD,
-Ethernet and the board's own hardware. `hardroxide generate` does **not** accept UltraScale+ designs yet, so there are no
-generated crates or FPGA drivers here, and there is no Linux support yet.
+Ethernet, the board's own hardware, and crates generated from your design with the FPGA drivers
+([new](02-base-overlay.md#let-the-generator-name-the-blocks)). There is no Linux support yet.
 
 These pages run ready-made programs from `baremetal/` on a Real Digital RFSoC 4x2. The output shown was captured on one;
 addresses and serial numbers are replaced.

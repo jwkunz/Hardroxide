@@ -14,9 +14,9 @@ pub struct Design {
     pub instances: Vec<Instance>,
     /// Address-map entries (slave windows as seen by a master).
     pub memory_ranges: Vec<MemRange>,
-    /// PL clocks (FCLK_CLK0..3) derived from the Zynq-7000 PS7 instance.
+    /// PL clocks 0..=3 (`FCLK_CLK0..3`, on a Zynq UltraScale+ `pl_clk0..3`) from the processing system's settings.
     pub pl_clocks: Vec<PlClock>,
-    /// PS reference clock in Hz (`PCW_CRYSTAL_PERIPHERAL_FREQMHZ`); 0 if absent.
+    /// PS reference clock in Hz (`PCW_CRYSTAL_PERIPHERAL_FREQMHZ`, `PSU__PSS_REF_CLK__FREQMHZ`); 0 if absent.
     pub ps_clk_hz: u64,
 }
 
@@ -28,6 +28,16 @@ pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32> {
     match bit {
         0..=7 => Some(29 + bit),
         8..=15 => Some(52 + (bit - 8)),
+        _ => None,
+    }
+}
+
+/// Zynq UltraScale+ GIC SPI cell (ID - 32) for PL-to-PS interrupt `bit`: 0..=7 are `pl_ps_irq0[7:0]` (IDs 121..=128),
+/// 8..=15 `pl_ps_irq1[7:0]` (IDs 136..=143). `None` for bits >= 16. Both ranges were seen on an RFSoC 4x2.
+pub fn zynqmp_pl_ps_spi_cell(bit: u32) -> Option<u32> {
+    match bit {
+        0..=7 => Some(89 + bit),
+        8..=15 => Some(104 + (bit - 8)),
         _ => None,
     }
 }
@@ -82,6 +92,11 @@ impl Instance {
 }
 
 impl Design {
+    /// Whether the design is for a Zynq UltraScale+ (an MPSoC or RFSoC), by its architecture's name.
+    pub fn is_zynq_ultrascale_plus(&self) -> bool {
+        self.arch.to_ascii_lowercase().starts_with("zynquplus")
+    }
+
     /// `(FCLK index, Hz)` for each enabled PL clock.
     pub fn enabled_fclks(&self) -> Vec<(u8, u64)> {
         self.pl_clocks
@@ -91,7 +106,7 @@ impl Design {
             .collect()
     }
 
-    /// Bit of the PS7 `IRQ_F2P` vector driven by output port `port` of
+    /// Bit of the PS7 `IRQ_F2P` vector (on a Zynq UltraScale+, of `pl_ps_irq1:pl_ps_irq0` taken as 16 bits) driven by output port `port` of
     /// `instance`, following `xlconcat` blocks. `None` if the port is wider
     /// than one bit, unconnected, fans out, goes through other logic, or
     /// ends at an AXI interrupt controller (see [`Design::irq_route`]).
@@ -133,6 +148,9 @@ impl Design {
         let sink = self.instance(sink_inst)?;
         match sink.mod_type.as_str() {
             "processing_system7" if sink_port == "IRQ_F2P" => Some(IrqRoute::Ps7 { bit: 0 }),
+            // Zynq UltraScale+: the second port's bits follow the first's.
+            "zynq_ultra_ps_e" if sink_port == "pl_ps_irq0" => Some(IrqRoute::Ps7 { bit: 0 }),
+            "zynq_ultra_ps_e" if sink_port == "pl_ps_irq1" => Some(IrqRoute::Ps7 { bit: 8 }),
             "axi_intc" if sink_port == "intr" => Some(IrqRoute::Intc {
                 controller: sink_inst.clone(),
                 bit: 0,
@@ -179,7 +197,7 @@ impl Design {
 /// Destination of a PL interrupt signal (see [`Design::irq_route`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrqRoute {
-    /// Bit of the PS7 `IRQ_F2P` vector.
+    /// Bit of the PS7 `IRQ_F2P` vector; on a Zynq UltraScale+ bit 0..8 of `pl_ps_irq0`, 8..16 of `pl_ps_irq1`.
     Ps7 { bit: u32 },
     /// Input `bit` of the AXI interrupt controller `controller`.
     Intc { controller: String, bit: u32 },

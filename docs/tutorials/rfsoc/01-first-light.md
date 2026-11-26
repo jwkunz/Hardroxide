@@ -44,6 +44,7 @@ The last lines are deliberate: they show what an unhandled exception prints (the
 - A program runs at **EL3**, alone on core 0, with no firmware under it ([`hardroxide-psu`](../../reference/psu.md)).
 - Memory is in two ranges: below 2 GiB, and from `0x8_0000_0000`.
 - Turning the caches on made the loop here about 60 times faster.
-- To keep the FPGA as it is (already loaded, or not needed), add `--no-pl`: it saves the half minute.
+- A program that does not use the FPGA, like this one, can be run with `--no-pl`, which saves the half minute. The reset
+  at the start of a run **clears the FPGA** on this family, so `--no-pl` leaves it empty.
 
 Next: [the base overlay](02-base-overlay.md).

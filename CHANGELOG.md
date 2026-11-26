@@ -35,6 +35,10 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
   tasks).
 - Fixed (2.x too): `hardroxide run` showed no console output when loading took longer than the time to watch, as with a
   large bitstream; the watch time now counts from the program's start.
+- `hardroxide generate --platform baremetal` and `rtos` accept Zynq UltraScale+ designs: a crate for the Cortex-A53 on
+  `hardroxide-psu`, with the same drivers and examples. `hardroxide-hwh` reads their clocks and interrupts and XSAs with
+  several handoff files; `hardroxide-psu` has `pl::configured`, `clocks::pl_clock_hz` and `set_pl_clock_hz`;
+  `AxiGpio::regs` is new.
 - Backward compatibility with 2.7.0 is checked in CI (`scripts/check-compat.py`).
 
 ## 2.7.0 (2026-11-21)

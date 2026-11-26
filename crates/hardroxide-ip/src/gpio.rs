@@ -35,6 +35,11 @@ impl<R: Mmio> AxiGpio<R> {
         Self { regs }
     }
 
+    /// The register window, for what the driver does not cover.
+    pub fn regs(&self) -> &R {
+        &self.regs
+    }
+
     /// Set pin directions: a `1` bit makes the pin an input, `0` an output
     /// (the register is a tri-state control).
     pub fn set_input_mask(&self, ch: Channel, mask: u32) -> Result<(), MmioError> {

@@ -43,6 +43,6 @@ No release was missed. The planned two-hour run has not been done.
 - Task stacks need at least 2048 bytes: a saved context, with all the vector registers, is 800 bytes.
 - The tick comes from the 33.333 MHz system counter; periods differ by one count so that the average is exact.
 
-There is no generated RTOS crate, and no network program on the kernel for this board, yet.
+There is no network program on the kernel for this board yet.
 
 Next: [network and SD card](07-network-sd.md).

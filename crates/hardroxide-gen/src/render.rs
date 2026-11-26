@@ -153,7 +153,11 @@ pub fn irq_lines(i: &Inst, d: &Design) -> Vec<Irq> {
                 konst: format!("IRQ_{}", k.to_uppercase()),
                 node: format!("{}_{}", i.ident, names::snake(&p.name)),
                 f2p_bit,
-                gic_spi: f2p_bit.and_then(hardroxide_hwh::zynq7000_f2p_spi_cell),
+                gic_spi: f2p_bit.and_then(if d.is_zynq_ultrascale_plus() {
+                    hardroxide_hwh::zynqmp_pl_ps_spi_cell
+                } else {
+                    hardroxide_hwh::zynq7000_f2p_spi_cell
+                }),
                 trigger: if p.sensitivity.starts_with("EDGE_RISING") {
                     1
                 } else {
@@ -361,6 +365,12 @@ pub fn pac_rs(m: &Model, d: &Design) -> String {
             let _ = writeln!(s, "    }}");
         }
         let _ = writeln!(s, "}}\n");
+    }
+    if d.is_zynq_ultrascale_plus() {
+        // The same 16 bits, named as this family names them: `pl_ps_irq1:pl_ps_irq0`.
+        s = s
+            .replace("PS7 `IRQ_F2P` bit", "`pl_ps_irq1:pl_ps_irq0` bit")
+            .replace("PS7 IRQ_F2P bit", "pl_ps_irq1:pl_ps_irq0 bit");
     }
     s
 }

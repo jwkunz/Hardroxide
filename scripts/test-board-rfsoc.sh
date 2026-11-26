@@ -119,6 +119,38 @@ need "monitor: [0-9]* updates (0 incomplete)"
 need "follows: true"
 need "RT BOARD OK"
 
+# The generated crates: each design's crate runs its board check and its driver test (fixtures/board_tests_rfsoc), and the
+# base overlay's RTOS crate its control loop.
+GEN=$ROOT/target/rfsoc4x2/generated
+generated() { # <design> <xsa> <program> <last line expected>
+  local name=$1 xsa=$2 program=$3 last=$4 dir=$GEN/$1
+  rm -rf "$dir"
+  target/debug/hardroxide generate "$xsa" --platform baremetal --name design_1 -o "$dir" --hardroxide-path "$ROOT" >/dev/null
+  cp "fixtures/board_tests_rfsoc/$name/$program.rs" "$dir/examples/"
+  printf '\n[workspace]\n' >>"$dir/Cargo.toml"
+  for example in board_check "$program"; do
+    (cd "$dir" && CARGO_TARGET_DIR="$GEN/target-$name" cargo build -q --release --example "$example")
+    target/debug/hardroxide run "$GEN/target-$name/aarch64-unknown-none/release/examples/$example" \
+      --xsa "$xsa" --tty "$TTY" --watch 8 2>&1 | tr -d '\r' | tee "$OUT"
+    if [ "$example" = board_check ]; then need "all checks passed"; else need "^$last\$"; fi
+  done
+}
+echo "== generated crates"
+for d in gpio:gpio_check:"GPIO OK" intc:controller:"INTC OK" loopback:drivers:"LOOPBACK OK" dma:both:"DMA OK" \
+  hls_vadd:run:"HLS VADD OK" hls_scale:run:"HLS SCALE OK"; do
+  IFS=: read -r name program last <<<"$d"
+  generated "$name" "$ROOT/fixtures/rfsoc4x2/rfsoc4x2_$name.xsa" "$program" "$last"
+done
+generated base "$XSA" tour "BASE OK"
+echo "== the base overlay's generated RTOS crate"
+rm -rf "$GEN/base-rtos"
+target/debug/hardroxide generate "$XSA" --platform rtos -o "$GEN/base-rtos" --hardroxide-path "$ROOT" >/dev/null
+printf '\n[workspace]\n' >>"$GEN/base-rtos/Cargo.toml"
+(cd "$GEN/base-rtos" && CARGO_TARGET_DIR="$GEN/target-base-rtos" cargo build -q --release --example rt_control)
+target/debug/hardroxide run "$GEN/target-base-rtos/aarch64-unknown-none/release/examples/rt_control" \
+  --xsa "$XSA" --tty "$TTY" --watch 6 2>&1 | tr -d '\r' | tee "$OUT"
+need "control loop: [0-9]* releases, worst deviation from 10 ms: [0-9] us"
+
 # The SD card: only with HRX_SD_SERIAL naming the card in the slot, WHICH IS ERASED (baremetal/sd-info prints the serial
 # number without writing). The start of what the board wrote comes back over JTAG and is checked with fsck.fat.
 if [ -n "${HRX_SD_SERIAL:-}" ]; then

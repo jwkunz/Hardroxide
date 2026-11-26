@@ -156,7 +156,8 @@ board, runs the XSA's own `ps7_init.tcl` or, for a Zynq UltraScale+ design, `psu
 (read from the XSA at run time; which one the XSA has decides the sequence), programs the PL
 from the XSA's bitstream, loads the ELF, starts it and shows the UART console for `--watch`
 seconds; the program keeps running afterwards. On a Zynq UltraScale+ the program starts on
-the first Cortex-A53 at EL3. The board must be in JTAG boot mode, and the
+the first Cortex-A53 at EL3. There the reset also clears the PL, so with `--no-pl` it stays unconfigured (a generated
+crate's `Design::init` then refuses with `PlNotConfigured`). The board must be in JTAG boot mode, and the
 XSA must come from a design with a board-accurate PS configuration, or the console prints
 nothing. `package` handles the Zynq-7000 only so far. `hw_server` is started if it is not running. If the Vitis tools are not found
 (`HRX_VITIS`, `XILINX_ROOT`, `PATH`, or a standard install location) the command prints what

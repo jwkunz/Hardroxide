@@ -188,6 +188,28 @@ task in 3 to 4 us; a 1 ms task at most 4 us off) and `baremetal/rt-board` (the b
 within about 1 us of their times while the others take milliseconds) pass on the board. `hardroxide run` showed no console output with it, because loading takes 28 s
 and the reader's time started before loading (also true of 2.x); fixed.
 
+## Step 5 results (2026-11-25)
+
+`hardroxide generate --platform baremetal|rtos` accepts Zynq UltraScale+ designs
+([the crate](../reference/baremetal.md#zynq-ultrascale)). `hwh` reads their PL clocks, reference clock and interrupt
+routes (the 16 bits `pl_ps_irq1:pl_ps_irq0` are reported through the existing `IrqRoute::Ps7`, so no public enum
+changed) and picks the processing system's handoff file when an XSA holds several. The generator has a template of its own
+(`baremetal_psu.rs`); register layer, drivers, HLS wrappers and examples are shared. Zynq-7000 output is unchanged
+(`check-compat.py`). On the RFSoC 4x2, `Design::init` refuses an erased PL, and the generated crates of the GPIO,
+interrupt controller, loopback, DMA and both HLS designs and of the base overlay pass their driver tests
+(`fixtures/board_tests_rfsoc/`), interrupts on both ports included, a 40-bit DMA above 4 GiB with explicit cache
+maintenance, and the kernel's example (10 ms held within 1 us).
+
+Differences from the plan, and what is left:
+
+- Loading the PL from the processor (planned as "PL loading") is not done: bare metal relies on `hardroxide run`, as the
+  Zynq-7000 bare-metal flow relies on its loader. It comes with Linux (step 6) or with booting from SD.
+- The portable name `ps` is exported by UltraScale+ crates only; adding it to Zynq-7000 crates changes their snapshots
+  and waits for the first program that builds for both.
+- The DMA driver does not check a buffer's address against the engine's address width: a 32-bit engine given a buffer
+  above 4 GiB would truncate it. Buffers in the program's own memory are below 2 GiB.
+- The base overlay's applications on generated crates, and a network application on the kernel.
+
 ## Risks
 
 | Risk | Mitigation |

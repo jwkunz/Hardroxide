@@ -84,9 +84,9 @@ bank fixes; `fsck.fat` on a card the board formatted; listening to the audio pum
 ## 3.0: Zynq UltraScale+ (in progress, branch `v3`)
 
 Plan and results: [ADR 0005](decisions/0005-ultrascale-plus.md). Done: the FPGA fixture designs, processor support,
-`hardroxide run`, the kernel, SD, Ethernet, I2C and the board's own hardware. To do, in order: code generation for
-UltraScale+ designs with their drivers (including bare-metal and RTOS applications), Linux on the board, the 3.0.0
-release; the radio driver is 3.1. Not in the plan yet: starting from SD (`hardroxide package`). Left out: USB, Pmod+ and
+`hardroxide run`, the kernel, SD, Ethernet, I2C, the board's own hardware, and code generation (bare metal and RTOS)
+with the drivers. To do, in order: the base overlay applications on generated crates (and on the kernel with the
+network), Linux on the board, the 3.0.0 release; the radio driver is 3.1. Not in the plan yet: starting from SD (`hardroxide package`). Left out: USB, Pmod+ and
 SYZYGY; DisplayPort, the PL's memory and the 100 Gb port are for the Linux examples. Still owed: a two-hour jitter run and
 the PYNQ-Z2 board regression.
 

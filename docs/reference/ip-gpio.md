@@ -7,6 +7,7 @@ with a data register and a tri-state register.
 pub enum Channel
 pub struct AxiGpio<R: Mmio>
 pub fn new(regs: R) -> Self
+pub fn regs(&self) -> &R
 pub fn set_input_mask(&self, ch: Channel, mask: u32) -> Result<(), MmioError>
 pub fn input_mask(&self, ch: Channel) -> Result<u32, MmioError>
 pub fn write(&self, ch: Channel, value: u32) -> Result<(), MmioError>

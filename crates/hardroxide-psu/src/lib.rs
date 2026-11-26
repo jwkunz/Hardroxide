@@ -19,6 +19,7 @@
 pub use hardroxide_ps7::{i2c, sd, spi, uart};
 pub mod gem;
 pub mod gpio;
+pub mod pl;
 pub mod sysmon;
 
 pub mod clocks;

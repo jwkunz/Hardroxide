@@ -45,6 +45,8 @@ pub fn sdio_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -
 pub fn i2c_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64>
 pub fn spi_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64>
 pub fn timestamp_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64) -> Result<u64>
+pub fn pl_clock_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64>
+pub fn set_pl_clock_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize, target_hz: u64) -> Result<u64>
 ```
 
 Read from the clock registers of both power domains (`map::CRL_APB_BASE`, `map::CRF_APB_BASE`), given the board's reference
@@ -97,6 +99,16 @@ pub fn current_el() -> u32
 
 `hardroxide-ps7`'s [driver](ps7.md#spi-controllers), for the controllers at `map::SPI0_BASE` and `SPI1_BASE`, given
 `clocks::spi_ref_hz`.
+
+## The programmable logic (`pl`)
+
+```rust,ignore
+pub fn configured(csu: &impl Mmio) -> Result<bool>
+```
+
+Whether the PL is configured, from the configuration security unit's status (`map::CSU_BASE`). A generated crate's
+`Design::init` asks this first, because touching an unconfigured design hangs the processor. Loading a bitstream from the
+processor is not supported; `hardroxide run` does it over JTAG.
 
 ## GPIO (`gpio`)
 

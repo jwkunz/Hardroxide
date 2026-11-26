@@ -295,6 +295,7 @@ dependencies = [
  "hardroxide-fpga",
  "hardroxide-hwh",
  "hardroxide-ps7",
+ "hardroxide-psu",
  "thiserror",
 ]
 

@@ -57,10 +57,10 @@ nothing hardware-related. Before going to the board, read through
 
 ## Supported devices
 
-Only Zynq-7000 designs are supported (the bitstream conversion, clock
-programming and interrupt numbering are specific to it). `generate` and `update`
-refuse anything else, such as an UltraScale+ design, with an `unsupported
-architecture` error; `hardroxide inspect` still reads it.
+Zynq-7000 designs work on every platform. **Zynq UltraScale+** designs (3.0, in progress) work with `--platform
+baremetal` and `--platform rtos` ([the crate](../reference/baremetal.md#zynq-ultrascale)); Linux crates for them are
+not generated yet. `generate` and `update` refuse anything else with an `unsupported architecture` error; `hardroxide
+inspect` still reads it.
 
 ## Naming
 

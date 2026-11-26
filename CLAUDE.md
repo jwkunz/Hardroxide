@@ -47,7 +47,8 @@ examples. **Examples and tutorials use the board's base overlay**
 (`fixtures/board/rfsoc4x2_base_overlay.xsa`, `probe.py base`, `baremetal/base-overlay`, on the kernel `rt-base-overlay`
 and `rt-board`); the other RFSoC designs are driver
 tests. Never build them for speed grade -1 (the preset is rejected); `timing_speed.tcl` checks -1 timing.
-Next: step 5, the generator for UltraScale+, targeting the base overlay first.
+Step 5 (generator) done for bare metal and RTOS: `baremetal_psu.rs`, `fixtures/board_tests_rfsoc/`,
+`--test baremetal_psu` and `board_tests_psu`. Next: base overlay applications on generated crates, then step 6 (Linux).
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step

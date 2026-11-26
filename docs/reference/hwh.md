@@ -131,7 +131,15 @@ Conventions and quirks (see [HWH findings](../07-hwh-findings.md)):
 
 ```rust,ignore
 pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32>
+pub fn zynqmp_pl_ps_spi_cell(bit: u32) -> Option<u32>
+pub fn is_zynq_ultrascale_plus(&self) -> bool
 ```
+
+**Zynq UltraScale+** (3.0): `Design::is_zynq_ultrascale_plus` tells the family. The 16 PL interrupt bits are
+`pl_ps_irq1:pl_ps_irq0` (`irq_route` reports them as `IrqRoute::Ps7`), and `zynqmp_pl_ps_spi_cell` maps bits 0..=7 to
+89..=96 (IDs 121..=128) and 8..=15 to 104..=111 (IDs 136..=143), as seen on an RFSoC 4x2. PL clocks and the reference
+clock are read from the `PSU__` settings. An XSA with several handoff files (SmartConnects add their own) is read from
+the one that holds the processing system.
 
 Maps a PS7 `IRQ_F2P` bit to the Zynq-7000 GIC SPI *device-tree cell*
 (`interrupts = <0 N 4>`): bits 0..=7 give 29..=36 (interrupt IDs 61..=68) and

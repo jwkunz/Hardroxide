@@ -2,6 +2,7 @@
 //! the inputs: no timestamps, sorted file map, stable naming.
 
 mod baremetal;
+mod baremetal_psu;
 mod names;
 mod render;
 
@@ -19,8 +20,8 @@ pub enum GenError {
     #[error(transparent)]
     Xsa(#[from] hardroxide_hwh::Error),
     #[error(
-        "unsupported architecture `{arch}` (device `{device}`): only Zynq-7000 (`zynq`) is supported; \
-         the bitstream conversion, clock programming and interrupt numbering are specific to it. \
+        "unsupported architecture `{arch}` (device `{device}`) for this platform: only Zynq-7000 (`zynq`) supports \
+         every platform; Zynq UltraScale+ supports `--platform baremetal` and `--platform rtos` so far. \
          `hardroxide inspect` still works on this design"
     )]
     UnsupportedArch { arch: String, device: String },
@@ -158,10 +159,11 @@ pub struct Summary {
     pub not_host_visible: Vec<String>,
 }
 
-/// Only Zynq-7000 is supported; anything else would produce a crate that
+/// Zynq-7000 on every platform, Zynq UltraScale+ without an operating system; anything else would produce a crate that
 /// programs the wrong registers.
-pub(crate) fn check_arch(d: &hardroxide_hwh::Design) -> Result<(), GenError> {
-    if d.arch.eq_ignore_ascii_case("zynq") {
+pub(crate) fn check_arch(d: &hardroxide_hwh::Design, platform: Platform) -> Result<(), GenError> {
+    let ultrascale = d.is_zynq_ultrascale_plus() && platform != Platform::Linux;
+    if d.arch.eq_ignore_ascii_case("zynq") || ultrascale {
         Ok(())
     } else {
         Err(GenError::UnsupportedArch {
@@ -193,10 +195,17 @@ pub fn summarize(design: &hardroxide_hwh::Design) -> Summary {
                 .map(|l| {
                     let to = match (&l.via_intc, l.f2p_bit) {
                         (Some((c, b)), _) => format!("input {b} of {c}"),
-                        (None, Some(b)) => match l.gic_spi {
-                            Some(spi) => format!("IRQ_F2P[{b}] (GIC SPI {spi})"),
-                            None => format!("IRQ_F2P[{b}]"),
-                        },
+                        (None, Some(b)) => {
+                            let line = if design.is_zynq_ultrascale_plus() {
+                                format!("pl_ps_irq{}[{}]", b / 8, b % 8)
+                            } else {
+                                format!("IRQ_F2P[{b}]")
+                            };
+                            match l.gic_spi {
+                                Some(spi) => format!("{line} (GIC SPI {spi})"),
+                                None => line,
+                            }
+                        }
                         (None, None) => "not routed to the PS (no UIO device)".into(),
                     };
                     format!("{} -> {to}", l.port)
@@ -273,10 +282,40 @@ fn generate_baremetal(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenEr
     Ok(GeneratedCrate { files })
 }
 
+fn generate_baremetal_psu(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
+    let model = render::Model::build(&xsa.design);
+    let d = &xsa.design;
+    let crate_name = opts
+        .crate_name
+        .clone()
+        .unwrap_or_else(|| names::snake(&d.name));
+    let rtos = opts.platform == Platform::Rtos;
+    let mut files: BTreeMap<PathBuf, Vec<u8>> = BTreeMap::new();
+    let mut put = |k: &str, v: String| {
+        files.insert(k.into(), v.into_bytes());
+    };
+    put("Cargo.toml", baremetal_psu::cargo_toml(&crate_name, opts));
+    put(".cargo/config.toml", baremetal_psu::cargo_config());
+    put("build.rs", baremetal::build_rs());
+    put("link.ld", baremetal_psu::link_ld());
+    put("src/pac.rs", render::pac_rs(&model, d));
+    put("src/lib.rs", baremetal_psu::lib_rs(&model, d, rtos));
+    if let Some(ips) = render::ips_rs(&model) {
+        put("src/ips.rs", ips);
+    }
+    for (name, text) in baremetal_psu::examples(&model, d, &crate_name, rtos) {
+        put(&format!("examples/{name}.rs"), text);
+    }
+    put("interface.txt", d.interface_text());
+    put("interface.sha256", d.interface_hash());
+    Ok(GeneratedCrate { files })
+}
+
 pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
-    check_arch(&xsa.design)?;
+    check_arch(&xsa.design, opts.platform)?;
     match opts.platform {
         Platform::Linux => {}
+        _ if xsa.design.is_zynq_ultrascale_plus() => return generate_baremetal_psu(xsa, opts),
         Platform::BareMetal => return generate_baremetal(xsa, opts),
         Platform::Rtos => return generate_baremetal(xsa, opts),
     }

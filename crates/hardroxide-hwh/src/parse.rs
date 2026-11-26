@@ -223,6 +223,30 @@ fn pl_clocks(ps: &Instance) -> Vec<PlClock> {
         .collect()
 }
 
+fn zynqmp_pl_clocks(ps: &Instance) -> Vec<PlClock> {
+    let text = |k: String| ps.parameters.get(&k).map(String::as_str);
+    // The resets are pl_resetn0 upwards, as many as configured.
+    let resets: u8 = match text("PSU__USE__FABRIC__RST".into()) {
+        Some("1") => text("PSU__NUM_FABRIC_RESETS".into())
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0),
+        _ => 0,
+    };
+    (0..4u8)
+        .map(|i| {
+            let mhz: f64 = text(format!("PSU__CRL_APB__PL{i}_REF_CTRL__ACT_FREQMHZ"))
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0.0);
+            PlClock {
+                index: i,
+                enabled: text(format!("PSU__FPGA_PL{i}_ENABLE")) == Some("1"),
+                freq_hz: (mhz * 1e6).round() as u64,
+                reset_enabled: i < resets,
+            }
+        })
+        .collect()
+}
+
 /// Parse the text of an `.hwh` file.
 pub fn parse_hwh(xml: &str) -> Result<Design, Error> {
     let xml = xml.trim_start_matches('\u{feff}');
@@ -271,13 +295,20 @@ pub fn parse_hwh(xml: &str) -> Result<Design, Error> {
     let ps_clk_hz = instances
         .iter()
         .find(|i| i.is_ps)
-        .and_then(|i| i.parameters.get("PCW_CRYSTAL_PERIPHERAL_FREQMHZ"))
+        .and_then(|i| {
+            i.parameters
+                .get("PCW_CRYSTAL_PERIPHERAL_FREQMHZ")
+                .or_else(|| i.parameters.get("PSU__PSS_REF_CLK__FREQMHZ"))
+        })
         .and_then(|v| v.parse::<f64>().ok())
         .map_or(0, |mhz| (mhz * 1e6).round() as u64);
     let pl_clocks = instances
         .iter()
-        .find(|i| i.is_ps && i.mod_type == "processing_system7")
-        .map(pl_clocks)
+        .find_map(|i| match i.mod_type.as_str() {
+            "processing_system7" if i.is_ps => Some(pl_clocks(i)),
+            "zynq_ultra_ps_e" if i.is_ps => Some(zynqmp_pl_clocks(i)),
+            _ => None,
+        })
         .unwrap_or_default();
 
     let s = |k: &str| sys.attribute(k).unwrap_or("").to_string();

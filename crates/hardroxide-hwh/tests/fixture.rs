@@ -248,3 +248,55 @@ fn parses_an_ultrascale_plus_design_so_it_can_be_inspected_and_refused() {
     assert!(d.vivado_version.starts_with("2020"), "{}", d.vivado_version);
     assert!(d.instances.len() > 5);
 }
+
+fn open_path(path: &str) -> Design {
+    let p = format!("{}/../../fixtures/{path}.xsa", env!("CARGO_MANIFEST_DIR"));
+    Xsa::open(p)
+        .unwrap_or_else(|e| panic!("{path}: {e}"))
+        .design
+}
+
+#[test]
+fn reads_the_rfsoc_base_overlays_clocks_and_interrupts() {
+    let d = open_path("board/rfsoc4x2_base_overlay");
+    assert!(d.is_zynq_ultrascale_plus(), "{}", d.arch);
+    assert_eq!(d.ps_clk_hz, 33_333_330); // the design says 33.33333 MHz
+    assert_eq!(d.enabled_fclks(), [(0, 99_999_985), (1, 299_999_939)]);
+    assert!(d.pl_clocks[0].reset_enabled && !d.pl_clocks[1].reset_enabled);
+    // The interrupt controller's output is pl_ps_irq0[0]: GIC ID 121, SPI cell 89.
+    assert_eq!(d.ps7_irq_f2p_bit("axi_intc_0", "irq"), Some(0));
+    assert_eq!(zynqmp_pl_ps_spi_cell(0), Some(89));
+    // The buttons feed input 1 of that controller.
+    assert_eq!(
+        d.irq_route("btns_gpio", "ip2intc_irpt"),
+        Some(IrqRoute::Intc {
+            controller: "axi_intc_0".into(),
+            bit: 1
+        })
+    );
+    assert!(!open_path("pynq_z2_gpio").is_zynq_ultrascale_plus());
+}
+
+#[test]
+fn picks_the_designs_handoff_among_several_and_reads_both_interrupt_ports() {
+    // This XSA also holds the SmartConnects' handoff files.
+    let d = open_path("rfsoc4x2/rfsoc4x2_dma");
+    assert!(d.instances.iter().any(|i| i.mod_type == "zynq_ultra_ps_e"));
+    let mut bits = Vec::new();
+    for i in &d.instances {
+        for p in &i.interrupts {
+            if let Some(bit) = d.ps7_irq_f2p_bit(&i.name, &p.name) {
+                bits.push(bit);
+            }
+        }
+    }
+    bits.sort_unstable();
+    // pl_ps_irq0[1:0] and pl_ps_irq1[1:0].
+    assert_eq!(bits, [0, 1, 8, 9]);
+    assert_eq!(zynqmp_pl_ps_spi_cell(8), Some(104));
+    assert_eq!(zynqmp_pl_ps_spi_cell(15), Some(111));
+    assert_eq!(zynqmp_pl_ps_spi_cell(16), None);
+    for name in ["rfsoc4x2_hls_scale", "rfsoc4x2_rf_loopback"] {
+        open_path(&format!("rfsoc4x2/{name}"));
+    }
+}

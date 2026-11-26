@@ -19,6 +19,7 @@ const RPLL: usize = 0x30;
 const RPLL_FRAC: usize = 0x38;
 const GEM0_REF: usize = 0x50;
 const SDIO0_REF: usize = 0x6C;
+const PL0_REF: usize = 0xC0;
 const SPI0_REF: usize = 0x7C;
 const UART0_REF: usize = 0x74;
 const I2C0_REF: usize = 0x120;
@@ -164,6 +165,32 @@ pub fn spi_ref_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) ->
     peripheral_hz(crl, crf, ps_ref_hz, SPI0_REF + 4 * (n & 1), Pll::Video)
 }
 
+/// PL clock `n` (`pl_clk0` to `pl_clk3`) as the clock registers set it.
+pub fn pl_clock_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64, n: usize) -> Result<u64> {
+    // Source select 2 is the RPU PLL and 3 the DDR PLL's low-power copy.
+    peripheral_hz(crl, crf, ps_ref_hz, PL0_REF + 4 * (n & 3), Pll::Ddr)
+}
+
+/// Set the dividers of PL clock `n` for `target_hz`, leaving its source and enable as `psu_init` set them. Returns the
+/// rate now produced, the nearest the two 6-bit dividers give.
+pub fn set_pl_clock_hz(
+    crl: &impl Mmio,
+    crf: &impl Mmio,
+    ps_ref_hz: u64,
+    n: usize,
+    target_hz: u64,
+) -> Result<u64> {
+    let register = PL0_REF + 4 * (n & 3);
+    let ctrl = crl.read32(register)?;
+    // The source's rate: what the clock is now, times the dividers now.
+    let d0 = u64::from((ctrl >> 8) & 0x3F).max(1);
+    let d1 = u64::from((ctrl >> 16) & 0x3F).max(1);
+    let source = pl_clock_hz(crl, crf, ps_ref_hz, n)? * d0 * d1;
+    let (d0, d1) = divisors(source, target_hz);
+    crl.write32(register, (ctrl & !0x003F_3F00) | d0 << 8 | d1 << 16)?;
+    pl_clock_hz(crl, crf, ps_ref_hz, n)
+}
+
 /// The clock of the system counter, which the processors' generic timers count.
 pub fn timestamp_hz(crl: &impl Mmio, crf: &impl Mmio, ps_ref_hz: u64) -> Result<u64> {
     let ctrl = crl.read32(TIMESTAMP_REF)?;
@@ -263,5 +290,20 @@ mod tests {
         // UART 0 from the DDR PLL through its divider to the low-power domain: 1200 / 3 / 4.
         be.poke(0xFF5E_0000 + UART0_REF as u64, 0x0101_0403);
         near(uart_ref_hz(&crl, &crf, REF, 0).unwrap(), 100_000_000);
+    }
+
+    #[test]
+    fn pl_clocks_are_read_and_set_through_their_dividers() {
+        let (be, crl, crf) = board();
+        // As the base overlay's psu_init leaves PL0 and PL1: the I/O PLL over 15 and over 5.
+        be.poke(0xFF5E_00C0, 0x0101_0F00);
+        be.poke(0xFF5E_00C4, 0x0101_0500);
+        near(pl_clock_hz(&crl, &crf, REF, 0).unwrap(), 99_999_999);
+        near(pl_clock_hz(&crl, &crf, REF, 1).unwrap(), 299_999_999);
+        near(
+            set_pl_clock_hz(&crl, &crf, REF, 0, 250_000_000).unwrap(),
+            249_999_997,
+        );
+        assert_eq!(be.peek(0xFF5E_00C0), 0x0101_0600);
     }
 }

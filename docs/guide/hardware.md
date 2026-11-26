@@ -60,6 +60,16 @@ and an ARM cross gcc on the host):
 Building on the board itself failed: `make modules_prepare` there recursed
 forever because the packaged tree lacks the full Kbuild files.
 
+On the **PYNQ 3.1 image** (kernel `6.6.10-xilinx-v2024.1`, 2026-11-26) the same
+happened, and the module was built on the host from a copy of the board's own build
+directory, without the kernel source: with `may-sync-config=` on the command line,
+`make asm-generic uapi-asm-generic archheaders`; `mach-types.h` and `unistd-nr.h`
+from the scripts in `arch/arm/tools`; the host programs `fixdep`, `genksyms` and
+`modpost` compiled from `scripts/` (`genksyms` needs the output of `flex` and
+`bison`, run on the board here, and `modpost` needs `elfconfig.h` and
+`devicetable-offsets.h`); then step 3's module build. The kernel's configuration
+files stayed unchanged.
+
 Building and copying binaries is covered in
 [Getting started](getting-started.md#build-for-the-board-linux-flavor).
 
@@ -119,10 +129,14 @@ image version.
 | `AlreadyLoaded` | a second `Design::load()` in the same process | keep one `Design` and pass references around |
 | `IrqError::NotFound { .. }` | the interrupt overlay is not applied, or the node did not bind | apply `interrupts.dtso`; `cat /sys/class/uio/uio*/name` |
 | A UIO device returns `EIO` and `dmesg` shows `irq: type mismatch, failed to map hwirq-N` | an earlier overlay mapped that GIC line with the other trigger type (level vs edge); the mapping survives overlay removal | reboot the board before applying the new overlay |
-| A UIO device returns `EIO`, and `dmesg` shows `genirq: Flags mismatch irq N ... vs. ... (fabric)` and `uio_pdrv_genirq: probe ... failed with error -16` | the image's own device tree already claims that PL interrupt line (SPI 29, `IRQ_F2P[0]` on the validated image) with a different trigger type | move the edge-triggered core to a higher `IRQ_F2P` bit, or reboot with the base overlay disabled |
+| An interrupt's UIO device is missing after the overlay applied, and `dmesg` shows `genirq: Flags mismatch irq N ... (fabric)` and `probe ... failed with error -16` | the image's own `40000000.fabric` device holds SPI cell 29 (`IRQ_F2P[0]`) | use [`overlay.sh`](../reference/scripts.md), which releases that device when the overlay wants the line |
+| `board_check` accepts a line on `IRQ_F2P[0]` but no interrupt can arrive, for an **edge**-triggered core | the image mapped that line as level-triggered at boot, and releasing its device does not change that: the new UIO device appears with no interrupt behind it | move the edge-triggered core to a higher `IRQ_F2P` bit |
+| `board_check` says an interrupt is ok although no overlay was applied | a block of the design is at `0x4000_0000`, the address of the image's `fabric` device, which is then found by address; it is the right line only if the block uses `IRQ_F2P[0]` | apply the overlay first |
 | `Fpga(PlInUse(..))` | a kernel driver is bound to a PL address; reprogramming under it can freeze the CPU | run `prep.sh` ([setup](#one-time-board-setup)); if it appeared right after power-up, a late service rebound a driver, so run `prep.sh` again once the board has settled |
 | `IrqError::ViaController { .. }` | the interrupt goes through an AXI interrupt controller | open the controller's `IRQ_IRQ` and use `AxiIntc::wait` |
 | The board freezes during `board_check` step 1 | the PL is in use by another driver (base overlay, HDMI, `zocl`) while it is reprogrammed | stop and unbind them first (One-time board setup); power-cycle to recover |
+| The board stops answering while `overlay.sh` replaces one overlay with another | seen once on the PYNQ 3.1 image, after several replacements had worked; both cores ended in the kernel's crash handlers; cause unknown | power-cycle it; applying one overlay per boot avoids the step |
+| `reboot` ends with `Reboot failed -- System halted` on the serial console | seen on the PYNQ 3.1 image | shut down, then switch the board off and on |
 | The board stops answering (SSH times out, serial silent) | usually reprogramming under a live driver, or an access to an unclocked PL (never read PS-PL HP-port registers unless their clock runs) | power-cycle it; a software `reboot` did not recover a board in this state |
 | A DMA or HLS transfer silently loses its last 16 words, or a DMA call fails with `StuckChannel` right after loading, after many design switches | the PS-PL HP port is wedged by a half-finished write burst (see [G17](../08-verification-gaps.md#g17-the-ps-pl-hp-port-can-wedge-after-many-design-switches)) | power-cycle the board |
 | `Udmabuf::open` fails | `u-dma-buf` not loaded, or fewer buffers than expected | `ls /dev/udmabuf*` |

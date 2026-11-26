@@ -34,6 +34,18 @@ case $src in
   *.dtbo) cat "$src" > "$tmp" ;;
   *) dtc -@ -I dts -O dtb -o "$tmp" "$src" 2>/dev/null ;;
 esac
+# The PYNQ image of a Zynq-7000 board has its own UIO device, `40000000.fabric`, holding IRQ_F2P[0] (SPI cell 29), and a
+# line can be claimed once: release it if this overlay wants that line (until the next boot). A generated crate for
+# Zynq UltraScale+ uses its image's device instead, and its overlay leaves that line out.
+F=/sys/bus/platform/drivers/uio_pdrv_genirq
+case $src in
+  *.dtso)
+    if [ -e "$F/40000000.fabric" ] && grep -q 'interrupts = <0 29 ' "$src"; then
+      echo 40000000.fabric > "$F/unbind"
+      echo "released the image's 40000000.fabric device, which held IRQ_F2P[0] (a reboot restores it)"
+    fi
+    ;;
+esac
 mkdir "$O/hrx"
 cat "$tmp" > "$O/hrx/dtbo"
 rm -f "$tmp"

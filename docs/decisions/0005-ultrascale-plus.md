@@ -108,7 +108,9 @@ audio underrun, interrupt share unchanged). The UltraScale+ code already saved e
 The same session showed that `net_https` and `rt_station` wrote to whatever card was in the slot; the example programs
 now write only to a card named by serial number when built (checked under QEMU, not yet with a card on the board). **Maintainer's decision
 (2026-11-26): no 2.7.1 and no further 2.x support**; the fix ships in 3.0.0. Still open for the Z2:
-the SD card tests, the audio loopback cable, eyes and ears on HDMI and audio, and Linux.
+the SD card tests, the audio loopback cable, and eyes and ears on HDMI and audio. **Linux** ran the same day under the
+PYNQ 3.1 image, DMA and HLS included ([results](../08-verification-gaps.md#board-results)); `overlay.sh` now releases
+that image's own device on `IRQ_F2P[0]`.
 
 ## Step 1 results (2026-11-25)
 

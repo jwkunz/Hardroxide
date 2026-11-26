@@ -15,6 +15,8 @@ unchanged.
   `rt_station` read a card's random seed and renew it only with `HRX_WRITE_SERIAL=0x...`; `sd_logger`, `sd_bmp` and
   `sd_wav` (when it has to write its sound file) need the same; `sd_erase_and_test` needs `HRX_ERASE_SERIAL` even for a
   blank card. New: `CardInfo::serial_matches` in `hardroxide_ps7::sd`.
+- `scripts/board/overlay.sh`: on the PYNQ image of a Zynq-7000 board, releases the image's own UIO device on
+  `IRQ_F2P[0]` when the overlay wants that line; before, such a design's interrupt device did not appear.
 - New crate `hardroxide-psu`: bare-metal processor support for the Cortex-A53 (AArch64 at EL3): startup, MMU and caches, GIC,
   generic timer, clocks, console.
 - `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one.

@@ -71,6 +71,10 @@ interrupt line keeps the trigger type (level or edge) of the first overlay that 
 it until the board reboots; if a UIO device later returns `EIO`, reboot. See
 [Interrupts](../guide/interrupts.md).
 
+On the PYNQ image of a Zynq-7000 board the image's own UIO device, `40000000.fabric`, holds `IRQ_F2P[0]`; if the overlay
+(given as `.dtso`) wants that line, the script releases the device first, until the next boot. See
+[Running on hardware](../guide/hardware.md#troubleshooting) for what that does not fix.
+
 ## `run.sh`: cross-build, copy and run (on your workstation)
 
 ```console

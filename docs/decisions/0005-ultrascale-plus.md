@@ -302,6 +302,19 @@ to the clock chips since the board was switched on, after a Linux session. After
 mode), `rfsoc-board` run first reported no lock and passed, so being the first access is not enough to cause it; a
 preceding Linux session was not repeated. The cause is **unknown** (one failure in eight runs); the check is unchanged.
 
+**Retest before the release** (RFSoC 4x2, 2026-11-26, `v3` at `6da3514`, after the PYNQ-Z2 work):
+
+- JTAG: `HRX_NET=1 scripts/test-board-rfsoc.sh` passed, the clock-chip check included; the SD card test was not run.
+  HTTP 16.23 MB/s and 227 requests/s, HTTPS 22.1 handshakes/s; the kernel's web page answered 500 of 500 requests, the
+  10 ms loop within 1 us. `rf_loopback` with the cable passed, with the levels of 2026-11-25.
+- Linux (PYNQ 4.0.0; programs run from the board's memory, nothing installed): `board_check` and the test program of all
+  seven designs the Linux tests cover passed, with the current `overlay.sh` and `hardroxide-irq`. DMA 1 MiB there and
+  back in 2.8 ms and 0.74 ms; the FPGA's DDR4 19.0 MB/s writing, 15.0 reading; the base overlay's dashboard answered 200
+  of 200 requests on the board itself. The buttons and LEDs were not checked by hand (skipped by the maintainer).
+- **Once, the board's Ethernet did not come up**: on the first start from the SD card after the JTAG run, Linux ran for
+  over an hour with `MDIO device at address 15 is missing` and `Could not attach PHY (-19)`, and the PC saw no link. It
+  came up on each of the next two starts (a restart by the maintainer, then a `reboot`). The cause is **unknown**.
+
 ## Risks
 
 | Risk | Mitigation |

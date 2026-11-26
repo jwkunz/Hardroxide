@@ -184,8 +184,8 @@ impl<B: MmioBackend> Design<B> {
 
     fn map(backend: &B, guard: bool) -> Result<Self, Error> {
         Ok(Self {
-            axi_dma_0: hardroxide_ip::dma::AxiDma::with_length_width(backend.map(pac::axi_dma_0::BASE_ADDRESS, pac::axi_dma_0::SIZE)?, 26),
-            axi_dma_1: hardroxide_ip::dma::AxiDma::with_length_width(backend.map(pac::axi_dma_1::BASE_ADDRESS, pac::axi_dma_1::SIZE)?, 26),
+            axi_dma_0: hardroxide_ip::dma::AxiDma::with_length_width(backend.map(pac::axi_dma_0::BASE_ADDRESS, pac::axi_dma_0::SIZE)?, 26).with_address_width(32),
+            axi_dma_1: hardroxide_ip::dma::AxiDma::with_length_width(backend.map(pac::axi_dma_1::BASE_ADDRESS, pac::axi_dma_1::SIZE)?, 26).with_address_width(40),
             guard,
         })
     }

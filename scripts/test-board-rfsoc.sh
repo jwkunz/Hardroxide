@@ -2,11 +2,11 @@
 # The board tests of the Zynq UltraScale+ support, on an RFSoC 4x2 in JTAG boot mode connected by USB (needs Vitis).
 # Volatile: nothing is written to storage. Runs the smoke program (processor system and PL interrupts) with the loopback
 # fixture in the PL, once more without programming the PL (`run --no-pl`), and then everything a student would run, on the
-# base overlay: the smoke program again, the overlay's example (baremetal/base-overlay), the kernel's test
+# base overlay: the smoke program again, the overlay's example (apps/rfsoc4x2/baremetal/lights), the kernel's test
 # (baremetal/rt-smoke), a read-only look at the I2C buses and power monitors (baremetal/i2c-info), and the board's own
 # hardware (baremetal/rfsoc-board: identity, temperatures, power monitors, OLED, clock chips, LEDs; it programs the clock
-# chips, which forget at power-off), and the overlay and the board hardware on the kernel (baremetal/rt-base-overlay,
-# rt-board). What the display shows, the buttons and the switches are for a person to check.
+# chips, which forget at power-off), and the overlay and the board hardware on the kernel (apps/rfsoc4x2/rtos/rt_lights,
+# baremetal/rt-board). What the display shows, the buttons and the switches are for a person to check.
 # HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
 # HRX_NET=1 adds the Ethernet test (the board cabled to this computer, which serves DHCP on that link).
 #
@@ -58,10 +58,21 @@ echo "== processor system, with the base overlay"
 run "" "$XSA"
 processor
 
-echo "== the base overlay"
-(cd baremetal/base-overlay && cargo build -q --release)
-target/debug/hardroxide run baremetal/base-overlay/target/aarch64-unknown-none/release/base-overlay \
-  --xsa "$XSA" --tty "$TTY" --watch 10 2>&1 | tr -d '\r' | tee "$OUT"
+# The base overlay's applications (apps/rfsoc4x2), each built against a freshly generated crate, as a student does.
+GEN=$ROOT/target/rfsoc4x2/generated
+application() { # <platform> <application> <seconds to watch>
+  local platform=$1 app=$2 dir=$GEN/apps-$1
+  rm -rf "$dir"
+  target/debug/hardroxide generate "$XSA" --platform "$platform" --name design_1 -o "$dir" --hardroxide-path "$ROOT" >/dev/null
+  cp "apps/rfsoc4x2/$platform/$app.rs" "$dir/examples/"
+  printf '\n[workspace]\n' >>"$dir/Cargo.toml"
+  (cd "$dir" && CARGO_TARGET_DIR="$GEN/target-apps-$platform" cargo build -q --release --example "$app")
+  target/debug/hardroxide run "$GEN/target-apps-$platform/aarch64-unknown-none/release/examples/$app" \
+    --xsa "$XSA" --tty "$TTY" --watch "$3" 2>&1 | tr -d '\r' | tee "$OUT"
+}
+
+echo "== the base overlay: lights"
+application baremetal lights 10
 need "FPGA temperature: [0-9]* C"
 need "buttons interrupt: quiet before true, arrived true, cleared true"
 need "switches interrupt: quiet before true, arrived true, cleared true"
@@ -103,9 +114,7 @@ need "LMX2594 (DAC): Locked"
 need "BOARD DEMO OK"
 
 echo "== the kernel: a mood light on the base overlay"
-(cd baremetal/rt-base-overlay && cargo build -q --release)
-target/debug/hardroxide run baremetal/rt-base-overlay/target/aarch64-unknown-none/release/rt-base-overlay \
-  --xsa "$XSA" --tty "$TTY" --watch 14 2>&1 | tr -d '\r' | tee "$OUT"
+application rtos rt_lights 14
 need "buttons interrupt woke the buttons task: true"
 need "switches interrupt woke the buttons task: true"
 need "RT LIGHTS OK"
@@ -121,7 +130,6 @@ need "RT BOARD OK"
 
 # The generated crates: each design's crate runs its board check and its driver test (fixtures/board_tests_rfsoc), and the
 # base overlay's RTOS crate its control loop.
-GEN=$ROOT/target/rfsoc4x2/generated
 generated() { # <design> <xsa> <program> <last line expected>
   local name=$1 xsa=$2 program=$3 last=$4 dir=$GEN/$1
   rm -rf "$dir"

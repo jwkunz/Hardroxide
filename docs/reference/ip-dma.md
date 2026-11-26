@@ -7,6 +7,7 @@
 pub enum Direction
 pub struct AxiDma<R: Mmio>
 pub fn with_length_width(regs: R, length_width: u32) -> Self
+pub fn with_address_width(mut self, bits: u32) -> Self
 pub fn new(regs: R) -> Self
 pub fn with_interrupts(mut self, on: bool) -> Self
 pub fn set_interrupts(&mut self, on: bool)

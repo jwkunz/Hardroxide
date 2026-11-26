@@ -1,5 +1,5 @@
-//! The applications in `apps/` build for the Cortex-A9 against a freshly generated crate of the
-//! platform their directory is named after, from the board-ready PYNQ base overlay.
+//! The applications in `apps/` build for their board's processor against a freshly generated crate of the platform
+//! their directory is named after, from the board's base overlay.
 
 use hardroxide_gen::{Options, Platform, generate};
 use hardroxide_hwh::Xsa;
@@ -27,20 +27,38 @@ const APPS: &[(&str, &str, Platform, &str)] = &[
         Platform::Rtos,
         "fixtures/board/pynq_base_overlay.xsa",
     ),
+    (
+        "rfsoc4x2",
+        "baremetal",
+        Platform::BareMetal,
+        "fixtures/board/rfsoc4x2_base_overlay.xsa",
+    ),
+    (
+        "rfsoc4x2",
+        "rtos",
+        Platform::Rtos,
+        "fixtures/board/rfsoc4x2_base_overlay.xsa",
+    ),
 ];
 
 #[test]
 fn applications_build() {
-    let installed = Command::new("rustup")
+    let targets = Command::new("rustup")
         .args(["target", "list", "--installed"])
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).contains("armv7a-none-eabihf"))
-        .unwrap_or(false);
-    if !installed {
-        eprintln!("skipping: `rustup target add armv7a-none-eabihf` to run this test");
-        return;
-    }
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default();
     for &(set, dir, platform, design) in APPS {
+        let ultrascale = set == "rfsoc4x2";
+        let target = if ultrascale {
+            "aarch64-unknown-none"
+        } else {
+            "armv7a-none-eabihf"
+        };
+        if !targets.contains(target) {
+            eprintln!("skipping {set}/{dir}: `rustup target add {target}` to build it");
+            continue;
+        }
         let tmp = std::env::temp_dir().join(format!("hrx-app-{set}-{dir}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         let o = Options {
@@ -73,8 +91,8 @@ fn applications_build() {
             }
         }
         let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
-        // The applications use the library crates beyond what a generated crate depends on.
-        manifest.push_str(&format!(
+        // The PYNQ-Z2's applications use the library crates beyond what a generated crate depends on.
+        let libraries = format!(
             "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\nhardroxide-audio = {{ path = {:?}, default-features = false }}\nhardroxide-fat = {{ path = {:?} }}\nhardroxide-net = {{ path = {:?} }}\nhardroxide-crypto = {{ path = {:?} }}\nhardroxide-tls = {{ path = {:?} }}\nhardroxide-ps7 = {{ path = {:?}, default-features = false, features = [\"net\"] }}\n\n[workspace]\n",
             root().join("crates/hardroxide-gfx"),
             root().join("crates/hardroxide-video"),
@@ -84,7 +102,12 @@ fn applications_build() {
             root().join("crates/hardroxide-crypto"),
             root().join("crates/hardroxide-tls"),
             root().join("crates/hardroxide-ps7")
-        ));
+        );
+        manifest.push_str(if ultrascale {
+            "\n[workspace]\n"
+        } else {
+            &libraries
+        });
         std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();
         let out = Command::new(env!("CARGO"))
             .args([
@@ -92,7 +115,7 @@ fn applications_build() {
                 "--release",
                 "--examples",
                 "--target",
-                "armv7a-none-eabihf",
+                target,
                 "--manifest-path",
             ])
             .arg(tmp.join("Cargo.toml"))

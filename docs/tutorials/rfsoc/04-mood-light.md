@@ -1,24 +1,28 @@
 # RFSoC 4: A mood light on the kernel
 
-`baremetal/rt-base-overlay` is [tutorial 2](02-base-overlay.md)'s hardware run by the
-[real-time kernel](../../reference/rt.md): several things happen at once, each by its own deadline.
+`apps/rfsoc4x2/rtos/rt_lights.rs` is [tutorial 2](02-base-overlay.md)'s hardware run by the
+[real-time kernel](../../reference/rt.md): several things happen at once, each by its own deadline. Generate the crate
+again with the kernel in it:
 
 ```console
-$ cd baremetal/rt-base-overlay
-$ cargo build --release
-$ hardroxide run target/aarch64-unknown-none/release/rt-base-overlay \
-    --xsa ../../fixtures/board/rfsoc4x2_base_overlay.xsa --watch 60
+$ hardroxide generate fixtures/board/rfsoc4x2_base_overlay.xsa --platform rtos \
+    --name design_1 -o ../base-rtos --hardroxide-path .
+$ cp apps/rfsoc4x2/rtos/rt_lights.rs ../base-rtos/examples/
+$ cd ../base-rtos
+$ cargo build --release --example rt_lights
+$ hardroxide run target/aarch64-unknown-none/release/examples/rt_lights \
+    --xsa ../Hardroxide/fixtures/board/rfsoc4x2_base_overlay.xsa --watch 60
 ```
 
 ```text
 == RFSoC 4x2 base overlay: a mood light on the kernel ==
-buttons interrupt woke the buttons task: true, in 4 us
+buttons interrupt woke the buttons task: true, in 3 us
 switches interrupt woke the buttons task: true, in 3 us
-pwm task: 2400 runs, worst 4 us from its millisecond
+pwm task: 2400 runs, worst 5 us from its millisecond
 RT LIGHTS OK
 
 button 0 pattern, 1 brighter, 2 dimmer, 3 off and on
-pattern 0, brightness 8/8, switches 0000, 0 presses, pwm worst 4 us
+pattern 0, brightness 8/8, switches 0000, 0 presses, pwm worst 5 us
 ```
 
 The two colour LEDs cycle through the rainbow. Button 0 changes the pattern (rainbow, breathing white, the colour that
@@ -41,10 +45,9 @@ A higher priority number is more urgent. The most urgent task that is ready runs
 
 - **Sleep, do not poll.** `buttons` uses `IrqEvent`: it costs no processor time until the interrupt arrives, and runs a
   few microseconds after it. Clear the interrupt's source, then the controller, then call `rearm`.
-- **`Periodic` does not drift.** `pwm` is released on a fixed grid, however long each run takes; here it was never more
-  than a few microseconds from its millisecond.
-- **Give each peripheral one owner.** No two tasks use the same block, so there are no locks; the tasks share a few
-  atomic numbers.
+- **`Periodic` does not drift.** `pwm` is released on a fixed grid, however long each run takes.
+- **Share the design safely.** The tasks take the generated `Design` from a `Shared`, a lock with priority inheritance,
+  for a few register accesses at a time, and never while they sleep.
 
 Try this: give `colour` a higher priority than `pwm` and add a long loop to it, then watch what `report` says about the
 `pwm` task.

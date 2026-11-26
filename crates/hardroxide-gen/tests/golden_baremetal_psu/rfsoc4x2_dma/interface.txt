@@ -82,6 +82,7 @@ instance axi_dma_0 xilinx.com:ip:axi_dma:7.1
   reg S2MM_LENGTH 0x58 ReadWrite 0x0
    field Length 0 26 ReadWrite
  config C_SG_LENGTH_WIDTH=26
+ config c_addr_width=32
  irq mm2s_introut w1 -> [("xlconcat_0", "In0")]
  irq s2mm_introut w1 -> [("xlconcat_0", "In1")]
 instance axi_dma_1 xilinx.com:ip:axi_dma:7.1
@@ -168,6 +169,7 @@ instance axi_dma_1 xilinx.com:ip:axi_dma:7.1
   reg S2MM_LENGTH 0x58 ReadWrite 0x0
    field Length 0 26 ReadWrite
  config C_SG_LENGTH_WIDTH=26
+ config c_addr_width=40
  irq mm2s_introut w1 -> [("xlconcat_1", "In0")]
  irq s2mm_introut w1 -> [("xlconcat_1", "In1")]
 instance axi_smc_hp0 xilinx.com:ip:smartconnect:1.0

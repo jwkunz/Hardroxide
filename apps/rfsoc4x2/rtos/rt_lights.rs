@@ -1,4 +1,4 @@
-//! The RFSoC 4x2's base overlay on the real-time kernel: a mood light on the two colour LEDs.
+//! RFSoC 4x2 base overlay on the real-time kernel: a mood light on the two colour LEDs.
 //!
 //! Five tasks, each with its own deadline; a higher number is more urgent:
 //!
@@ -13,40 +13,27 @@
 //! Button 0 changes the pattern (rainbow, breathing white, the colour of switches 0 to 2), 1 and 2 the brightness,
 //! 3 switches the lights off and on. The white LEDs show the pattern's number.
 //!
-//! Each block of the overlay belongs to one task, so nothing needs a lock; the tasks talk through atomics.
+//! The tasks share the generated `Design` behind a lock with priority inheritance, held only for a few register
+//! accesses; the settings are a few atomic numbers.
 
 #![no_std]
 #![no_main]
 
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
 use core::time::Duration;
-use hardroxide_ip::gpio::{AxiGpio, Channel};
-use hardroxide_ip::intc::AxiIntc;
-use hardroxide_mmio::time::{Instant, sleep};
-use hardroxide_mmio::{Mmio, MmioBackend, PhysMem, PhysRegion};
-use hardroxide_rt::{
-    IrqEvent, Periodic, Semaphore, WAIT_FOREVER, delay_ms, spawn, start, task_stack,
+use design_1::rt::{
+    IrqEvent, Periodic, Semaphore, Shared, WAIT_FOREVER, delay_ms, spawn, start, task_stack,
 };
-use platform::ps::{self, println};
+use design_1::{Design, halt, pac, periph_hz, psu};
+use hardroxide_ip::gpio::Channel;
+use hardroxide_irq::IrqLine;
+use hardroxide_mmio::time::Instant;
+use hardroxide_mmio::{Mmio, PhysMem};
+use psu::println;
 
-#[allow(dead_code)]
-#[path = "../../common/platform.rs"]
-mod platform;
+psu::entry!(main);
 
-ps::entry!(main);
-
-// The base overlay's address map.
-const INTERRUPT_CONTROLLER: usize = 0x8002_0000;
-const BUTTONS: usize = 0x8003_0000;
-const LEDS: usize = 0x8004_0000;
-const COLOUR_LEDS: usize = 0x8005_0000;
-const SWITCHES: usize = 0x8008_0000;
-const BLOCK_SIZE: usize = 0x1_0000;
-
-// Which inputs of the interrupt controller the two GPIOs feed.
-const BUTTONS_INPUT: u32 = 1 << 1;
-const SWITCHES_INPUT: u32 = 1 << 2;
-/// An AXI GPIO's interrupt status register; writing 1 to a bit toggles it, which raises the interrupt from software.
+/// An AXI GPIO's interrupt status register: writing 1 to a bit toggles it, which raises the interrupt from software.
 const GPIO_STATUS: usize = 0x120;
 
 /// Brightness steps of the pulse-width modulation.
@@ -66,27 +53,28 @@ static PWM_WORST_US: AtomicU32 = AtomicU32::new(0);
 static WAKES: AtomicU32 = AtomicU32::new(0);
 static WOKE: Semaphore = Semaphore::new(0, 8);
 
-fn map(base: usize) -> PhysRegion {
-    // SAFETY: each block of the overlay is used as its owning task says; the mappings are just addresses.
-    let be = unsafe { PhysMem::new() };
-    be.map(base as u64, BLOCK_SIZE).unwrap()
-}
+static DESIGN: Shared<Design<PhysMem>> = Shared::new();
 
-fn gpio(base: usize) -> AxiGpio<PhysRegion> {
-    AxiGpio::new(map(base))
+/// The bit of the interrupt controller that `line` feeds, as the design wires it.
+fn input_of(line: &IrqLine) -> u32 {
+    let (_, input) = line.via_intc.expect("behind the interrupt controller");
+    1 << input
 }
 
 fn buttons() {
-    let (buttons, switches, leds) = (gpio(BUTTONS), gpio(SWITCHES), gpio(LEDS));
-    let controller = AxiIntc::new(map(INTERRUPT_CONTROLLER));
-    let event = IrqEvent::new(ps::map::pl_irq(0)).expect("the controller's interrupt");
-    leds.set_input_mask(Channel::One, 0).unwrap();
-    controller.init().unwrap();
-    controller.enable(BUTTONS_INPUT | SWITCHES_INPUT).unwrap();
-    buttons.enable_interrupt(Channel::One).unwrap();
-    switches.enable_interrupt(Channel::One).unwrap();
-    SWITCH_STATE.store(switches.read(Channel::One).unwrap(), Relaxed);
-    let mut last = buttons.read(Channel::One).unwrap() & 0xF;
+    let both =
+        input_of(&pac::btns_gpio::IRQ_IP2INTC_IRPT) | input_of(&pac::sws_gpio::IRQ_IP2INTC_IRPT);
+    let event = IrqEvent::for_line(&pac::axi_intc_0::IRQ_IRQ).expect("the controller's interrupt");
+    let mut last = {
+        let d = DESIGN.lock(WAIT_FOREVER).unwrap();
+        d.leds_gpio.set_input_mask(Channel::One, 0).unwrap();
+        d.axi_intc_0.init().unwrap();
+        d.axi_intc_0.enable(both).unwrap();
+        d.btns_gpio.enable_interrupt(Channel::One).unwrap();
+        d.sws_gpio.enable_interrupt(Channel::One).unwrap();
+        SWITCH_STATE.store(d.sws_gpio.read(Channel::One).unwrap(), Relaxed);
+        d.btns_gpio.read(Channel::One).unwrap() & 0xF
+    };
     loop {
         // Unmask the interrupt, then sleep until it fires: the processor is the other tasks' meanwhile.
         event.rearm();
@@ -94,13 +82,16 @@ fn buttons() {
         WAKES.fetch_add(1, Relaxed);
         WOKE.give();
         delay_ms(20); // let the contacts settle
-        let pending = controller.pending().unwrap();
-        // Clear the sources first, then the controller.
-        buttons.clear_interrupt(Channel::One).unwrap();
-        switches.clear_interrupt(Channel::One).unwrap();
-        controller.ack(pending).unwrap();
-        SWITCH_STATE.store(switches.read(Channel::One).unwrap() & 0xF, Relaxed);
-        let state = buttons.read(Channel::One).unwrap() & 0xF;
+        let state = {
+            let d = DESIGN.lock(WAIT_FOREVER).unwrap();
+            let pending = d.axi_intc_0.pending().unwrap();
+            // Clear the sources first, then the controller.
+            d.btns_gpio.clear_interrupt(Channel::One).unwrap();
+            d.sws_gpio.clear_interrupt(Channel::One).unwrap();
+            d.axi_intc_0.ack(pending).unwrap();
+            SWITCH_STATE.store(d.sws_gpio.read(Channel::One).unwrap() & 0xF, Relaxed);
+            d.btns_gpio.read(Channel::One).unwrap() & 0xF
+        };
         let pressed = state & !last;
         last = state;
         if pressed == 0 {
@@ -120,13 +111,20 @@ fn buttons() {
         if pressed & 0b1000 != 0 {
             OFF.fetch_xor(true, Relaxed);
         }
-        leds.write(Channel::One, PATTERN.load(Relaxed)).unwrap();
+        let d = DESIGN.lock(WAIT_FOREVER).unwrap();
+        d.leds_gpio
+            .write(Channel::One, PATTERN.load(Relaxed))
+            .unwrap();
     }
 }
 
 fn pwm() {
-    let colour = gpio(COLOUR_LEDS);
-    colour.set_input_mask(Channel::One, 0).unwrap();
+    DESIGN
+        .lock(WAIT_FOREVER)
+        .unwrap()
+        .rgbleds_gpio
+        .set_input_mask(Channel::One, 0)
+        .unwrap();
     let mut every = Periodic::every_ms(1);
     let mut last = Instant::now();
     let mut step = 0;
@@ -146,7 +144,8 @@ fn pwm() {
             }
         }
         step = (step + 1) % STEPS;
-        colour.write(Channel::One, bits).unwrap();
+        let d = DESIGN.lock(WAIT_FOREVER).unwrap();
+        d.rgbleds_gpio.write(Channel::One, bits).unwrap();
     }
 }
 
@@ -195,10 +194,19 @@ fn selftest() {
     delay_ms(200);
     while WOKE.take(0) {}
     let mut good = true;
-    for (name, base) in [("buttons", BUTTONS), ("switches", SWITCHES)] {
+    for name in ["buttons", "switches"] {
         let before = WAKES.load(Relaxed);
-        let raised = Instant::now();
-        map(base).write32(GPIO_STATUS, 1).unwrap();
+        let raised = {
+            let d = DESIGN.lock(WAIT_FOREVER).unwrap();
+            let gpio = if name == "buttons" {
+                &d.btns_gpio
+            } else {
+                &d.sws_gpio
+            };
+            let raised = Instant::now();
+            gpio.regs().write32(GPIO_STATUS, 1).unwrap();
+            raised
+        };
         let woke = WOKE.take(100);
         let took = raised.elapsed();
         println!(
@@ -215,7 +223,6 @@ fn selftest() {
     println!("pwm task: {runs} runs, worst {worst} us from its millisecond");
     good &= runs > 2000 && worst < 100;
     // Something to see: the colour channels have been moving.
-    sleep(Duration::from_millis(1));
     good &= LEVEL.iter().any(|l| l.load(Relaxed) > 0);
     println!(
         "{}",
@@ -243,11 +250,20 @@ fn report() {
 }
 
 fn main() -> ! {
-    let board = platform::init("RFSoC 4x2 base overlay: a mood light on the kernel");
+    // Checks that the FPGA is configured, sets up the processor and maps every block of the design.
+    let design = match Design::init() {
+        Ok(d) => d,
+        Err(e) => {
+            println!("Design::init failed: {e}");
+            halt()
+        }
+    };
+    println!("\n== RFSoC 4x2 base overlay: a mood light on the kernel ==");
+    DESIGN.set(design);
     spawn("buttons", 6, task_stack!(8192).unwrap(), buttons).unwrap();
     spawn("pwm", 5, task_stack!(8192).unwrap(), pwm).unwrap();
     spawn("selftest", 4, task_stack!(8192).unwrap(), selftest).unwrap();
     spawn("colour", 3, task_stack!(8192).unwrap(), colour).unwrap();
     spawn("report", 2, task_stack!(8192).unwrap(), report).unwrap();
-    start(board.tick_clock_hz, 1000)
+    start(periph_hz().unwrap(), 1000)
 }

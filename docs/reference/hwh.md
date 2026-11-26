@@ -133,6 +133,7 @@ Conventions and quirks (see [HWH findings](../07-hwh-findings.md)):
 pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32>
 pub fn zynqmp_pl_ps_spi_cell(bit: u32) -> Option<u32>
 pub fn is_zynq_ultrascale_plus(&self) -> bool
+pub fn dma_address_width(&self, instance: &str) -> Option<u32>
 ```
 
 **Zynq UltraScale+** (3.0): `Design::is_zynq_ultrascale_plus` tells the family. The 16 PL interrupt bits are

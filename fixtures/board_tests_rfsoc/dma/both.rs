@@ -62,6 +62,19 @@ fn main() -> ! {
     pattern(1, low_source.as_mut_slice());
     pattern(2, high_source.as_mut_slice());
 
+    // DMA 0 reaches 32 bits: the driver refuses a buffer above 4 GiB instead of using half its address.
+    d.axi_dma_0.reset().unwrap();
+    let high_source = match d
+        .axi_dma_0
+        .start(Direction::MemToStream, high_source, BYTES)
+    {
+        Err(e) => {
+            println!("DMA 0 given a buffer above 4 GiB: refused ({})", e.error);
+            e.buffer
+        }
+        Ok(_) => panic!("DMA 0 accepted a buffer it cannot reach"),
+    };
+
     for (n, source, destination, cached) in [
         (0, low_source, low_destination, false),
         (1, high_source, high_destination, true),

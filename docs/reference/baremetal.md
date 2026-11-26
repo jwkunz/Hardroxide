@@ -58,6 +58,9 @@ Since 3.0 the same command writes a crate for a Zynq UltraScale+ design: core 0 
 describes twice what the board has). `hardroxide run` clears the PL when it resets, so with `--no-pl` `Design::init`
 fails with `PlNotConfigured`.
 
+A DMA engine is constructed with its address width (`AxiDma::with_address_width`), so a buffer it cannot reach (above
+4 GiB for a 32-bit engine) is refused with `MmioError::BadAddress` instead of being truncated.
+
 **Checked on an RFSoC 4x2** (`scripts/test-board-rfsoc.sh`, programs in `fixtures/board_tests_rfsoc/`): every design in
 `fixtures/rfsoc4x2/` except the radio one, and the base overlay: GPIO with interrupts, timer, UART Lite, IIC (as
 controller), Quad SPI, stream FIFO, block RAM, the AXI interrupt controller, both DMAs (one with 40-bit addresses and

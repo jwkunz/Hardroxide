@@ -106,6 +106,16 @@ impl Design {
             .collect()
     }
 
+    /// The memory address width of the AXI DMA `instance` on a Zynq UltraScale+ (`c_addr_width`), where memory beyond a
+    /// 32-bit engine's reach exists. `None` otherwise. Part of the interface hash of those designs.
+    pub fn dma_address_width(&self, instance: &str) -> Option<u32> {
+        let i = self.instance(instance)?;
+        if !self.is_zynq_ultrascale_plus() || i.mod_type != "axi_dma" {
+            return None;
+        }
+        i.parameters.get("c_addr_width")?.parse().ok()
+    }
+
     /// Bit of the PS7 `IRQ_F2P` vector (on a Zynq UltraScale+, of `pl_ps_irq1:pl_ps_irq0` taken as 16 bits) driven by output port `port` of
     /// `instance`, following `xlconcat` blocks. `None` if the port is wider
     /// than one bit, unconnected, fans out, goes through other logic, or

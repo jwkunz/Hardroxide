@@ -182,8 +182,9 @@ bitstream with each example); the step 1 designs are driver tests. `fixtures/boa
 RFSoC-PYNQ 4.0.0's bitstream and handoff with a `psu_init` generated for the board preset plus the overlay's
 processor-to-FPGA settings. It passes `probe.py base` on the board (LEDs, buttons, switches, the interrupt path,
 temperature, Pmod memories, all four converter tiles locking, DMA resets, the PL's DDR4, which is 4 GiB mapped twice), and
-`baremetal/base-overlay` drives it with the Zynq-7000's GPIO and interrupt controller drivers, unchanged. Step 5's
-generator and applications target it first. On the kernel, `baremetal/rt-base-overlay` (the overlay's interrupt wakes a
+Its first example drove it with the Zynq-7000's GPIO and interrupt controller drivers, unchanged (now
+`apps/rfsoc4x2/baremetal/lights.rs`). Step 5's
+generator and applications target it first. On the kernel, the mood light (now `apps/rfsoc4x2/rtos/rt_lights.rs`) (the overlay's interrupt wakes a
 task in 3 to 4 us; a 1 ms task at most 4 us off) and `baremetal/rt-board` (the board's chips as tasks; the most urgent
 within about 1 us of their times while the others take milliseconds) pass on the board. `hardroxide run` showed no console output with it, because loading takes 28 s
 and the reader's time started before loading (also true of 2.x); fixed.
@@ -206,9 +207,12 @@ Differences from the plan, and what is left:
   Zynq-7000 bare-metal flow relies on its loader. It comes with Linux (step 6) or with booting from SD.
 - The portable name `ps` is exported by UltraScale+ crates only; adding it to Zynq-7000 crates changes their snapshots
   and waits for the first program that builds for both.
-- The DMA driver does not check a buffer's address against the engine's address width: a 32-bit engine given a buffer
-  above 4 GiB would truncate it. Buffers in the program's own memory are below 2 GiB.
-- The base overlay's applications on generated crates, and a network application on the kernel.
+- (Closed the same day.) The DMA driver now refuses a buffer beyond the engine's address width
+  (`AxiDma::with_address_width`, set by UltraScale+ crates from the design's `c_addr_width`, which is part of their
+  interface hash; a Zynq-7000's is unchanged), reported as the existing `MmioError::BadAddress` because a new variant
+  would break compatibility; and the base overlay's two examples are applications on generated crates
+  (`apps/rfsoc4x2/`).
+- A network application on the kernel.
 
 ## Risks
 

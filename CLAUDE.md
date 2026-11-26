@@ -44,11 +44,10 @@ families, shared setup in `baremetal/common/`); a full two-hour jitter run is st
 done too (`crates/hardroxide-board`, `baremetal/rfsoc-board`; never drive `MIO7`, the LMK04828's reset pin, high). USB,
 Pmod+ and SYZYGY are out by the maintainer's decision; DisplayPort, PL memory and the 100 Gb port go to the Linux
 examples. **Examples and tutorials use the board's base overlay**
-(`fixtures/board/rfsoc4x2_base_overlay.xsa`, `probe.py base`, `baremetal/base-overlay`, on the kernel `rt-base-overlay`
-and `rt-board`); the other RFSoC designs are driver
+(`fixtures/board/rfsoc4x2_base_overlay.xsa`, `probe.py base`, applications in `apps/rfsoc4x2/`); the other RFSoC designs are driver
 tests. Never build them for speed grade -1 (the preset is rejected); `timing_speed.tcl` checks -1 timing.
 Step 5 (generator) done for bare metal and RTOS: `baremetal_psu.rs`, `fixtures/board_tests_rfsoc/`,
-`--test baremetal_psu` and `board_tests_psu`. Next: base overlay applications on generated crates, then step 6 (Linux).
+`--test baremetal_psu` and `board_tests_psu`. Next: step 6 (Linux).
 The Vivado license for the part expires 2026-12-29.
 
 ## Current state and next step
@@ -80,7 +79,7 @@ the same interrupt line.
 ## Conventions
 
 - Generated driver constructors may only use values from
-  `hardroxide_hwh::Instance::driver_config()` (it is hashed into the interface
+  `hardroxide_hwh::Instance::driver_config()` (or, UltraScale+ only, `Design::dma_address_width`; both are hashed into the interface
   hash; anything else would go stale on a bitstream-only `hardroxide update`).
 - The runtime crates (`mmio`, `fpga`, `dma`, `irq`, `ip`, and the application libraries `gfx`, `video`, `audio`, `fat`, `net`, `crypto`, `tls`) must stay `no_std`-capable: new code that needs the OS goes behind the `std` feature, and `scripts/check-no-std.sh` (CI) builds them for `armv7a-none-eabihf` and `aarch64-unknown-none`. Timeouts use `hardroxide_mmio::time`, never `std::time`.
 - `scripts/test-armv7.sh` runs the runtime crates' tests as armv7 binaries

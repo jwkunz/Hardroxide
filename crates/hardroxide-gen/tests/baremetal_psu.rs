@@ -134,6 +134,19 @@ fn both_interrupt_ports_are_numbered() {
 }
 
 #[test]
+fn dma_engines_are_told_their_address_width() {
+    let xsa = fixture("rfsoc4x2/rfsoc4x2_dma");
+    let g = generate(&xsa, &opts(Platform::BareMetal, "/h")).unwrap();
+    let lib = text(&g, "src/lib.rs");
+    assert!(lib.contains(".with_address_width(32),") && lib.contains(".with_address_width(40),"));
+    assert!(text(&g, "interface.txt").contains(" config c_addr_width=40"));
+    // The Zynq-7000's interface text, and so its hash, is as before.
+    let zynq = fixture("pynq_z2_dma_loopback");
+    assert_eq!(zynq.design.dma_address_width("axi_dma_0"), None);
+    assert!(!zynq.design.interface_text().contains("c_addr_width"));
+}
+
+#[test]
 fn the_kernel_flavour_turns_the_processor_crates_entries_off() {
     let g = generate(&fixture(BASE), &opts(Platform::Rtos, "/h")).unwrap();
     let manifest = text(&g, "Cargo.toml");

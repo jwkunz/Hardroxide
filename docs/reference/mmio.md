@@ -12,7 +12,7 @@ unchanged on `/dev/mem`, UIO, or a mock.
 
 Without `std` the crate is `#![no_std]` (it builds for `armv7a-none-eabihf`; see
 `scripts/check-no-std.sh`). `MmioError` gains `BadAddress(u64)` (a physical address that
-does not fit in a pointer on this target); `Io` exists only with `std`.
+does not fit a pointer on this target, or a device's address width); `Io` exists only with `std`.
 
 ## Traits
 

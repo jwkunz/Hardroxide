@@ -29,10 +29,11 @@ Zynq UltraScale+ support, in progress ([ADR 0005](docs/decisions/0005-ultrascale
 - `hardroxide-psu`: the GPIO controller (`gpio`) and the die temperature sensors (`sysmon`).
 - Fixed in the RF loopback fixture's probe script: it drove the clock chip's reset pin high, which that chip's register
   file turns into an output held low.
-- The RFSoC 4x2's base overlay, ready for bare metal (`fixtures/board/rfsoc4x2_base_overlay.xsa`), its example
-  `baremetal/base-overlay`, and preview tutorials for the board that all use it.
-- On the kernel: `baremetal/rt-base-overlay` (a mood light on the base overlay) and `rt-board` (the board's hardware as
-  tasks).
+- The RFSoC 4x2's base overlay, ready for bare metal (`fixtures/board/rfsoc4x2_base_overlay.xsa`), its applications
+  (`apps/rfsoc4x2/`: lights and buttons, and a mood light on the kernel), and preview tutorials for the board that all
+  use it.
+- On the kernel, the board's hardware as tasks (`baremetal/rt-board`).
+- `AxiDma::with_address_width`: a transfer beyond the engine's reach is refused (`MmioError::BadAddress`).
 - Fixed (2.x too): `hardroxide run` showed no console output when loading took longer than the time to watch, as with a
   large bitstream; the watch time now counts from the program's start.
 - `hardroxide generate --platform baremetal` and `rtos` accept Zynq UltraScale+ designs: a crate for the Cortex-A53 on

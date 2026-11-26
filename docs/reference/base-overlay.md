@@ -68,7 +68,8 @@ The programs in `apps/base/` build against this crate (`cargo test -p hardroxide
 `fixtures/board/rfsoc4x2_base_overlay.xsa` is RFSoC-PYNQ's base overlay (BSD 3-Clause; `base.bit` and `base.hwh` taken
 unchanged from the 4.0.0 SD card image) with the `psu_init` that running without Linux needs, generated for the board's
 preset plus the overlay's processor-to-FPGA settings ([fixtures](fixtures.md#rfsoc-4x2-base-overlay)). `hardroxide run`
-starts it; `hardroxide generate` does not accept it yet (3.0, step 5).
+starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for the whole overlay
+([bare-metal crate](baremetal.md#zynq-ultrascale)). Its applications are in `apps/rfsoc4x2/`.
 
 | Block | Address | What it is | Interrupt controller input |
 |---|---|---|---|

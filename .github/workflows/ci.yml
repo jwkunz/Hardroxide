@@ -26,8 +26,6 @@ jobs:
       - run: cd baremetal/sd-info && cargo fmt --check
       - run: cd baremetal/i2c-info && cargo fmt --check
       - run: cd baremetal/rfsoc-board && cargo fmt --check
-      - run: cd baremetal/base-overlay && cargo fmt --check
-      - run: cd baremetal/rt-base-overlay && cargo fmt --check
       - run: cd baremetal/rt-board && cargo fmt --check
       - run: cd baremetal/net-smoke && cargo fmt --check
       - run: cargo clippy --workspace --all-targets -- -D warnings

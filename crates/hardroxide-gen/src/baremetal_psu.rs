@@ -102,6 +102,14 @@ pub fn lib_rs(m: &Model, d: &Design, rtos: bool) -> String {
                 i.ident
             );
             match &i.driver {
+                // A DMA engine is told how far it reaches: this family has memory beyond 32 bits. (Part of the
+                // interface hash, like the other constructor values.)
+                Some(t) if d.dma_address_width(&i.inst.name).is_some() => format!(
+                    "            {}: {}.with_address_width({}),\n",
+                    i.ident,
+                    ctor(i, t, &map),
+                    d.dma_address_width(&i.inst.name).unwrap_or(32)
+                ),
                 Some(t) => format!("            {}: {},\n", i.ident, ctor(i, t, &map)),
                 None => format!("            {}: {map},\n", i.ident),
             }

@@ -1,14 +1,15 @@
 `timescale 1 ns / 1 ps
-// Passes a requested number of words from one of two RF-ADC streams to the output, marking the last with tlast (so a
-// DMA finishes). The converters cannot be held up: their tready stays high, and a word that finds the output still
-// occupied is dropped and recorded.
+// Records two RF-ADC streams side by side: passes a requested number of words to the output, each holding one word of
+// both inputs from the same clock (s0 in the low half, s1 in the high half), and marks the last with tlast (so a DMA
+// finishes). The converters cannot be held up: their tready stays high. A word that finds the output still occupied is
+// dropped and recorded, and so is a clock on which only one input has a word.
 //
 // `ctrl` comes from another clock domain:
 //   ctrl[0]      a rising edge starts a capture (ignored while one is running)
-//   ctrl[1]      the input: 0 = s0_axis, 1 = s1_axis (set before the start edge)
-//   ctrl[31:8]   how many words to capture (0 does nothing)
+//   ctrl[7:1]    unused
+//   ctrl[31:8]   how many output words to capture (0 does nothing; set before the start edge)
 // `status`, synchronised to `status_clk`:
-//   bit 0 busy, bit 1 done (since the last start), bit 2 a word was dropped (since the last start),
+//   bit 0 busy, bit 1 done (since the last start), bit 2 something was dropped (since the last start),
 //   bit 3 follows ctrl[0] once the start edge has been seen
 module hrx_capture #(
   parameter integer DATA_BITS = 128
@@ -31,7 +32,7 @@ module hrx_capture #(
   input  wire                  s1_axis_tvalid,
   output wire                  s1_axis_tready,
 
-  output reg  [DATA_BITS-1:0]  m_axis_tdata,
+  output reg  [2*DATA_BITS-1:0] m_axis_tdata,
   output reg                   m_axis_tvalid,
   output reg                   m_axis_tlast,
   input  wire                  m_axis_tready
@@ -43,30 +44,30 @@ module hrx_capture #(
   assign s0_axis_tready = 1'b1;
   assign s1_axis_tready = 1'b1;
 
-  reg        start_seen, busy, done, dropped, source;
+  reg        start_seen, busy, done, dropped;
   reg [23:0] left;
 
-  // The start bit is delayed by one more clock than the other bits are needed, so a select and count written together
-  // with the edge have settled.
+  // The start bit is delayed by one more clock than the other bits are needed, so a count written together with the
+  // edge has settled.
   reg        start_d;
   wire       start = start_d && !start_seen;
 
-  wire                 in_valid = source ? s1_axis_tvalid : s0_axis_tvalid;
-  wire [DATA_BITS-1:0] in_data  = source ? s1_axis_tdata  : s0_axis_tdata;
-  wire                 free     = !m_axis_tvalid || m_axis_tready;
+  wire       both = s0_axis_tvalid && s1_axis_tvalid;
+  wire       any  = s0_axis_tvalid || s1_axis_tvalid;
+  wire       free = !m_axis_tvalid || m_axis_tready;
 
   always @(posedge clk) begin
     if (!aresetn) begin
-      start_d <= 1'b0; start_seen <= 1'b0; busy <= 1'b0; done <= 1'b0; dropped <= 1'b0; source <= 1'b0; left <= 24'd0;
-      m_axis_tvalid <= 1'b0; m_axis_tlast <= 1'b0; m_axis_tdata <= {DATA_BITS{1'b0}};
+      start_d <= 1'b0; start_seen <= 1'b0; busy <= 1'b0; done <= 1'b0; dropped <= 1'b0; left <= 24'd0;
+      m_axis_tvalid <= 1'b0; m_axis_tlast <= 1'b0; m_axis_tdata <= {2*DATA_BITS{1'b0}};
     end else begin
       start_d    <= ctrl_s[0];
       start_seen <= start_d;
       if (m_axis_tvalid && m_axis_tready) m_axis_tvalid <= 1'b0;
       if (busy) begin
-        if (in_valid) begin
-          if (free) begin
-            m_axis_tdata  <= in_data;
+        if (any) begin
+          if (both && free) begin
+            m_axis_tdata  <= {s1_axis_tdata, s0_axis_tdata};
             m_axis_tvalid <= 1'b1;
             m_axis_tlast  <= (left == 24'd1);
             left          <= left - 24'd1;
@@ -77,7 +78,6 @@ module hrx_capture #(
         end
       end else if (start && ctrl_s[31:8] != 24'd0) begin
         busy <= 1'b1; done <= 1'b0; dropped <= 1'b0;
-        source <= ctrl_s[1];
         left <= ctrl_s[31:8];
       end
     end

@@ -28,4 +28,6 @@ foreach n {0 1} {
   connect_bd_net [get_bd_pins $rst/peripheral_aresetn] [get_bd_pins axis_data_fifo_$n/s_axis_aresetn]
   hrx_concat xlconcat_$n [list axi_dma_$n/mm2s_introut axi_dma_$n/s2mm_introut] zynq_ultra_ps_e_0/pl_ps_irq$n
 }
+# Without a hold margin one path inside a SmartConnect misses by 1 ps at speed grade -1.
+set hrx_margins {clk_pl_0 -hold 0.040}
 hrx_finish dmaprj $work $out

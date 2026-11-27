@@ -1,5 +1,5 @@
 # rfsoc4x2_rf_loopback.xsa: two RF DACs fed by waveform players, two RF ADCs captured to memory, for a cable from a DAC
-# to an ADC (ADR 0005; the converters' driver is 3.1, the design is built while the license lasts).
+# to an ADC (ADR 0005; the converters' driver is 3.1).
 #
 # Converters (clocks and rates as in the PYNQ base overlay for this board, from the board's LMX2594s at 491.52 MHz,
 # sampling at 4915.2 MS/s):
@@ -14,10 +14,11 @@
 #   hrx_player_N (N = 0: DAC tile 0, 1: DAC tile 2), see ../hdl/hrx_player.v:
 #     axi_bram_ctrl_N             its 128 KiB waveform memory (4096 words of 256 bits)
 #     axi_gpio_play_N             channel 1: ctrl, channel 2: the constant I/Q
-#   hrx_capture_0, see ../hdl/hrx_capture.v (input 0: vin2_01, input 1: vin2_23):
+#   hrx_capture_0, see ../hdl/hrx_capture.v (input 0: vin2_01, input 1: vin2_23), records both at once:
 #     axi_gpio_capture            channel 1: ctrl, channel 2: status (in)
-#     axi_dma_0                   S2MM only, 40-bit addresses, HP0_FPD; a 32768-word FIFO (512 KiB) sits before it,
-#                                 so captures up to that length lose nothing
+#     axi_dma_0                   S2MM only, 40-bit addresses, HP0_FPD. A capture word is 32 bytes in memory: 8 samples
+#                                 of vin2_01, then 8 of vin2_23. A 16384-word FIFO (512 KiB) sits before the DMA, so
+#                                 captures up to that length (131072 samples per input) lose nothing
 #   pl_ps_irq0[0]: DMA done, pl_ps_irq0[1]: data converter
 # Usage: vivado -mode batch -source build_rf_loopback.tcl -tclargs <workdir> <out.xsa>
 source [file join [file dirname [info script]] common.tcl]
@@ -94,19 +95,26 @@ set_property -dict [list CONFIG.C_GPIO_WIDTH {32} CONFIG.C_ALL_OUTPUTS {1} CONFI
 connect_bd_net [get_bd_pins axi_gpio_capture/gpio_io_o] [get_bd_pins hrx_capture_0/ctrl]
 connect_bd_net [get_bd_pins hrx_capture_0/status] [get_bd_pins axi_gpio_capture/gpio2_io_i]
 set fifo [create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo axis_data_fifo_0]
-set_property -dict [list CONFIG.IS_ACLK_ASYNC {1} CONFIG.FIFO_DEPTH {32768} CONFIG.TDATA_NUM_BYTES {16} CONFIG.HAS_TLAST {1}] $fifo
+set_property -dict [list CONFIG.IS_ACLK_ASYNC {1} CONFIG.FIFO_DEPTH {16384} CONFIG.TDATA_NUM_BYTES {32} CONFIG.HAS_TLAST {1}] $fifo
 connect_bd_intf_net [get_bd_intf_pins hrx_capture_0/m_axis] [get_bd_intf_pins axis_data_fifo_0/S_AXIS]
 set dma [create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma axi_dma_0]
 set_property -dict [list CONFIG.c_include_sg {0} CONFIG.c_include_mm2s {0} CONFIG.c_sg_length_width {26} \
   CONFIG.c_addr_width {40} CONFIG.c_m_axi_s2mm_data_width {128} CONFIG.c_s_axis_s2mm_tdata_width {128} \
   CONFIG.c_s2mm_burst_size {16}] $dma
-connect_bd_intf_net [get_bd_intf_pins axis_data_fifo_0/M_AXIS] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
+# The FIFO's 32-byte words, halved for the DMA: the low half (vin2_01) goes first.
+set half [create_bd_cell -type ip -vlnv xilinx.com:ip:axis_dwidth_converter axis_dwidth_converter_0]
+set_property -dict [list CONFIG.S_TDATA_NUM_BYTES {32} CONFIG.M_TDATA_NUM_BYTES {16} CONFIG.HAS_TLAST {1}] $half
+connect_bd_intf_net [get_bd_intf_pins axis_data_fifo_0/M_AXIS] [get_bd_intf_pins axis_dwidth_converter_0/S_AXIS]
+connect_bd_intf_net [get_bd_intf_pins axis_dwidth_converter_0/M_AXIS] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
 hrx_axi /zynq_ultra_ps_e_0/M_AXI_HPM0_FPD /axi_gpio_capture/S_AXI
 hrx_axi /zynq_ultra_ps_e_0/M_AXI_HPM0_FPD /axi_dma_0/S_AXI_LITE
 hrx_axi /axi_dma_0/M_AXI_S2MM /zynq_ultra_ps_e_0/S_AXI_HP0_FPD
 connect_bd_net [get_bd_pins rfdc/clk_adc2] [get_bd_pins axis_data_fifo_0/s_axis_aclk]
 connect_bd_net [get_bd_pins rst_clk_adc2/peripheral_aresetn] [get_bd_pins axis_data_fifo_0/s_axis_aresetn]
 connect_bd_net [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins axis_data_fifo_0/m_axis_aclk]
+connect_bd_net [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins axis_dwidth_converter_0/aclk]
+set pl_reset [lindex [get_bd_cells -filter {VLNV =~ *proc_sys_reset* && NAME !~ rst_clk_*}] 0]
+connect_bd_net [get_bd_pins $pl_reset/peripheral_aresetn] [get_bd_pins axis_dwidth_converter_0/aresetn]
 hrx_concat xlconcat_0 {axi_dma_0/s2mm_introut rfdc/irq} zynq_ultra_ps_e_0/pl_ps_irq0
 
 # The waveform memories whole: the default range would map (and build) only part of them.
@@ -121,4 +129,7 @@ foreach n {0 1} {
   if {$depth != 4096} { error "waveform memory $n is $depth words, not 4096" }
 }
 
+# Margins for speed grade -1: without them the capture's write enable into the FIFO has missed setup by 14 ps, and
+# paths in AMD's AXI interconnect on pl_clk0 have missed hold by 2 ps.
+set hrx_margins {RFADC2_CLK -setup 0.450  clk_pl_0 -hold 0.040}
 hrx_finish rfprj $work $out

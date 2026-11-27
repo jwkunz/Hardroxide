@@ -61,7 +61,8 @@ not run (no spare card; run them only with a card the maintainer names). The Z2 
 base overlay (3.0); all of them passed on the board,
 Linux included. The maintainer's PYNQ card then failed twice with write errors (cause unknown): Linux tests on the Z2 need
 another card. Then 3.0.0.
-The Vivado license for the part expires 2026-12-29.
+The Vivado evaluation license for the part expires 2026-12-29; the maintainer has another to use after that (2026-11-26),
+so the date is no deadline.
 
 ## Current state and next step
 

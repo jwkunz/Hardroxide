@@ -19,7 +19,7 @@ Status: **accepted** 2026-11-25 (the decisions under "Decided" are the maintaine
 | | |
 |---|---|
 | JTAG | `xczu48dr` (IDCODE `0x147fb093`), PMU, 4 x Cortex-A53, 2 x Cortex-R5; the processors are held in reset in JTAG boot mode |
-| Vivado license | an evaluation license that **expires 2026-12-29**. Synthesis, implementation and bitstream generation for the part succeed with it; the RF data converter IP is present |
+| Vivado license | an evaluation license that **expires 2026-12-29**. Synthesis, implementation and bitstream generation for the part succeed with it; the RF data converter IP is present. 2026-11-26: the maintainer has another license to use after that date, so it no longer limits the plan |
 | Without a license | a processor-only XSA (`psu_init`, `.hwh`) generates; tried while the earlier license had expired |
 | Emulation | the Vitis QEMU has `xlnx-zcu102` (same processor system family: A53, GIC-400, Cadence UART and GEM, SD host) |
 | Toolchain | AArch64 compilers are installed with the tools; the Rust targets `aarch64-unknown-none` and `aarch64-unknown-linux-gnu` are not yet installed |
@@ -315,11 +315,25 @@ preceding Linux session was not repeated. The cause is **unknown** (one failure 
   over an hour with `MDIO device at address 15 is missing` and `Could not attach PHY (-19)`, and the PC saw no link. It
   came up on each of the next two starts (a restart by the maintainer, then a `reboot`). The cause is **unknown**.
 
+**Timing at speed grade -1, and recording both inputs** (2026-11-26, after the retest):
+
+- Every fixture build now analyses the routed design at -2 and at -1 and fails if either misses. All seven designs meet
+  both; `dma` and `rf_loopback`, which had missed at -1 by up to 0.014 ns, are placed and routed with extra clock
+  uncertainty (figures in `fixtures/rfsoc4x2/README.md`).
+- `rf_loopback` records both ADC inputs at once, 8 samples of each in a 32-byte word, instead of one chosen input (the
+  maintainer's choice, a change for 3.1's radio driver made early). A shared start between the waveform players and the
+  capture is not decided.
+- The simulation (`scripts/sim_rf.sh`) passed. On the board over JTAG, with the rebuilt designs: the `dma` and
+  `rf_loopback` probes passed, each tone on its own input in recordings of 131072 samples per input with nothing
+  dropped; `HRX_NET=1 scripts/test-board-rfsoc.sh` passed (HTTP 15.33 MB/s and 225 requests/s, HTTPS 22.0 handshakes/s;
+  the kernel's web page 500 of 500 requests, the 10 ms loop within 1 us). The SD card test was not run. Linux was not
+  repeated with the rebuilt `dma`.
+
 ## Risks
 
 | Risk | Mitigation |
 |---|---|
-| License expires before a design is right | build early; keep build scripts in the repository; a permanent license (check whether the kit includes a voucher) |
+| License expires before a design is right | build early; keep build scripts in the repository. Retired 2026-11-26: the maintainer has another license |
 | Wrong DDR settings damage nothing but make everything fail strangely | take the PS preset from the board vendor or the board's PYNQ design; memory test first |
 | The RF design cannot be fully checked before the 3.1 driver exists | check clocks and register access over JTAG; compare with the PYNQ base overlay, whose prebuilt bitstream is also usable |
 | RF input damage | confirm the DAC output level and the ADC's limit in the board documentation before connecting a loopback cable, with an attenuator if needed |

@@ -45,33 +45,33 @@ after 100
 # ---- capture --------------------------------------------------------------------------------------------------------
 set cg $base(axi_gpio_capture)
 set dma $base(axi_dma_0)
+# As many words as the FIFO holds; each is 32 bytes: 8 samples of vin2_01, then 8 of vin2_23, taken on the same clock.
 set words 16384
-set bytes [expr {$words * 16}]
-# Capture from both inputs into memory and save each as <prefix>_<input>.hex for rf_analyse.py.
-proc capture_both {prefix at_base what} {
+set bytes [expr {$words * 32}]
+# Record both inputs into memory at once and save each as <prefix>_<input>.hex for rf_analyse.py.
+proc capture_both {prefix at what} {
   global cg dma words bytes work
-  foreach {input name} {0 vin2_01 1 vin2_23} {
-    set at [expr {$at_base + $input * 0x01000000}]
-    set tag "$what, $name"
-    write_words $at [lrepeat 16 0xDEADBEEF]
-    wr [expr {$dma + 0x30}] 0x4
-    check "$tag: DMA reset" [wait_for [expr {$dma + 0x30}] 0x4 0x0]
-    wr [expr {$dma + 0x30}] 0x1001
-    wr [expr {$dma + 0x48}] $at
-    wr [expr {$dma + 0x4C}] 0
-    wr [expr {$dma + 0x58}] $bytes
-    set ctrl [expr {($words << 8) | ($input << 1)}]
-    wr $cg $ctrl
-    wr $cg [expr {$ctrl | 1}]
-    set done [wait_for [expr {$dma + 0x34}] 0x1002 0x1002]
-    check "$tag: capture reaches memory" $done [format "(DMA status 0x%08x, capture status 0x%x)" [rd [expr {$dma + 0x34}]] [rd [expr {$cg + 8}]]]
-    expect "$tag: capture done, nothing dropped" [expr {[rd [expr {$cg + 8}]] & 0x7}] 0x2
-    expect "$tag: bytes" [rd [expr {$dma + 0x58}]] $bytes
-    check "$tag: DMA interrupt" [irq_line [irq0 0]]
-    wr [expr {$dma + 0x34}] 0x7000
-    if {$done} {
+  write_words $at [lrepeat 16 0xDEADBEEF]
+  wr [expr {$dma + 0x30}] 0x4
+  check "$what: DMA reset" [wait_for [expr {$dma + 0x30}] 0x4 0x0]
+  wr [expr {$dma + 0x30}] 0x1001
+  wr [expr {$dma + 0x48}] $at
+  wr [expr {$dma + 0x4C}] 0
+  wr [expr {$dma + 0x58}] $bytes
+  set ctrl [expr {$words << 8}]
+  wr $cg $ctrl
+  wr $cg [expr {$ctrl | 1}]
+  set done [wait_for [expr {$dma + 0x34}] 0x1002 0x1002]
+  check "$what: capture reaches memory" $done [format "(DMA status 0x%08x, capture status 0x%x)" [rd [expr {$dma + 0x34}]] [rd [expr {$cg + 8}]]]
+  expect "$what: capture done, nothing dropped" [expr {[rd [expr {$cg + 8}]] & 0x7}] 0x2
+  expect "$what: bytes" [rd [expr {$dma + 0x58}]] $bytes
+  check "$what: DMA interrupt" [irq_line [irq0 0]]
+  wr [expr {$dma + 0x34}] 0x7000
+  if {$done} {
+    set all [mrd -force -value $at [expr {$bytes / 4}]]
+    foreach {first name} {0 vin2_01 4 vin2_23} {
       set f [open $work/${prefix}_$name.hex w]
-      puts $f [join [mrd -force -value $at [expr {$bytes / 4}]] \n]
+      for {set i $first} {$i < [llength $all]} {incr i 8} { puts $f [join [lrange $all $i $i+3] \n] }
       close $f
     }
   }

@@ -70,8 +70,31 @@ proc hrx_concat {name sources sink} {
   connect_bd_net [get_bd_pins $name/dout] [get_bd_pins $sink]
 }
 
+# The open design's worst setup, hold and pulse width slacks and its failing endpoints, from the report's summary:
+# {wns whs wpws setup_failing hold_failing pulse_failing}.
+proc hrx_timing {} {
+  set report [report_timing_summary -no_header -return_string]
+  # The "Design Timing Summary" table: WNS TNS fail total WHS THS fail total WPWS TPWS fail total.
+  if {![regexp {WNS\(ns\)[^\n]*\n[ -]*\n\s*([^\n]+)} $report -> row]} { error "no timing summary" }
+  lassign [regexp -all -inline {\S+} $row] wns _ tnsfail _ whs _ thsfail _ wpws _ tpwsfail _
+  return [list $wns $whs $wpws $tnsfail $thsfail $tpwsfail]
+}
+
+# Re-analyse the open, routed design at a speed grade (e.g. 1), print the result and return whether it meets timing.
+# Any clock uncertainty set to give the build a margin is removed first (no constraint here uses it otherwise).
+proc hrx_signoff {name grade} {
+  set_clock_uncertainty 0 [get_clocks]
+  set_speed_grade -$grade
+  lassign [hrx_timing] wns whs wpws setup hold pulse
+  set ok [expr {$wns >= 0 && $whs >= 0 && $wpws >= 0}]
+  puts "hrx: timing $name speed -$grade: WNS $wns WHS $whs WPWS $wpws ns, failing endpoints $setup/$hold/$pulse: [expr {$ok ? "met" : "NOT MET"}]"
+  return $ok
+}
+
 # Validate, build and export. `top` replaces the generated wrapper when given (a file defining design_1_wrapper);
-# `sources` are further HDL or constraint files. Fails if the design does not meet timing.
+# `sources` are further HDL or constraint files. Fails if the design does not meet timing at the part's speed grade (-2)
+# or at -1, which the board's reference manual lists (see ../README.md). A design that needs it for -1 sets `hrx_margins`
+# first, a list of {clock -setup|-hold ns}: extra slack asked of placement and routing, not counted in the check.
 proc hrx_finish {name work out {top ""} {sources {}}} {
   assign_bd_address
   validate_bd_design
@@ -94,18 +117,24 @@ proc hrx_finish {name work out {top ""} {sources {}}} {
   }
   set_property top design_1_wrapper [current_fileset]
   update_compile_order -fileset sources_1
+  global hrx_margins
+  if {[info exists hrx_margins]} {
+    set f [open $work/margins.tcl w]
+    foreach {clock kind ns} $hrx_margins { puts $f "set_clock_uncertainty $kind $ns \[get_clocks $clock\]" }
+    close $f
+    add_files -fileset utils_1 -norecurse $work/margins.tcl
+    set_property STEPS.PLACE_DESIGN.TCL.PRE [get_files $work/margins.tcl] [get_runs impl_1]
+  }
   launch_runs impl_1 -to_step write_bitstream -jobs 6
   wait_on_run impl_1
   set run [get_runs impl_1]
   if {[get_property PROGRESS $run] ne "100%"} { error "implementation failed: [get_property STATUS $run]" }
-  set wns [get_property STATS.WNS $run]
-  set whs [get_property STATS.WHS $run]
-  # Pulse widths too: clock buffers and memories have maximum frequencies.
-  set tpws [get_property STATS.TPWS $run]
-  puts "hrx: timing WNS $wns ns, WHS $whs ns, TPWS $tpws ns"
-  if {$wns ne "" && ($wns < 0 || $whs < 0 || ($tpws ne "" && $tpws < 0))} {
-    error "timing not met: WNS $wns, WHS $whs, TPWS $tpws"
-  }
+  open_run impl_1
+  set grade [string trimleft [lindex [split [get_property PART [current_design]] -] end-1] -]
+  set failed {}
+  foreach g [list $grade 1] { if {![hrx_signoff $name $g]} { lappend failed -$g } }
+  close_design
+  if {[llength $failed]} { error "timing not met at speed grade [join $failed {, }]" }
   write_hw_platform -fixed -include_bit -force $out
   puts "hrx: wrote $out"
 }

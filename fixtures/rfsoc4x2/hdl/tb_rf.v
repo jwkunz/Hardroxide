@@ -29,15 +29,19 @@ module tb_rf;
   // ---- capture ----
   reg  [31:0]  cctrl = 0;
   wire [31:0]  status;
-  reg  [127:0] n0 = 0, n1 = 0;
+  reg  [127:0] n0 = 0, n1 = 1000;
   reg          v0 = 0, v1 = 0, ready = 1;
-  wire [127:0] cdata;
+  wire [255:0] cdata;
   wire         cvalid, clast;
-  integer      gaps = 0, stall = 0;
-  // Two streams of counting words, told apart by bit 127; with gaps when asked to.
+  integer      gaps = 0, stall = 0, uneven = 0;
+  reg          g0, g1;
+  // Two streams of counting words, told apart by bit 127 and 1000 counts apart; with gaps when asked to, and (uneven)
+  // with each stream having words on its own clocks.
   always @(posedge clk) begin
-    v0 <= gaps ? ($random & 1) : 1'b1;
-    v1 <= gaps ? ($random & 1) : 1'b1;
+    g0 = gaps ? ($random & 1) : 1'b1;
+    g1 = uneven ? ($random & 1) : g0;
+    v0 <= g0;
+    v1 <= g1;
     if (v0) n0 <= n0 + 1;
     if (v1) n1 <= n1 + 1;
     ready <= stall ? (($random & 7) == 0) : 1'b1;
@@ -49,26 +53,27 @@ module tb_rf;
     .m_axis_tdata(cdata), .m_axis_tvalid(cvalid), .m_axis_tlast(clast), .m_axis_tready(ready));
 
   integer      count = 0, lasts = 0, skips = 0;
-  reg          src, first = 1;
+  reg          first = 1;
   reg  [127:0] prev;
   always @(posedge clk) if (aresetn && cvalid && ready) begin
+    check(!cdata[127] && cdata[255], "inputs swapped or missing");
+    if (!uneven) check(cdata[254:128] - cdata[126:0] == 127'd1000, "the two halves are not from the same clock");
     if (!first) begin
-      check(cdata[127] == src, "a word from the other input");
       check(cdata[126:0] > prev[126:0], "words out of order or repeated");
       if (cdata[126:0] != prev[126:0] + 1) skips = skips + 1;
     end
-    src <= cdata[127]; prev <= cdata; first <= 0;
+    prev <= cdata[127:0]; first <= 0;
     count = count + 1;
     if (clast) lasts = lasts + 1;
   end
 
-  task run_capture(input sel, input integer words);
+  task run_capture(input integer words);
     integer t;
     begin
       count = 0; lasts = 0; skips = 0; first = 1;
-      @(posedge bus) cctrl <= {words[23:0], 6'd0, sel, 1'b0};
+      @(posedge bus) cctrl <= {words[23:0], 8'd0};
       repeat (5) @(posedge bus);
-      cctrl <= {words[23:0], 6'd0, sel, 1'b1};
+      cctrl <= {words[23:0], 8'd1};
       repeat (10) @(posedge bus);
       t = 0;
       while (!status[1] && t < 20000) begin @(posedge bus); t = t + 1; end
@@ -76,7 +81,7 @@ module tb_rf;
       check(status[1] && !status[0], "capture did not finish");
       check(count == words, "wrong number of words");
       check(lasts == 1, "not exactly one tlast");
-      check(first == 0 && src == sel, "wrong input");
+      check(first == 0, "nothing captured");
     end
   endtask
 
@@ -111,18 +116,21 @@ module tb_rf;
     pctrl <= 0; repeat (20) @(posedge clk);
     check(pdata == 0, "disable does not silence");
 
-    // Captures: both inputs, one word, many words, gaps in the input.
-    run_capture(0, 1);
+    // Captures: one word, many words, gaps in the inputs.
+    run_capture(1);
     check(!status[2], "dropped flag without back-pressure");
-    run_capture(0, 100);  check(skips == 0 && !status[2], "lost words without back-pressure");
-    run_capture(1, 257);  check(skips == 0 && !status[2], "lost words on input 1");
+    run_capture(100);  check(skips == 0 && !status[2], "lost words without back-pressure");
+    run_capture(257);  check(skips == 0 && !status[2], "lost words in a second capture");
     gaps = 1;
-    run_capture(0, 200);  check(skips == 0 && !status[2], "lost words with gaps");
+    run_capture(200);  check(skips == 0 && !status[2], "lost words with gaps");
     // Back-pressure: the count and tlast still come out right, the loss is flagged.
     gaps = 0; stall = 1;
-    run_capture(1, 64);   check(skips > 0 && status[2], "loss not flagged");
+    run_capture(64);   check(skips > 0 && status[2], "loss not flagged");
     stall = 0;
-    run_capture(0, 32);   check(!status[2], "flag not cleared by the next capture");
+    run_capture(32);   check(!status[2], "flag not cleared by the next capture");
+    // One input without the other: nothing half-filled comes out, and it is flagged.
+    uneven = 1;
+    run_capture(64);   check(status[2], "uneven inputs not flagged");
     // A zero-word request does nothing.
     count = 0;
     @(posedge bus) cctrl <= 0; repeat (5) @(posedge bus); cctrl <= 32'h1; repeat (50) @(posedge bus);

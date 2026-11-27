@@ -96,7 +96,8 @@ $ hardroxide run target/aarch64-unknown-none/release/sd-smoke \
 It formats the card, writes and reads back files and reports the speed. On a 16 GB card: 1.8 MB/s written and 6 MB/s read
 in 4 KiB pieces, 11 MB/s in one large read, and the file system passed `fsck.fat`.
 
-Starting a program from the card, without a host, is not supported on this family yet (`hardroxide package` handles the
-Zynq-7000 only).
+To start a program from a card, without a host, `hardroxide package` builds the `BOOT.BIN`
+([Booting on its own](../../guide/baremetal.md#booting-on-its-own)). On this board a test program started that way, with
+its FPGA design loaded.
 
 Next: [the base overlay under Linux](08-linux.md).

@@ -71,7 +71,8 @@ $ python3 fixtures/scripts/package_rfsoc4x2_base.py RFSoC4x2-4.0.0.img <ps-only.
 
 The first builds a design of the processor alone (the board preset plus the overlay's processor-to-FPGA settings) for its
 `psu_init`, and needs no license; the second copies `base.bit` and `base.hwh` out of the image (read only, without root)
-and packs the three together. The overlay's own processor settings are not used: they describe 8 GiB of processor memory,
+and packs the three together, with the processor-only export's index files (`xsa.xml`, `hwdef.xml`), without which the
+vendor's tools cannot build a boot loader from the XSA (`hardroxide package`). The Zynq-7000's is packed the same way. The overlay's own processor settings are not used: they describe 8 GiB of processor memory,
 and the preset's, proven on the board, 4 GiB.
 
 The other RFSoC 4x2 designs (`fixtures/rfsoc4x2/`) are driver tests with their blocks wired to each other.

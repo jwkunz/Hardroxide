@@ -84,7 +84,7 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 > everything is recorded in [Verification gaps](08-verification-gaps.md). Zynq-7000
 > only; Vivado 2025.2 is the version exercised on hardware. Bare metal and RTOS (new in 2.0): the PS support
 > crate, the kernel, the MMU and caches, the generated crates, `hardroxide run` and DMA have been run on a PYNQ-Z2 and
-> under QEMU; booting a `hardroxide package` image from SD has not been tried on hardware yet. Applications on the PYNQ base overlay (new in 2.1 to 2.7): HDMI graphics, audio, an SD card with FAT32, Ethernet with our own TCP/IP, HTTPS with our own
+> under QEMU; booting a `hardroxide package` image from SD has not been tried on a Zynq-7000 board yet. Applications on the PYNQ base overlay (new in 2.1 to 2.7): HDMI graphics, audio, an SD card with FAT32, Ethernet with our own TCP/IP, HTTPS with our own
 > TLS 1.3 and an integrated RTOS application have been run on a PYNQ-Z2 (see the [application tutorials](tutorials/apps/index.md)); the networking and cryptography are home-made and have had no outside review.
 
 ## Crates

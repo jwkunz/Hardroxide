@@ -13,6 +13,9 @@ Status: **accepted** 2026-11-25 (the decisions under "Decided" are the maintaine
 
 6. **The RF work is 3.1**, so that it does not hold up 3.0 (confirmed). Its loopback design is still built during the license window.
 7. **The board definition files may be downloaded** from Real Digital's or PYNQ's public repositories.
+8. **No release until 3.1 is finished** (2026-11-26): the first 3.x release carries UltraScale+ support and the radio
+   driver together. This replaces releasing 3.0.0 after step 6.
+9. **`hardroxide doctor` and `hardroxide package` support UltraScale+** before that release (2026-11-26).
 
 ## Facts established before planning (2026-11-25)
 
@@ -80,7 +83,7 @@ Found while checking, to handle when porting:
 
 ## Milestones
 
-Each is built offline, tested on the host and in QEMU, then proven on the board before it merges, as in 2.x. The release is 3.0.0 when steps 0 to 6 are done.
+Each is built offline, tested on the host and in QEMU, then proven on the board before it merges, as in 2.x. The release follows 3.1 (decision 8).
 
 | Step | Deliverable | Acceptance | License |
 |---|---|---|---|
@@ -91,8 +94,9 @@ Each is built offline, tested on the host and in QEMU, then proven on the board 
 | 4 Peripherals (done) | SD, Ethernet, I2C; the SD, network and HTTPS programs ported | `fsck.fat` on the card, `curl` and `openssl` interoperability, throughput and handshake figures | no |
 | 5 Generator and PL | UltraScale+ in `hwh` and `gen`; PL loading; clocks; DMA and interrupt drivers verified | the step 1 designs driven by generated crates | no (bitstreams exist) |
 | 6 Linux | `--platform linux` on AArch64 PYNQ; documentation | the Linux tutorials re-run on the board | no |
-| **3.0.0** | release and crates.io publication | full regression on both boards | |
+| 7 Host tools | `doctor` and `package` on UltraScale+ | a `BOOT.BIN` starts a program from an SD card on the board; `doctor` finds the board's chip | no |
 | 3.1 RF | board clock chips (LMK04828, LMX2594), RF data converter driver, a cable loopback from a DAC to an ADC | captured samples match the generated signal | rebuilding the design needs a license |
+| **Release** | release and crates.io publication | full regression on both boards | |
 
 Why the bitstream sprint comes second: the license is time-limited and the repository already treats built XSAs as fixtures, so every design the later steps need is built while the license lasts and proven with raw register access. Uncompressed bitstreams for this part are about
 34 MB, so the fixtures enable bitstream compression.
@@ -326,8 +330,29 @@ preceding Linux session was not repeated. The cause is **unknown** (one failure 
 - The simulation (`scripts/sim_rf.sh`) passed. On the board over JTAG, with the rebuilt designs: the `dma` and
   `rf_loopback` probes passed, each tone on its own input in recordings of 131072 samples per input with nothing
   dropped; `HRX_NET=1 scripts/test-board-rfsoc.sh` passed (HTTP 15.33 MB/s and 225 requests/s, HTTPS 22.0 handshakes/s;
-  the kernel's web page 500 of 500 requests, the 10 ms loop within 1 us). The SD card test was not run. Linux was not
-  repeated with the rebuilt `dma`.
+  the kernel's web page 500 of 500 requests, the 10 ms loop within 1 us). The SD card test was not run.
+- On Linux (PYNQ 4.0.0, from memory), with the rebuilt `dma`: `board_check`, the test program (run twice; 1 MiB there
+  and back in 2.8 ms and 0.75 ms) and `dma_loopback` passed. The other designs are unchanged since the retest above.
+
+**`doctor` and `package`** (step 7, 2026-11-26):
+
+- `package` builds UltraScale+ images: the vendor's FSBL for the first Cortex-A53, the bitstream, and the program,
+  started at EL3 as under `run` (the FSBL's exit jumps there with MMU and caches off, which the startup code expects). No
+  PMU firmware, as under `run`. It refuses a program built for the other family.
+- `doctor --xsa` checks one design: the XSA, the Rust target, the boot image tools and the chip on the JTAG chain.
+- Found on the way: **`package` failed with both base overlay XSAs**, of the Zynq-7000 too: packed by hand, they lacked
+  the index files (`xsa.xml`, `hwdef.xml`) the vendor's tool reads. The packaging scripts add them now.
+- On the host: images of both families build from the base overlay and a test design, and `bootgen -read` shows the
+  expected partitions.
+- With the RFSoC 4x2 on JTAG, `doctor --xsa` with the base overlay found its chip; with the PYNQ-Z2's design it reported
+  the wrong chip; with the board off, that no chip answers. A program ran afterwards on the same `hw_server`. Not tried
+  with a Zynq-7000 board on JTAG.
+- **Booting from SD, RFSoC 4x2** (2026-11-26): `psu-smoke` with its PL tests, packaged with
+  `rfsoc4x2_loopback.xsa`, started from the card's `BOOT.BIN` at power-on and passed everything it passes over JTAG: the
+  processor, caches, both DDR ranges, interrupts, and the FPGA design the FSBL had loaded (block RAM, GPIO and timer
+  interrupts). The FSBL printed `PMU-FW is not running, certain applications may not be supported`, as expected without
+  PMU firmware. The card was the maintainer's PYNQ card, lent for the test, its own `BOOT.BIN` set aside under another
+  name and put back afterwards (checksum verified). No program has yet been started this way on the Zynq-7000.
 
 ## Risks
 

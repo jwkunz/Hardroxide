@@ -88,11 +88,13 @@ Share the `Design` between tasks with `Shared`. See [RTOS 1](../tutorials/rtos/0
 $ hardroxide package target/armv7a-none-eabihf/release/examples/rt_control --xsa design.xsa -o BOOT.BIN
 ```
 
-Copy `BOOT.BIN` to the root of a FAT-formatted SD card, set the board's boot-mode jumper to SD, and
+For a Zynq UltraScale+ the command is the same, with a program built for `aarch64-unknown-none`. Copy `BOOT.BIN` to the
+root of a FAT-formatted SD card, set the board to boot from SD (a jumper on the PYNQ-Z2, a switch on the RFSoC 4x2), and
 power-cycle. The boot ROM runs the first-stage loader the command built from your XSA, which initialises the PS
 and the PL and then starts the program; the console appears on the same UART as under `run`. The same file
 can be written to QSPI flash with the Vitis `program_flash`. The first-stage loader is the vendor's
 (built on your machine from your Vitis install; nothing of it is redistributed by Hardroxide).
 
-This image has been built but **not yet booted from an SD card on hardware**; every other flow on this page is verified
+An image has been booted from an SD card on the RFSoC 4x2 (the loader prints `PMU-FW is not running, certain
+applications may not be supported`, which these programs do not need), but **not yet on the PYNQ-Z2**; every other flow on this page is verified
 (see [Verification gaps](../08-verification-gaps.md)).

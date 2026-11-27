@@ -52,7 +52,7 @@ Since 3.0 the same command writes a crate for a Zynq UltraScale+ design: core 0 
 | PL interrupts | `IRQ_F2P[15:0]` | `pl_ps_irq0` (IDs 121..=128) and `pl_ps_irq1` (136..=143) |
 | `periph_hz()` | the Cortex-A9 peripheral clock | the system counter's clock |
 | dependencies | version 2 | version 3, without `hardroxide-fpga`; `embedded-hal` as a dev-dependency |
-| `hardroxide package` | yes | not yet |
+| `hardroxide package` | yes (not yet booted from a card) | yes |
 
 `DDR_BYTES` assumes the RFSoC 4x2's memory; the design's own settings are not a reliable source (the board's base overlay
 describes twice what the board has). `hardroxide run` clears the PL when it resets, so with `--no-pl` `Design::init`

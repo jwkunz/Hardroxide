@@ -18,6 +18,7 @@ out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(here, "../board/pynq_ba
 with zipfile.ZipFile(base) as b, zipfile.ZipFile(ps7_xsa) as p, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as o:
     for name in b.namelist():
         o.writestr(zipfile.ZipInfo(name, (2026, 11, 21, 0, 0, 0)), b.read(name), zipfile.ZIP_DEFLATED)
-    for name in ("ps7_init.tcl", "ps7_init.c", "ps7_init.h"):
+    # With the export's index files, which the vendor's tools need to build a boot loader (`hardroxide package`).
+    for name in ("ps7_init.tcl", "ps7_init.c", "ps7_init.h", "xsa.xml", "hwdef.xml"):
         o.writestr(zipfile.ZipInfo(name, (2026, 11, 21, 0, 0, 0)), p.read(name), zipfile.ZIP_DEFLATED)
 print("wrote", out)

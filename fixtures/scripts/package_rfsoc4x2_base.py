@@ -41,6 +41,9 @@ with tempfile.TemporaryDirectory() as tmp:
 with zipfile.ZipFile(ps_xsa) as p:
     for name in ("psu_init.tcl", "psu_init.c", "psu_init.h"):
         files[name] = p.read(name)
+    # The export's index files, which the vendor's tools need to build a boot loader (`hardroxide package`).
+    for name in ("xsa.xml", "hwdef.xml"):
+        files[name] = p.read(name).replace(b'Name="design_1.hwh"', b'Name="base.hwh"')
 
 with zipfile.ZipFile(out, "w") as o:
     for name, data in files.items():

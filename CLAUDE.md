@@ -36,7 +36,8 @@ regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and
 ## 3.0 in progress: Zynq UltraScale+
 
 [ADR 0005](docs/decisions/0005-ultrascale-plus.md) (accepted): RFSoC 4x2 first, Zynq-7000 stays and everything must remain **backward compatible with 2.7.0**
-(`scripts/check-compat.py`, in CI). Work is on branch `v3` (pushed to GitHub; `main` and releases stay at 2.7.0 until 3.0 is ready). Done: step 0 (PYNQ-Z2 regression run 2026-11-26) and step 1: seven RFSoC 4x2 designs in
+(`scripts/check-compat.py`, in CI). Work is on branch `v3` (pushed to GitHub; `main` and releases stay at 2.7.0: by the maintainer's decision (2026-11-26) there is no release until 3.1, the radio
+driver, is finished). Done: step 0 (PYNQ-Z2 regression run 2026-11-26) and step 1: seven RFSoC 4x2 designs in
 `fixtures/rfsoc4x2/`, proven on the board over JTAG (`scripts/probe.py` there). Step 2 done: `crates/hardroxide-psu` (AArch64, EL3) and `hardroxide run` for UltraScale+ (`scripts/test-board-rfsoc.sh`,
 `scripts/test-qemu-psu.sh`). Step 3 done: the kernel's AArch64 port (`port/aarch64.rs`; programs in `baremetal/` build for both
 families, shared setup in `baremetal/common/`; the two-hour jitter run passed on 2026-11-25). Step 4 done: SD, Ethernet, I2C
@@ -60,7 +61,9 @@ loopback passed. The Z2's SD card tests were
 not run (no spare card; run them only with a card the maintainer names). The Z2 examples and tutorials moved to the
 base overlay (3.0); all of them passed on the board,
 Linux included. The maintainer's PYNQ card then failed twice with write errors (cause unknown): Linux tests on the Z2 need
-another card. Then 3.0.0.
+another card.
+`doctor --xsa` and `package` handle UltraScale+ (step 7, done: both checked on the RFSoC board, an image booted from SD;
+no Zynq-7000 image has been booted from a card). Then 3.1, then the release.
 The Vivado evaluation license for the part expires 2026-12-29; the maintainer has another to use after that (2026-11-26),
 so the date is no deadline.
 

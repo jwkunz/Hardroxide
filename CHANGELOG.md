@@ -27,7 +27,12 @@ unchanged.
   matches it by address; `IrqLine::open` uses it only for a level-triggered `IRQ_F2P[0]`, which is the line it holds.
 - New crate `hardroxide-psu`: bare-metal processor support for the Cortex-A53 (AArch64 at EL3): startup, MMU and caches, GIC,
   generic timer, clocks, console.
-- `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one.
+- `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one, and `hardroxide package` builds its `BOOT.BIN`
+  (booted from an SD card on the RFSoC 4x2). `package` now refuses a program built for the other family.
+- `hardroxide doctor --xsa <design>` also checks what that design needs (its XSA, Rust target and boot image tools) and
+  that its chip is on the JTAG chain. Without `--xsa` it behaves as before.
+- Fixed: `hardroxide package` failed with the base overlay XSAs in `fixtures/board/`, which lacked the index files of a
+  Vivado export; an XSA without them now gets a message saying so.
 - `hardroxide-rt` runs on UltraScale+ too (AArch64 port: tasks at EL3, the whole vector file saved; stacks of at least 2048
   bytes). Same API; `baremetal/rt-smoke` and `rt-jitter` build for both processors.
 - `hardroxide-rt` fix (both processors): an interrupt, or a kernel call such as `Semaphore::give`, before `start` could switch

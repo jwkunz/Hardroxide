@@ -92,6 +92,23 @@ fn applications_build() {
             }
         }
         assert!(n > 0, "no applications in {}", src.display());
+        // Code the applications of several platforms share (`#[path = "common/loopback.rs"] mod loopback;`).
+        let common = root().join("apps").join(set).join("common");
+        if let Ok(rd) = std::fs::read_dir(&common) {
+            std::fs::create_dir_all(tmp.join("examples/common")).unwrap();
+            for e in rd.flatten() {
+                std::fs::copy(e.path(), tmp.join("examples/common").join(e.file_name())).unwrap();
+            }
+        }
+        // The radio application programs the RFSoC board's clock chips from their register files.
+        if ultrascale && platform == Platform::BareMetal {
+            let clocks = root().join("fixtures/rfsoc4x2/clocks");
+            for e in std::fs::read_dir(clocks).unwrap().flatten() {
+                if e.path().extension().is_some_and(|x| x == "txt") {
+                    std::fs::copy(e.path(), tmp.join("examples").join(e.file_name())).unwrap();
+                }
+            }
+        }
         // Data the applications include (`include_bytes!("chime.wav")`) sits next to them.
         let data = root().join("apps").join(set).join("data");
         if let Ok(rd) = std::fs::read_dir(&data) {
@@ -128,6 +145,18 @@ fn applications_build() {
                     "{section}hardroxide-net = {{ path = {:?} }}\nhardroxide-psu = {{ path = {:?}, default-features = false, features = [\"net\"] }}\n",
                     root().join("crates/hardroxide-net"),
                     root().join("crates/hardroxide-psu")
+                ),
+            );
+        }
+        // As its tutorial says, the radio application adds the board's chip drivers.
+        if ultrascale && platform == Platform::BareMetal {
+            let section = "[dev-dependencies]\n";
+            assert!(manifest.contains(section), "{manifest}");
+            manifest = manifest.replace(
+                section,
+                &format!(
+                    "{section}hardroxide-board = {{ path = {:?} }}\n",
+                    root().join("crates/hardroxide-board")
                 ),
             );
         }

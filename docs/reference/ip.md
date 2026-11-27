@@ -20,6 +20,8 @@ Drivers do not touch the FPGA or clocks; they only drive registers.
 | [`vdma`](ip-vdma.md) | AXI VDMA, read channel (display) | no |
 | [`vtc`](ip-vtc.md) | Video Timing Controller, generator | no |
 | [`dynclk`](ip-dynclk.md) | Digilent dynamic clock generator | no |
+| [`rfdc`](ip-rfdc.md) | RFSoC data converter: tiles and mixers | no |
+| [`radio`](ip-radio.md) | the RFSoC base overlay's amplitude controller and packet generator | no |
 
 ## Features and `no_std`
 
@@ -48,6 +50,7 @@ Common conventions:
 - Methods that only touch registers return `Result<_, MmioError>`.
 - Register offsets and control-bit positions are asserted against real Vivado
   HWH output in the unit tests; behaviour on real hardware was checked on a PYNQ-Z2
-  ([results](../08-verification-gaps.md#board-results)).
+  ([results](../08-verification-gaps.md#board-results)). `rfdc` and `radio` are the exception: their registers are not
+  in the handoff, and they have not yet run on a board.
 
 The crate re-exports `Mmio` and `MmioError`.

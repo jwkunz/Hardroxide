@@ -115,6 +115,8 @@
   - [AXI VDMA](reference/ip-vdma.md)
   - [Video Timing Controller](reference/ip-vtc.md)
   - [Dynamic clock generator](reference/ip-dynclk.md)
+  - [RF data converter](reference/ip-rfdc.md)
+  - [RFSoC radio blocks](reference/ip-radio.md)
   - [AXI Quad SPI](reference/ip-spi.md)
 - [Board scripts](reference/scripts.md)
 - [Fixtures](reference/fixtures.md)
@@ -135,6 +137,7 @@
 - [ADR 0003: Bare-metal and RTOS platforms](decisions/0003-bare-metal-and-rtos-platforms.md)
 - [ADR 0004: Base overlay applications (2.1 to 2.7)](decisions/0004-base-overlay-applications.md)
 - [ADR 0005: Zynq UltraScale+ (3.0)](decisions/0005-ultrascale-plus.md)
+- [ADR 0006: The radio driver (3.1)](decisions/0006-radio.md)
 
 # Status
 

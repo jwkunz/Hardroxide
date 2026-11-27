@@ -40,6 +40,9 @@ fn driver_for(vlnv: &str) -> Option<&'static str> {
         "xilinx.com:ip:axi_vdma" => Some("hardroxide_ip::vdma::AxiVdma"),
         "xilinx.com:ip:v_tc" => Some("hardroxide_ip::vtc::VideoTimingController"),
         "digilentinc.com:ip:axi_dynclk" => Some("hardroxide_ip::dynclk::AxiDynclk"),
+        "xilinx.com:ip:usp_rf_data_converter" => Some("hardroxide_ip::rfdc::Rfdc"),
+        "xilinx.com:ip:amplitude_controller" => Some("hardroxide_ip::radio::AmplitudeController"),
+        "xilinx.com:ip:packet_generator" => Some("hardroxide_ip::radio::PacketGenerator"),
         _ => None,
     }
 }
@@ -566,8 +569,34 @@ pub(crate) fn ctor(i: &Inst, driver: &str, map: &str) -> String {
             };
             format!("{driver}::new({map}, {depth}, {})", p("C_NUM_SS_BITS", "1"))
         }
+        "Rfdc" => format!("{driver}::new({map}, {})", rf_converter_config(&cfg)),
         _ => format!("{driver}::new({map})"),
     }
+}
+
+/// The converter driver's configuration, from the instance's `driver_config`.
+fn rf_converter_config(cfg: &std::collections::BTreeMap<&'static str, String>) -> String {
+    let tiles = |kind: &str| {
+        (0..4)
+            .map(|t| {
+                let value = cfg.get(format!("{kind}_tile{t}").as_str());
+                match value.map(|v| v.split(',').collect::<Vec<_>>()) {
+                    Some(v) if v.len() == 3 => format!(
+                        "Some(hardroxide_ip::rfdc::TileConfig {{ sample_rate_hz: {}, blocks: {}, fine_mixers: {} }})",
+                        v[0], v[1], v[2]
+                    ),
+                    _ => "None".into(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    format!(
+        "hardroxide_ip::rfdc::RfdcConfig {{ adc: [{}], dac: [{}], paired_adc: {} }}",
+        tiles("adc"),
+        tiles("dac"),
+        cfg.get("paired_adc").is_some_and(|v| v == "1")
+    )
 }
 
 const LIB_TEMPLATE: &str = r#"pub mod pac;

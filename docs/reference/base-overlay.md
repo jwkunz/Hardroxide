@@ -103,6 +103,9 @@ starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for
 > not answer until the clock chips are programmed ([`hardroxide-board`](board.md); under PYNQ, `/boot/boot.py` does it
 > while starting). An access before that can stall the processor until the next reset.
 
+Generated crates drive `radio_rfdc` with [`hardroxide_ip::rfdc`](ip-rfdc.md) and the amplitude controllers and packet
+generators with [`hardroxide_ip::radio`](ip-radio.md) (3.1, not yet run on the board).
+
 **Checked on a board** (`fixtures/rfsoc4x2/scripts/probe.py base`, raw register accesses): the LEDs, buttons and
 switches; the interrupt path from both GPIOs to the processor; the temperature; both Pmod memories; after programming
 the clock chips, all four converter tiles power up and lock and the eight capture DMAs reset; the FPGA's DDR4 at its

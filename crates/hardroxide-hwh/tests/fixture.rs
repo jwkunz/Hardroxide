@@ -189,6 +189,43 @@ fn constructor_parameters_are_part_of_the_interface() {
 }
 
 #[test]
+fn the_rf_converters_tiles_are_part_of_the_interface() {
+    let value = |d: &Design, inst: &str, key: &str| {
+        d.instance(inst).unwrap().driver_config().get(key).cloned()
+    };
+    let base = open_path("board/rfsoc4x2_base_overlay");
+    let of = |key| value(&base, "radio_rfdc", key);
+    assert_eq!(of("paired_adc").as_deref(), Some("1"));
+    // Two receivers on each of ADC tiles 0 and 2, both with fine mixers; one DAC block on tiles 0 and 2.
+    for tile in ["adc_tile0", "adc_tile2"] {
+        assert_eq!(of(tile).as_deref(), Some("4915200000,3,3"), "{tile}");
+    }
+    for tile in ["dac_tile0", "dac_tile2"] {
+        assert_eq!(of(tile).as_deref(), Some("4915200000,1,1"), "{tile}");
+    }
+    for tile in ["adc_tile1", "adc_tile3", "dac_tile1", "dac_tile3"] {
+        assert_eq!(of(tile), None, "{tile}");
+    }
+    // The loopback design receives without the fine mixer.
+    let loopback = open_path("rfsoc4x2/rfsoc4x2_rf_loopback");
+    assert_eq!(
+        value(&loopback, "rfdc", "adc_tile2").as_deref(),
+        Some("4915200000,3,0")
+    );
+    assert_eq!(value(&loopback, "rfdc", "adc_tile0"), None);
+    // Another sample rate is another interface.
+    let mut changed = base.clone();
+    changed
+        .instances
+        .iter_mut()
+        .find(|i| i.name == "radio_rfdc")
+        .unwrap()
+        .parameters
+        .insert("C_DAC2_Sampling_Rate".into(), "2.4576".into());
+    assert_ne!(changed.interface_hash(), base.interface_hash());
+}
+
+#[test]
 fn third_party_design_uses_only_ps_visible_addresses() {
     // The PYNQ base overlay has four MicroBlaze subsystems whose private
     // address maps overlap each other and the PS's. Only ps7_0's map says what

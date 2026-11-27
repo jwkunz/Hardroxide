@@ -80,9 +80,55 @@ impl Instance {
                     m.insert("axi_clk_hz", hz.to_string());
                 }
             }
+            "usp_rf_data_converter" => self.rf_converter_config(&mut m),
             _ => {}
         }
         m
+    }
+
+    /// The RF data converter's tiles, for its driver: `paired_adc` (`1` or `0`) and, for each tile in the design,
+    /// `adc_tileN` or `dac_tileN` as `sample_rate_hz,blocks,fine_mixers` (the last two bit masks of its blocks).
+    fn rf_converter_config(&self, m: &mut BTreeMap<&'static str, String>) {
+        const ADC: [&str; 4] = ["adc_tile0", "adc_tile1", "adc_tile2", "adc_tile3"];
+        const DAC: [&str; 4] = ["dac_tile0", "dac_tile1", "dac_tile2", "dac_tile3"];
+        let is = |k: String, v: &str| self.parameters.get(k.as_str()).is_some_and(|p| p == v);
+        // A chip with two fast ADCs in a tile: block n is the tile's slices 2n and 2n+1.
+        let paired = is("C_High_Speed_ADC".into(), "1");
+        m.insert("paired_adc", u8::from(paired).to_string());
+        for (kind, keys) in [("ADC", ADC), ("DAC", DAC)] {
+            let step = if paired && kind == "ADC" { 2 } else { 1 };
+            for (tile, key) in keys.into_iter().enumerate() {
+                if !is(format!("C_{kind}{tile}_Enable"), "1") {
+                    continue;
+                }
+                // The parameter is in GS/s, with a decimal point.
+                let Some(rate) = self
+                    .parameters
+                    .get(format!("C_{kind}{tile}_Sampling_Rate").as_str())
+                    .and_then(|v| v.parse::<f64>().ok())
+                    .filter(|v| *v > 0.0)
+                else {
+                    continue;
+                };
+                let (mut blocks, mut fine) = (0u8, 0u8);
+                for block in 0..4 / step {
+                    let slice = block * step;
+                    if is(format!("C_{kind}_Slice{tile}{slice}_Enable"), "true") {
+                        blocks |= 1 << block;
+                        // Mixer type 2 is the fine mixer.
+                        if is(format!("C_{kind}_Mixer_Type{tile}{slice}"), "2") {
+                            fine |= 1 << block;
+                        }
+                    }
+                }
+                if blocks != 0 {
+                    m.insert(
+                        key,
+                        format!("{},{blocks},{fine}", (rate * 1e9).round() as u64),
+                    );
+                }
+            }
+        }
     }
 
     /// Vitis HLS-generated IP (`vendor:hls:name:version`).

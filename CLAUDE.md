@@ -64,6 +64,13 @@ Linux included. The maintainer's PYNQ card then failed twice with write errors (
 another card.
 `doctor --xsa` and `package` handle UltraScale+ (step 7, done: both checked on the RFSoC board, an image booted from SD;
 no Zynq-7000 image has been booted from a card). Then 3.1, then the release.
+
+**3.1, the radio driver** ([ADR 0006](docs/decisions/0006-radio.md), accepted 2026-11-26: tones only on the base overlay,
+no common start of sending and recording, mixer frequency, phase and status only). R1 and R2 are done on the host
+(`hardroxide_ip::rfdc` and `::radio`, curated in generated crates); the R3 loopback program is written for bare metal and
+Linux (`apps/rfsoc4x2/*/radio_loopback.rs`), the kernel's not yet; **nothing of it has run on a board**. Next: acceptance
+on the board (never touch the radio blocks outside `radio_rfdc` before the clock chips
+are programmed and the tiles run: the processor stalls), then R4, tutorials.
 The Vivado evaluation license for the part expires 2026-12-29; the maintainer has another to use after that (2026-11-26),
 so the date is no deadline.
 

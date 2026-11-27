@@ -109,6 +109,21 @@ fn the_crate_is_for_the_a53_and_names_this_familys_support() {
 }
 
 #[test]
+fn the_base_overlays_radio_blocks_have_drivers() {
+    let g = generate(&fixture(BASE), &opts(Platform::BareMetal, "/h")).unwrap();
+    let lib = text(&g, "src/lib.rs");
+    let count = |what: &str| lib.matches(what).count();
+    assert_eq!(count("radio_rfdc: hardroxide_ip::rfdc::Rfdc::new("), 1);
+    assert_eq!(count("hardroxide_ip::radio::AmplitudeController::new("), 2);
+    assert_eq!(count("hardroxide_ip::radio::PacketGenerator::new("), 4);
+    // DAC tile 2 as the design has it: one block, with its fine mixer.
+    assert!(lib.contains(
+        "Some(hardroxide_ip::rfdc::TileConfig { sample_rate_hz: 4915200000, blocks: 1, fine_mixers: 1 })"
+    ));
+    assert!(lib.contains("paired_adc: true"));
+}
+
+#[test]
 fn both_interrupt_ports_are_numbered() {
     let xsa = fixture("rfsoc4x2/rfsoc4x2_dma");
     let g = generate(&xsa, &opts(Platform::BareMetal, "/h")).unwrap();

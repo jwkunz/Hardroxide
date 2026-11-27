@@ -17,6 +17,8 @@ pub mod gpio;
 pub mod hls;
 pub mod iic;
 pub mod intc;
+pub mod radio;
+pub mod rfdc;
 pub mod spi;
 pub mod timer;
 pub mod uart;

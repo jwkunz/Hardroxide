@@ -169,7 +169,7 @@ pub struct Bench<'a, R: Mmio, B: DmaBuffer> {
     pub rfdc: &'a mut Rfdc<R>,
     /// DAC A, then DAC B.
     pub transmitters: [Transmitter<'a, R>; 2],
-    /// ADC A and ADC B first (cabled to DAC A and DAC B), then the other two.
+    /// ADC A and ADC B first (cabled to DAC A and DAC B), then ADC C and ADC D.
     pub receivers: [Receiver<'a, R>; 4],
     /// For I and for Q, [`BUFFER_BYTES`] each.
     pub buffers: Option<(B, B)>,

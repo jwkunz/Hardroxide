@@ -4,8 +4,8 @@
 `xilinx.com:ip:amplitude_controller` in front of a transmit converter and `xilinx.com:ip:packet_generator` after a
 receiver. With the [converter driver](ip-rfdc.md) they send a tone and record it.
 
-> **Verified on an RFSoC 4x2**, bare metal, with `apps/rfsoc4x2/baremetal/radio_loopback.rs` (2026-11-26); not yet
-> under Linux. The registers are as RFSoC-PYNQ's drivers use them.
+> **Verified on an RFSoC 4x2** with `apps/rfsoc4x2/{baremetal,linux}/radio_loopback.rs` (2026-11-26). The registers
+> are as RFSoC-PYNQ's drivers use them.
 
 ```rust,ignore
 pub const SAMPLES_PER_WORD: usize = 8;
@@ -49,11 +49,18 @@ it starts both DMAs, then asks for the packet, then waits for both.
   (`Short`, or the DMA's timeout), and whatever it left on the way is discarded by the next `record` before it asks for
   a packet.
 - **RFSoC 4x2 base overlay: record at most 30720 samples from `radio_receiver_channel_20` (ADC B).** Its path to memory
-  has no data buffer in RFSoC-PYNQ's bitstream, and longer records lost their end every time; the other three receivers
-  take 32768. Measured with the processor otherwise idle, so leave a margin if it is busy
+  has no data buffer in RFSoC-PYNQ's bitstream, and longer records lost their end every time, with RFSoC-PYNQ's own
+  software too; the other three receivers take 32768. Measured with the processor otherwise idle, so leave a margin if it is busy
   ([results](../decisions/0006-radio.md#steps)).
 - Receivers are recorded one at a time; nothing ties one receiver's start to another's or to a transmitter's.
 
-Which socket each receiver of the RFSoC 4x2's base overlay is: `radio_receiver_channel_21` is ADC A and
-`radio_receiver_channel_20` ADC B, as the ports show; ADC C and D have not yet been matched to channels 00 and 01.
-`radio_transmitter_channel_20` is DAC A and `radio_transmitter_channel_00` DAC B.
+The sockets of the RFSoC 4x2's base overlay, each shown by a cable on the board:
+
+| Socket | Blocks | Converter tile and block |
+|---|---|---|
+| DAC A | `radio_transmitter_channel_20` | DAC 2, 0 |
+| DAC B | `radio_transmitter_channel_00` | DAC 0, 0 |
+| ADC A | `radio_receiver_channel_21` | ADC 2, 1 |
+| ADC B | `radio_receiver_channel_20` | ADC 2, 0 |
+| ADC C | `radio_receiver_channel_01` | ADC 0, 1 |
+| ADC D | `radio_receiver_channel_00` | ADC 0, 0 |

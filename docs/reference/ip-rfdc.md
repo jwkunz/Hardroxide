@@ -4,9 +4,10 @@
 new in 3.0. It starts a tile, reports its state, and sets a block's mixer frequency and phase. Everything else stays as
 the bitstream configured it ([ADR 0006](../decisions/0006-radio.md)).
 
-> **Verified on an RFSoC 4x2**, bare metal (2026-11-26): starting tiles, and frequencies of transmit and receive mixers
-> shown by where a looped-back tone appears. Not checked there: the phase setting, and the settings read back by another
-> driver. Not yet run under Linux. The register offsets and the order of writes follow the vendor's `xrfdc` driver.
+> **Verified on an RFSoC 4x2**, bare metal and Linux (2026-11-26): starting tiles; frequencies of transmit and receive
+> mixers, shown by where a looped-back tone appears; frequency and phase of every block read back by PYNQ's own `xrfdc`
+> as written. What the phase does to a signal has not been measured. The register offsets and the order of writes follow
+> the vendor's `xrfdc` driver.
 
 ```rust,ignore
 pub enum Converter

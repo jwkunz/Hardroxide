@@ -30,8 +30,8 @@ So one recording is up to 32768 I/Q samples (13.3 us) of one receiver, its I and
 one by one, and nothing ties them to each other or to the transmitters.
 
 Which socket is which: from the loopback design, `vout20` is DAC A, `vout00` is DAC B, `vin2_23` is ADC A and `vin2_01`
-ADC B. That makes the base overlay's receiver 21 ADC A and receiver 20 ADC B. **Which of ADC C and D are receivers 00
-and 01 is not yet established.**
+ADC B. That makes the base overlay's receiver 21 ADC A and receiver 20 ADC B. ADC C is receiver 01 and ADC D receiver
+00, found in R3 by moving the cables.
 
 Today the generator gives the DMAs their driver; the converter, the amplitude controllers and the packet generators are
 raw register windows.
@@ -101,15 +101,22 @@ to be written.
 **R3 on the board, bare metal** (RFSoC 4x2 over JTAG, 2026-11-26, cables DAC A to ADC A and DAC B to ADC B): acceptance
 1 to 3 passed. The four tiles started; each tone was at `f_tx - f_rx` for both signs, at -18.3 dBFS (DAC A) and -18.6
 dBFS (DAC B), with nothing above -105 dBFS at minus that frequency; half the value gave 6.02 and 6.03 dB less; the other
-three receivers were at least 77 dB down; switched off, the tone fell by more than 90 dB. Still open: Linux, acceptance 4
-(the vendor's driver as an independent reader) and 5 (ADC C and D).
+three receivers were at least 77 dB down; switched off, the tone fell by more than 90 dB. **Acceptance 5**, the same day: with
+the cables moved to ADC C and ADC D, the tones were heard by receivers 01 and 00, and the same checks passed there
+(-18.2 and -18.5 dBFS, 6.02 dB for half, at least 77 dB between inputs, off more than 80 dB).
+
+**R3 on the board, Linux** (PYNQ 4.0.0, from the board's memory, 2026-11-26): the loopback program passed the same
+checks on ADC A and B (-18.3 and -18.9 dBFS). **Acceptance 4:** a different frequency and phase written by `rfdc` to
+each of the six blocks was read back by the image's `xrfdc` with the same frequency to the hertz and the same phase to
+four decimals, and with the fine mixer, complex-to-real on the DACs and real-to-complex on the ADCs.
 
 **Found: receiver 20 (ADC B) cannot take a full-length record.** Over JTAG with raw register accesses, from a clean
 state, 20 tries per length: receivers 00, 01 and 21 never failed up to 4096 words; receiver 20 never up to 3840 words
 (30720 samples) and every time from 4000. The last 4 KiB did not reach memory, a DMA waited forever, and the left-over
 words then made the next transfer on that DMA end early. In `base.hwh` receiver 20's path to memory is the only one of
-the four without a data FIFO (`S00_HAS_DATA_FIFO`), which is the likely cause; whether RFSoC-PYNQ's own software shows
-it has not been tried. `radio::record` now discards left-over data before asking for a packet and refuses a short result;
+the four without a data FIFO (`S00_HAS_DATA_FIFO`), which is the likely cause; **RFSoC-PYNQ's own software shows
+it too** (2026-11-26: its overlay and drivers, five tries each): receiver 20 stalled every time at 4096 words and never
+at 3840; receiver 21 stalled at neither. `radio::record` now discards left-over data before asking for a packet and refuses a short result;
 on the board, after each of five failed full-length records the next record was correct.
 
 No new bitstream is needed. `fixtures/rfsoc4x2/rfsoc4x2_rf_loopback.xsa` (waveform playback, two inputs recorded

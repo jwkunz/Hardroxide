@@ -150,20 +150,20 @@ fn main() -> ! {
                 radio_receiver_channel_20_axi_dma_imag
             ),
             receiver!(
-                "receiver 00",
-                0,
-                0,
-                radio_receiver_channel_00_packet_generator,
-                radio_receiver_channel_00_axi_dma_real,
-                radio_receiver_channel_00_axi_dma_imag
-            ),
-            receiver!(
-                "receiver 01",
+                "ADC C (receiver 01)",
                 0,
                 1,
                 radio_receiver_channel_01_packet_generator,
                 radio_receiver_channel_01_axi_dma_real,
                 radio_receiver_channel_01_axi_dma_imag
+            ),
+            receiver!(
+                "ADC D (receiver 00)",
+                0,
+                0,
+                radio_receiver_channel_00_packet_generator,
+                radio_receiver_channel_00_axi_dma_real,
+                radio_receiver_channel_00_axi_dma_imag
             ),
         ],
         buffers: Some(buffers),

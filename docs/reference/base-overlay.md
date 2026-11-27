@@ -105,7 +105,7 @@ starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for
 
 Generated crates drive `radio_rfdc` with [`hardroxide_ip::rfdc`](ip-rfdc.md) and the amplitude controllers and packet
 generators with [`hardroxide_ip::radio`](ip-radio.md) (3.1). `apps/rfsoc4x2/baremetal/radio_loopback.rs` sends tones
-from both DACs and finds them with the ADCs over cables; it passed on the board. Receiver 20 takes shorter records than
+from both DACs and finds them with the ADCs over cables (also as a Linux program); it passed on the board. Receiver 20 takes shorter records than
 the others ([why](ip-radio.md#receive)).
 
 **Checked on a board** (`fixtures/rfsoc4x2/scripts/probe.py base`, raw register accesses): the LEDs, buttons and

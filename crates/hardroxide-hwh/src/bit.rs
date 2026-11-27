@@ -61,12 +61,26 @@ impl<'a> BitFile<'a> {
         })
     }
 
+    /// Payload as the `.bin` expected by the Linux `fpga_manager` on Zynq UltraScale+: the configuration words
+    /// byte-swapped, with no padding, matching `bootgen -arch zynqmp -process_bitstream bin` byte for byte (verified
+    /// against Vivado 2025.2 bootgen).
+    pub fn to_bin_zynqmp(&self) -> Result<Vec<u8>, BitError> {
+        if !self.payload.len().is_multiple_of(4) {
+            return Err(BitError::Unaligned(self.payload.len()));
+        }
+        let (words, _) = self.payload.as_chunks::<4>();
+        Ok(words
+            .iter()
+            .flat_map(|w| [w[3], w[2], w[1], w[0]])
+            .collect())
+    }
+
     /// Payload as the `.bin` expected by the Linux `fpga_manager` on
     /// Zynq-7000 (`xlnx,zynq-devcfg`): the configuration words byte-swapped
     /// to little-endian, matching `bootgen -arch zynq -process_bitstream bin`
     /// byte for byte (verified against Vivado 2025.2 bootgen).
     ///
-    /// NOTE: not yet validated on hardware (see docs/06-session-handoff.md).
+    /// Loaded on a PYNQ-Z2 (docs/08, G1).
     pub fn to_bin_swapped(&self) -> Result<Vec<u8>, BitError> {
         if !self.payload.len().is_multiple_of(4) {
             return Err(BitError::Unaligned(self.payload.len()));

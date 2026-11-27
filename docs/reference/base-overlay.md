@@ -1,5 +1,10 @@
 # PYNQ base overlay (board-ready)
 
+The examples of each board run on its base overlay, the FPGA design PYNQ ships: the [PYNQ-Z2's](#pynq-z2) below, and
+the [RFSoC 4x2's](#rfsoc-4x2).
+
+## PYNQ-Z2
+
 `fixtures/board/pynq_base_overlay.xsa` is the PYNQ **base overlay** (PYNQ project, Apache-2.0) in a form
 `hardroxide run` can start: the overlay's own bitstream and hardware handoff, plus a `ps7_init` for the PYNQ-Z2. The
 XSA that PYNQ ships has no `ps7_init` (it is the `.bit` and `.hwh` repackaged, `fixtures/real/pynq_base_overlay.xsa`),
@@ -27,7 +32,7 @@ irq system_interrupts.irq -> GIC id 61 (level)
 all checks passed; next run the per-IP examples
 ```
 
-## What the processor reaches
+## What the processor reaches (PYNQ-Z2)
 
 | Instance (field of `Design`) | What it is | Driver today |
 |---|---|---|
@@ -42,18 +47,71 @@ GPIO 4 and 5, the video timing controllers 2 and 3, the VDMA 0 and 1, and the tr
 sensitive. The PS side (all from the PYNQ-Z2 preset): UART 0 on MIO 14/15 (the console), Ethernet 0 on MIO 16 to 27, SD 0 on
 MIO 40 to 45, USB 0, QSPI.
 
-## Applications
+## Applications (PYNQ-Z2)
 
 The programs in `apps/base/` build against this crate (`cargo test -p hardroxide-gen --test apps`) and are described in
 [Base overlay 1](../tutorials/apps/01-base-lights.md):
 
 | Program | Flavor | What it does |
 |---|---|---|
+| `leds` | bare metal | the LEDs follow the buttons, the switches choose the colour ([Bare metal 1](../tutorials/baremetal/01-jtag.md)) |
+| `button_irq` | bare metal | wait for a button through the interrupt controller ([Bare metal 2](../tutorials/baremetal/02-interrupt.md)) |
+| `control` | RTOS | a 10 ms control loop copying the buttons to the LEDs ([RTOS 1](../tutorials/rtos/01-control-loop.md)) |
+| `lights`, `interrupts`, `block_ram` | Linux | LEDs and switches; a button interrupt through UIO; block RAM ([Linux tutorials](../tutorials/linux/index.md)) |
 | `selftest` | bare metal | an automated check of the clocks, LEDs, RGB LEDs and the interrupt path (controller to GIC to processor) |
-| `lights` | bare metal | buttons through the interrupt controller: count on the LEDs, colours from the switches |
+| `lights` (in `baremetal/`) | bare metal | buttons through the interrupt controller: count on the LEDs, colours from the switches |
 | `rt_lights` | RTOS | a mood light: four tasks with PWM, rainbow patterns, brightness and on/off from the buttons |
 | `rt_irq_latency` | RTOS | interrupt-to-task latency under load, as a histogram |
-| `video_demo` | bare metal | HDMI at 1280x720: test pattern and a double-buffered animation ([Applications 2](../tutorials/apps/02-hdmi.md); not yet run on a board) |
-| `rt_video` | RTOS | a 60 fps animation paced by the display's frame interrupt (not yet run on a board) |
+| `video_demo` | bare metal | HDMI at 1280x720: test pattern and a double-buffered animation ([Applications 2](../tutorials/apps/02-hdmi.md)) |
+| `rt_video` | RTOS | a 60 fps animation paced by the display's frame interrupt |
 
 `scripts/test-board.sh` runs the self-checking ones (and the earlier tutorials' programs) on a board in one go.
+
+## RFSoC 4x2
+
+`fixtures/board/rfsoc4x2_base_overlay.xsa` is RFSoC-PYNQ's base overlay (BSD 3-Clause; `base.bit` and `base.hwh` taken
+unchanged from the 4.0.0 SD card image) with the `psu_init` that running without Linux needs, generated for the board's
+preset plus the overlay's processor-to-FPGA settings ([fixtures](fixtures.md#rfsoc-4x2-base-overlay)). `hardroxide run`
+starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for the whole overlay
+([bare-metal crate](baremetal.md#zynq-ultrascale)); without `--platform`, one for Linux
+([guide](../guide/linux-ultrascale.md)). Its applications are in `apps/rfsoc4x2/`:
+
+| Application | Platform | What it does |
+|---|---|---|
+| `lights` | bare metal | self test, then buttons and switches drive the LEDs through interrupts ([RFSoC 2](../tutorials/rfsoc/02-base-overlay.md)) |
+| `rt_lights` | RTOS | a mood light: several tasks on the kernel ([RFSoC 4](../tutorials/rfsoc/04-mood-light.md)) |
+| `rt_dashboard` | RTOS | a web page served beside a 10 ms control loop ([RFSoC 7](../tutorials/rfsoc/07-network-sd.md#a-web-page-on-the-kernel)) |
+| `lights` | Linux | the first one as a Linux program ([RFSoC 8](../tutorials/rfsoc/08-linux.md)) |
+| `dashboard` | Linux | a web page: temperature, buttons, switches, LEDs, power monitors ([RFSoC 9](../tutorials/rfsoc/09-linux-web.md)) |
+| `radio_loopback`, `rt_radio_loopback` | bare metal, RTOS, Linux | tones from the DACs, recorded by the ADCs and found in the spectrum ([RFSoC 11](../tutorials/rfsoc/11-radio.md)) |
+| `pl_memory` | Linux | the FPGA's 4 GiB of DDR4: address lines, patterns, speed ([RFSoC 10](../tutorials/rfsoc/10-linux-memory.md)) |
+
+| Block | Address | What it is | Interrupt controller input |
+|---|---|---|---|
+| `axi_intc_0` | `0x8002_0000` | interrupt controller; output on `pl_ps_irq0[0]` (interrupt 121) | |
+| `btns_gpio` | `0x8003_0000` | buttons 0 to 3 (bits 0..3) and the user reset button (bit 4, reads 1 until pressed) | 1 |
+| `leds_gpio` | `0x8004_0000` | four white LEDs | |
+| `rgbleds_gpio` | `0x8005_0000` | two colour LEDs, each blue, green, red (bits 0..2 and 3..5) | |
+| `sws_gpio` | `0x8008_0000` | four switches | 2 |
+| `system_management_wiz_0` | `0xB012_0000` | FPGA temperature and voltages (temperature at offset `0x400`) | 0 |
+| `iop_pmod0`, `iop_pmod1` | `0x8000_0000`, `0x8001_0000` | the two Pmod MicroBlaze processors' program memories | 3, 4 |
+| `radio_rfdc` | `0xB00C_0000` | the RF data converters: DAC tiles 0 and 2, ADC tiles 0 and 2 | |
+| `radio_receiver_*`, `radio_transmitter_*` | `0xB000_0000`..`0xB011_FFFF` | capture (packet generators and DMAs) and amplitude control; **in the converters' clock domains** | 5 (the DMAs) |
+| `CMAC_*` | `0xA000_0000`, `0xA001_0000` | the 100 Gbit/s Ethernet MAC and its DMA | 6 |
+| `ddr4_0` | `0x10_0000_0000` | the FPGA's DDR4: **4 GiB**, which repeats through the 8 GiB the design maps | |
+
+> **Warning.** The blocks in the converters' clock domains, and `ddr4_0` (its reference clock is the clock chip's), do
+> not answer until the clock chips are programmed ([`hardroxide-board`](board.md); under PYNQ, `/boot/boot.py` does it
+> while starting). An access before that can stall the processor until the next reset.
+
+Generated crates drive `radio_rfdc` with [`hardroxide_ip::rfdc`](ip-rfdc.md) and the amplitude controllers and packet
+generators with [`hardroxide_ip::radio`](ip-radio.md) (3.1). `apps/rfsoc4x2/baremetal/radio_loopback.rs` sends tones
+from both DACs and finds them with the ADCs over cables (also as a Linux program); it passed on the board. Receiver 20 takes shorter records than
+the others ([why](ip-radio.md#receive)).
+
+**Checked on a board** (`fixtures/rfsoc4x2/scripts/probe.py base`, raw register accesses): the LEDs, buttons and
+switches; the interrupt path from both GPIOs to the processor; the temperature; both Pmod memories; after programming
+the clock chips, all four converter tiles power up and lock and the eight capture DMAs reset; the FPGA's DDR4 at its
+start and just below 4 GiB. The radio loopback above has since moved data through the radio blocks. **Not checked:**
+the 100 Gbit/s port, the Pmod processors running, SYZYGY.
+

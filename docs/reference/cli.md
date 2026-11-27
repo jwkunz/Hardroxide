@@ -122,13 +122,13 @@ model as `generate`, so what it lists is what `generate` produces.
 $ hardroxide run --help
 Run a bare-metal program on a board over JTAG (needs the Vitis tools).
 
-Resets the board, runs the XSA's own ps7_init, programs the PL, loads the ELF, starts it and shows the UART console. The board must be in JTAG boot mode.
+Resets the board, runs the XSA's own ps7_init (Zynq-7000) or psu_init (Zynq UltraScale+), programs the PL, loads the ELF, starts it and shows the UART console. The board must be in JTAG boot mode.
 
 Usage: hardroxide run [OPTIONS] --xsa <XSA> <ELF>
 
 Arguments:
   <ELF>
-          The program (an ELF built for armv7a-none-eabihf)
+          The program (an ELF built for armv7a-none-eabihf, or aarch64-unknown-none for Zynq UltraScale+)
 
 Options:
       --xsa <XSA>
@@ -152,9 +152,12 @@ Options:
 ```
 
 Runs a bare-metal program on a board over JTAG, with the vendor's tools. It resets the
-board, runs the XSA's own `ps7_init.tcl` (read from the XSA at run time), programs the PL
+board, runs the XSA's own `ps7_init.tcl` or, for a Zynq UltraScale+ design, `psu_init.tcl`
+(read from the XSA at run time; which one the XSA has decides the sequence), programs the PL
 from the XSA's bitstream, loads the ELF, starts it and shows the UART console for `--watch`
-seconds; the program keeps running afterwards. The board must be in JTAG boot mode, and the
+seconds; the program keeps running afterwards. On a Zynq UltraScale+ the program starts on
+the first Cortex-A53 at EL3. There the reset also clears the PL, so with `--no-pl` it stays unconfigured (a generated
+crate's `Design::init` then refuses with `PlNotConfigured`). The board must be in JTAG boot mode, and the
 XSA must come from a design with a board-accurate PS configuration, or the console prints
 nothing. `hw_server` is started if it is not running. If the Vitis tools are not found
 (`HRX_VITIS`, `XILINX_ROOT`, `PATH`, or a standard install location) the command prints what
@@ -166,13 +169,13 @@ to do and stops. See [Running bare metal](../guide/baremetal.md).
 $ hardroxide package --help
 Build a BOOT.BIN that starts a bare-metal program on its own from SD or QSPI (needs the Vitis tools).
 
-Packs the vendor's first-stage loader (built from the XSA, so it runs the design's own PS setup), the bitstream and the program with bootgen.
+Packs the vendor's first-stage loader (built from the XSA, so it runs the design's own PS setup), the bitstream and the program with bootgen. The XSA decides between a Zynq-7000 and a Zynq UltraScale+ image; the program must be built for the same.
 
 Usage: hardroxide package [OPTIONS] --xsa <XSA> <ELF>
 
 Arguments:
   <ELF>
-          The program (an ELF built for armv7a-none-eabihf)
+          The program (an ELF built for armv7a-none-eabihf, or aarch64-unknown-none for Zynq UltraScale+)
 
 Options:
       --xsa <XSA>
@@ -194,12 +197,15 @@ Options:
 ```
 
 Builds a `BOOT.BIN` with which the board starts a bare-metal or RTOS program by itself, with no JTAG
-cable. It builds the vendor's Zynq first-stage loader (FSBL) from the XSA with `xsct` (about 20 s; the loader runs the design's own
-PS initialisation, so the XSA needs a board-accurate PS configuration), then runs `bootgen` over the FSBL,
-the XSA's bitstream and the program. Copy the file to the root of a FAT-formatted SD card, set the
-board's boot jumper to SD and power-cycle. `--fsbl` uses a loader you built yourself. Needs the Vitis
-tools (`xsct`, `bootgen`); without them the command says so and stops. The program must be linked for the DDR (the default
-`link.ld`); the FSBL copies it there. See [Running bare metal](../guide/baremetal.md#booting-on-its-own).
+cable. The XSA decides between a Zynq-7000 and a Zynq UltraScale+. It builds the vendor's first-stage loader (FSBL) from
+the XSA with `xsct` (under a minute; the loader runs the design's own PS initialisation, so the XSA needs a
+board-accurate PS configuration), then runs `bootgen` over the FSBL, the XSA's bitstream and the program. On a Zynq
+UltraScale+ the FSBL starts the program on the first Cortex-A53 at EL3, as `run` does; the image carries no PMU firmware.
+Copy the file to the root of a FAT-formatted SD card, set the board to boot from SD and power-cycle. A program built for
+the other family is refused. `--fsbl` uses a loader you built yourself, which an XSA without the index files of a Vivado
+export (`xsa.xml` with `sysdef.xml` or `hwdef.xml`) needs. Needs the Vitis tools (`xsct`, `bootgen`); without them the
+command says so and stops. The program must be linked for the DDR (the default `link.ld`); the FSBL copies it there. See
+[Running bare metal](../guide/baremetal.md#booting-on-its-own).
 
 ## `make-cert`
 
@@ -254,14 +260,30 @@ certificate is still self-signed: a browser warns until you tell it to trust it 
 
 ```text
 $ hardroxide doctor --help
-Check that the host can drive a board: Vitis tools, JTAG cable access, console port
+Check that the host can drive a board: Vitis tools, JTAG cable access, console port.
+
+With --xsa, also checks what that design needs: that `run` and `package` can use its XSA, that its Rust target is installed, and that its chip is on the JTAG chain (this starts hw_server if it is not running).
 
 Usage: hardroxide doctor [OPTIONS]
 
 Options:
-      --tty <TTY>  Console serial port [default: /dev/ttyUSB1]
-  -h, --help       Print help
+      --xsa <XSA>
+          Also check what this design needs, and the board for its chip
+
+      --tty <TTY>
+          Console serial port
+          
+          [default: /dev/ttyUSB1]
+
+  -h, --help
+          Print help (see a summary with '-h')
 ```
 
 Checks the Vitis tools, access to the JTAG cable (the FT2232, `0403:6010`), the console port
 and `hw_server`, one line each, and exits non-zero if something is missing, with what to do.
+
+With `--xsa` it also checks one design, of either family: that the XSA has the bitstream and the `ps7_init.tcl` or
+`psu_init.tcl` that `run` needs, that the Rust target it builds for is installed, that `package` has `bootgen`, `xsct`
+and the files to build a first-stage loader, and, when the cable is accessible, that the design's chip answers on the
+JTAG chain. That last check starts `hw_server` if it is not running and only lists the chain; it does not tell which
+boot mode the board is in.

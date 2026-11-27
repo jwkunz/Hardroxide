@@ -1,5 +1,6 @@
 //! Bitstream loading (Linux `fpga_manager` sysfs, `std` feature) and PL clock control
-//! (Zynq-7000 SLCR registers over an [`Mmio`](hardroxide_mmio::Mmio) window, always).
+//! (Zynq-7000 SLCR registers over an [`Mmio`](hardroxide_mmio::Mmio) window, always), and for Zynq UltraScale+ the PL
+//! clocks and AXI port widths ([`zynqmp`]).
 //!
 //! Without the `std` feature the crate is `#![no_std]` and offers only the SLCR clock
 //! code, which bare-metal programs use. Sysfs paths are configurable so the loader can
@@ -8,6 +9,7 @@
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
 
 pub mod slcr;
+pub mod zynqmp;
 
 #[cfg(feature = "std")]
 mod host;

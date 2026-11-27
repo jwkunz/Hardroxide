@@ -14,20 +14,30 @@ pub struct Design {
     pub instances: Vec<Instance>,
     /// Address-map entries (slave windows as seen by a master).
     pub memory_ranges: Vec<MemRange>,
-    /// PL clocks (FCLK_CLK0..3) derived from the Zynq-7000 PS7 instance.
+    /// PL clocks 0..=3 (`FCLK_CLK0..3`, on a Zynq UltraScale+ `pl_clk0..3`) from the processing system's settings.
     pub pl_clocks: Vec<PlClock>,
-    /// PS reference clock in Hz (`PCW_CRYSTAL_PERIPHERAL_FREQMHZ`); 0 if absent.
+    /// PS reference clock in Hz (`PCW_CRYSTAL_PERIPHERAL_FREQMHZ`, `PSU__PSS_REF_CLK__FREQMHZ`); 0 if absent.
     pub ps_clk_hz: u64,
 }
 
 /// Zynq-7000 GIC SPI *device-tree cell* for PS7 `IRQ_F2P[bit]` (UG585 table
 /// 7-4: `IRQ_F2P[7:0]` are interrupt IDs 61..=68 and `[15:8]` are 84..=91; the
 /// device-tree `interrupts = <0 N 4>` cell is ID - 32). `None` for bits >= 16.
-/// UNVERIFIED on hardware (see docs, G11).
+/// Verified on a PYNQ-Z2 (docs/08, G11).
 pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32> {
     match bit {
         0..=7 => Some(29 + bit),
         8..=15 => Some(52 + (bit - 8)),
+        _ => None,
+    }
+}
+
+/// Zynq UltraScale+ GIC SPI cell (ID - 32) for PL-to-PS interrupt `bit`: 0..=7 are `pl_ps_irq0[7:0]` (IDs 121..=128),
+/// 8..=15 `pl_ps_irq1[7:0]` (IDs 136..=143). `None` for bits >= 16. Both ranges were seen on an RFSoC 4x2.
+pub fn zynqmp_pl_ps_spi_cell(bit: u32) -> Option<u32> {
+    match bit {
+        0..=7 => Some(89 + bit),
+        8..=15 => Some(104 + (bit - 8)),
         _ => None,
     }
 }
@@ -70,9 +80,55 @@ impl Instance {
                     m.insert("axi_clk_hz", hz.to_string());
                 }
             }
+            "usp_rf_data_converter" => self.rf_converter_config(&mut m),
             _ => {}
         }
         m
+    }
+
+    /// The RF data converter's tiles, for its driver: `paired_adc` (`1` or `0`) and, for each tile in the design,
+    /// `adc_tileN` or `dac_tileN` as `sample_rate_hz,blocks,fine_mixers` (the last two bit masks of its blocks).
+    fn rf_converter_config(&self, m: &mut BTreeMap<&'static str, String>) {
+        const ADC: [&str; 4] = ["adc_tile0", "adc_tile1", "adc_tile2", "adc_tile3"];
+        const DAC: [&str; 4] = ["dac_tile0", "dac_tile1", "dac_tile2", "dac_tile3"];
+        let is = |k: String, v: &str| self.parameters.get(k.as_str()).is_some_and(|p| p == v);
+        // A chip with two fast ADCs in a tile: block n is the tile's slices 2n and 2n+1.
+        let paired = is("C_High_Speed_ADC".into(), "1");
+        m.insert("paired_adc", u8::from(paired).to_string());
+        for (kind, keys) in [("ADC", ADC), ("DAC", DAC)] {
+            let step = if paired && kind == "ADC" { 2 } else { 1 };
+            for (tile, key) in keys.into_iter().enumerate() {
+                if !is(format!("C_{kind}{tile}_Enable"), "1") {
+                    continue;
+                }
+                // The parameter is in GS/s, with a decimal point.
+                let Some(rate) = self
+                    .parameters
+                    .get(format!("C_{kind}{tile}_Sampling_Rate").as_str())
+                    .and_then(|v| v.parse::<f64>().ok())
+                    .filter(|v| *v > 0.0)
+                else {
+                    continue;
+                };
+                let (mut blocks, mut fine) = (0u8, 0u8);
+                for block in 0..4 / step {
+                    let slice = block * step;
+                    if is(format!("C_{kind}_Slice{tile}{slice}_Enable"), "true") {
+                        blocks |= 1 << block;
+                        // Mixer type 2 is the fine mixer.
+                        if is(format!("C_{kind}_Mixer_Type{tile}{slice}"), "2") {
+                            fine |= 1 << block;
+                        }
+                    }
+                }
+                if blocks != 0 {
+                    m.insert(
+                        key,
+                        format!("{},{blocks},{fine}", (rate * 1e9).round() as u64),
+                    );
+                }
+            }
+        }
     }
 
     /// Vitis HLS-generated IP (`vendor:hls:name:version`).
@@ -82,6 +138,11 @@ impl Instance {
 }
 
 impl Design {
+    /// Whether the design is for a Zynq UltraScale+ (an MPSoC or RFSoC), by its architecture's name.
+    pub fn is_zynq_ultrascale_plus(&self) -> bool {
+        self.arch.to_ascii_lowercase().starts_with("zynquplus")
+    }
+
     /// `(FCLK index, Hz)` for each enabled PL clock.
     pub fn enabled_fclks(&self) -> Vec<(u8, u64)> {
         self.pl_clocks
@@ -91,7 +152,51 @@ impl Design {
             .collect()
     }
 
-    /// Bit of the PS7 `IRQ_F2P` vector driven by output port `port` of
+    /// The AXI ports between a Zynq UltraScale+'s processing system and PL that the design uses, as
+    /// `(whether the processor masters it, number, data width in bits)`: master ports 0 `HPM0_FPD`, 1 `HPM1_FPD`,
+    /// 2 `HPM0_LPD`; slave ports `S_AXI_GP0..6`. Empty for other families.
+    pub fn axi_port_widths(&self) -> Vec<(bool, u8, u32)> {
+        let Some(ps) = self
+            .instances
+            .iter()
+            .find(|i| i.is_ps && i.mod_type == "zynq_ultra_ps_e")
+        else {
+            return Vec::new();
+        };
+        let of = |master: bool, n: u8| {
+            let (use_, width) = if master {
+                (
+                    format!("PSU__USE__M_AXI_GP{n}"),
+                    format!("PSU__MAXIGP{n}__DATA_WIDTH"),
+                )
+            } else {
+                (
+                    format!("PSU__USE__S_AXI_GP{n}"),
+                    format!("PSU__SAXIGP{n}__DATA_WIDTH"),
+                )
+            };
+            if ps.parameters.get(&use_).map(String::as_str) != Some("1") {
+                return None;
+            }
+            Some((master, n, ps.parameters.get(&width)?.parse().ok()?))
+        };
+        (0..3)
+            .filter_map(|n| of(true, n))
+            .chain((0..7).filter_map(|n| of(false, n)))
+            .collect()
+    }
+
+    /// The memory address width of the AXI DMA `instance` on a Zynq UltraScale+ (`c_addr_width`), where memory beyond a
+    /// 32-bit engine's reach exists. `None` otherwise. Part of the interface hash of those designs.
+    pub fn dma_address_width(&self, instance: &str) -> Option<u32> {
+        let i = self.instance(instance)?;
+        if !self.is_zynq_ultrascale_plus() || i.mod_type != "axi_dma" {
+            return None;
+        }
+        i.parameters.get("c_addr_width")?.parse().ok()
+    }
+
+    /// Bit of the PS7 `IRQ_F2P` vector (on a Zynq UltraScale+, of `pl_ps_irq1:pl_ps_irq0` taken as 16 bits) driven by output port `port` of
     /// `instance`, following `xlconcat` blocks. `None` if the port is wider
     /// than one bit, unconnected, fans out, goes through other logic, or
     /// ends at an AXI interrupt controller (see [`Design::irq_route`]).
@@ -133,6 +238,9 @@ impl Design {
         let sink = self.instance(sink_inst)?;
         match sink.mod_type.as_str() {
             "processing_system7" if sink_port == "IRQ_F2P" => Some(IrqRoute::Ps7 { bit: 0 }),
+            // Zynq UltraScale+: the second port's bits follow the first's.
+            "zynq_ultra_ps_e" if sink_port == "pl_ps_irq0" => Some(IrqRoute::Ps7 { bit: 0 }),
+            "zynq_ultra_ps_e" if sink_port == "pl_ps_irq1" => Some(IrqRoute::Ps7 { bit: 8 }),
             "axi_intc" if sink_port == "intr" => Some(IrqRoute::Intc {
                 controller: sink_inst.clone(),
                 bit: 0,
@@ -179,7 +287,7 @@ impl Design {
 /// Destination of a PL interrupt signal (see [`Design::irq_route`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IrqRoute {
-    /// Bit of the PS7 `IRQ_F2P` vector.
+    /// Bit of the PS7 `IRQ_F2P` vector; on a Zynq UltraScale+ bit 0..8 of `pl_ps_irq0`, 8..16 of `pl_ps_irq1`.
     Ps7 { bit: u32 },
     /// Input `bit` of the AXI interrupt controller `controller`.
     Intc { controller: String, bit: u32 },

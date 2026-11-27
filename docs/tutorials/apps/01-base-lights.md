@@ -115,11 +115,14 @@ write of 1, which `clear_interrupt` accounts for).
 
 ## 4. A mood light under the kernel
 
-Generate an RTOS crate and copy in `apps/base/rtos/rt_lights.rs`:
+Back at the repository's root, generate an RTOS crate and copy in `rt_lights.rs` and the program of the next section
+(the other programs of `apps/base/rtos/` need further libraries, which their tutorials add):
 
 ```console
+$ cd ../..
 $ hardroxide generate fixtures/board/pynq_base_overlay.xsa --platform rtos -o work/baser --hardroxide-path . --name design_1
-$ cp apps/base/rtos/*.rs work/baser/examples/ && cd work/baser && cargo build --release --examples
+$ cp apps/base/rtos/rt_lights.rs apps/base/rtos/rt_irq_latency.rs work/baser/examples/
+$ cd work/baser && cargo build --release --examples
 $ hardroxide run target/armv7a-none-eabihf/release/examples/rt_lights --xsa ../../fixtures/board/pynq_base_overlay.xsa --watch 16
 running; console below (16 s) ...
 

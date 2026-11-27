@@ -168,7 +168,7 @@ impl UdmabufPaths {
     }
 }
 
-/// A `u-dma-buf` buffer, mapped uncached. Verified on a PYNQ-Z2 (docs/08, G10).
+/// A `u-dma-buf` buffer, mapped uncached. Verified on a PYNQ-Z2 (docs/08, G10) and, on AArch64, on an RFSoC 4x2.
 #[cfg(feature = "std")]
 pub struct Udmabuf {
     region: SysRegion,
@@ -195,9 +195,15 @@ impl Udmabuf {
         Self::open_with(&UdmabufPaths::for_index(index))
     }
 
+    /// On AArch64 this first puts a device that is in `u-dma-buf`'s default synchronisation mode (1) into its
+    /// write-combining mode (2), through the `sync_mode` file beside `size`; the setting is the device's, not this
+    /// handle's.
     pub fn open_with(paths: &UdmabufPaths) -> Result<Self, DmaError> {
         let phys = read_num(&paths.phys_addr)?;
         let size = read_num(&paths.size)? as usize;
+        if cfg!(target_arch = "aarch64") {
+            use_normal_memory(&paths.size.with_file_name("sync_mode"))?;
+        }
         // O_SYNC selects an uncached mapping in u-dma-buf.
         let f = OpenOptions::new()
             .read(true)
@@ -211,6 +217,26 @@ impl Udmabuf {
         let region = SysRegion::map_file(&f, 0, size, &paths.dev.display().to_string())?;
         Ok(Self { region, phys })
     }
+}
+
+/// In its default mode `u-dma-buf` maps an `O_SYNC` buffer on AArch64 as *device* memory, where the unaligned
+/// accesses that ordinary slice operations make fault (a bus error). Its mode 2 is uncached too, but normal memory.
+/// Other modes are someone's choice and stay; so does the "always" bit. Nothing to do if there is no such file.
+#[cfg(feature = "std")]
+fn use_normal_memory(sync_mode: &std::path::Path) -> Result<(), DmaError> {
+    const MODE: u64 = 3;
+    const NON_CACHED: u64 = 1;
+    const WRITE_COMBINE: u64 = 2;
+    if !sync_mode.exists() {
+        return Ok(());
+    }
+    let path = sync_mode.to_path_buf();
+    let now = read_num(&path)?;
+    if now & MODE == NON_CACHED {
+        std::fs::write(&path, format!("{}", now & !MODE | WRITE_COMBINE))
+            .map_err(|source| DmaError::Io { path, source })?;
+    }
+    Ok(())
 }
 
 #[cfg(feature = "std")]
@@ -243,6 +269,24 @@ impl DmaBuffer for Udmabuf {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_default_sync_mode_is_changed() {
+        let file = std::env::temp_dir().join(format!("hrx-sync-mode-{}", std::process::id()));
+        let _ = std::fs::remove_file(&file);
+        use_normal_memory(&file).unwrap();
+        assert!(!file.exists());
+        for (before, after) in [("1", "2"), ("5", "6"), ("0", "0"), ("2", "2"), ("3", "3")] {
+            std::fs::write(&file, format!("{before}\n")).unwrap();
+            use_normal_memory(&file).unwrap();
+            assert_eq!(
+                std::fs::read_to_string(&file).unwrap().trim(),
+                after,
+                "{before}"
+            );
+        }
+        std::fs::remove_file(file).unwrap();
+    }
 
     #[test]
     fn udmabuf_maps_fake_device_file() {

@@ -3,8 +3,9 @@
 //! A test picture (colour bars, a gradient, text) is drawn and shown on the HDMI output at 1280x720. The program
 //! saves it to `/screen.bmp` (a standard 24-bit BMP), blanks the screen, loads the file
 //! back from the card row by row onto the screen, and compares every pixel with a fresh copy of the picture.
-//! The card must carry a FAT32 file system (`sd_erase_and_test` makes one). Needs `hardroxide-gfx`, `hardroxide-video`
-//! and `hardroxide-fat`. Base overlay application 16.
+//! The card must carry a FAT32 file system (`sd_erase_and_test` makes one). **It writes only to the card named when
+//! building** (`HRX_WRITE_SERIAL=0x...`, the serial number `sd_info` prints) and leaves any other untouched.
+//! Needs `hardroxide-gfx`, `hardroxide-video` and `hardroxide-fat`. Base overlay application 16.
 
 #![no_std]
 #![no_main]
@@ -75,7 +76,12 @@ fn main() -> ! {
     let base = ps7::clocks::sdio_ref_hz(&slcr, 50_000_000).unwrap() as u32;
     let mut sd = SdHost::new(be.map(ps7::map::SDIO0_BASE as u64, ps7::map::SDIO_SIZE).unwrap(), base);
     println!("\n== sd_bmp ==");
-    sd.init().or_else(|_| sd.init_ignoring_card_detect()).unwrap_or_else(|e| fail("card initialisation", &e));
+    let card = sd.init().or_else(|_| sd.init_ignoring_card_detect()).unwrap_or_else(|e| fail("card initialisation", &e));
+    if !card.serial_matches(option_env!("HRX_WRITE_SERIAL")) {
+        println!("REFUSING: this program writes files to the card. To allow that for the card in the slot, build it with HRX_WRITE_SERIAL={:#010x}", card.serial);
+        println!("SD BMP FAILED: not allowed to write");
+        halt()
+    }
     let mut vol = Volume::mount(sd).unwrap_or_else(|e| fail("mount (format the card with sd_erase_and_test first)", &e));
 
     let display = Display {

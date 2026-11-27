@@ -15,8 +15,10 @@ pub fn bin(&self) -> Result<Vec<u8>, Error>
 pub fn parse_hwh(xml: &str) -> Result<Design, Error>
 ```
 
-`Xsa` requires exactly one `.hwh` and one `.bit` entry (`Error::MissingEntry`
-/ `Error::AmbiguousEntry` otherwise). `bit` holds the raw `.bit` bytes;
+`Xsa` requires one `.bit` entry and the design's `.hwh` (`Error::MissingEntry`
+/ `Error::AmbiguousEntry` otherwise). An archive may hold several handoff files
+(a Zynq UltraScale+ design's SmartConnects bring their own); the design's is
+then the one with the processing system in it. `bit` holds the raw `.bit` bytes;
 `bin()` is the loadable image. `parse_hwh` accepts the file text (a leading
 BOM is tolerated).
 
@@ -131,12 +133,22 @@ Conventions and quirks (see [HWH findings](../07-hwh-findings.md)):
 
 ```rust,ignore
 pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32>
+pub fn zynqmp_pl_ps_spi_cell(bit: u32) -> Option<u32>
+pub fn is_zynq_ultrascale_plus(&self) -> bool
+pub fn dma_address_width(&self, instance: &str) -> Option<u32>
+pub fn axi_port_widths(&self) -> Vec<(bool, u8, u32)>
 ```
+
+**Zynq UltraScale+** (3.0): `Design::is_zynq_ultrascale_plus` tells the family. The 16 PL interrupt bits are
+`pl_ps_irq1:pl_ps_irq0` (`irq_route` reports them as `IrqRoute::Ps7`), and `zynqmp_pl_ps_spi_cell` maps bits 0..=7 to
+89..=96 (IDs 121..=128) and 8..=15 to 104..=111 (IDs 136..=143), as seen on an RFSoC 4x2. PL clocks and the reference
+clock are read from the `PSU__` settings. An XSA with several handoff files (SmartConnects add their own) is read from
+the one that holds the processing system.
 
 Maps a PS7 `IRQ_F2P` bit to the Zynq-7000 GIC SPI *device-tree cell*
 (`interrupts = <0 N 4>`): bits 0..=7 give 29..=36 (interrupt IDs 61..=68) and
 bits 8..=15 give 52..=59 (IDs 84..=91); `None` above 15. From UG585 table 7-4,
-unverified on hardware ([G11](../08-verification-gaps.md)).
+verified on a PYNQ-Z2 ([G11](../08-verification-gaps.md)).
 `InterruptPort::sensitivity` is the HWH `SENSITIVITY` attribute (for example
 `LEVEL_HIGH`), empty if absent.
 
@@ -174,12 +186,15 @@ pub time: String,
 pub payload: &'a [u8],
 pub fn parse(data: &'a [u8]) -> Result<Self, BitError>
 pub fn to_bin_swapped(&self) -> Result<Vec<u8>, BitError>
+pub fn to_bin_zynqmp(&self) -> Result<Vec<u8>, BitError>
 ```
 
 `parse` reads the Xilinx container header (the `date`/`time` fields are the
 build timestamps and are never embedded). `to_bin_swapped` byte-swaps each
 32-bit word and pads with `0x20000000` NOP words to 16 bytes, matching bootgen
-(verified byte-for-byte on the fixtures).
+(verified byte-for-byte on the fixtures). `to_bin_zynqmp` (3.0) swaps the same way and adds nothing, which is what
+`bootgen -arch zynqmp` writes (verified byte-for-byte on the RFSoC 4x2 base overlay); `Xsa::bin` chooses by the
+design's family.
 
 ## Errors
 

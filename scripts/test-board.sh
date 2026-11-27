@@ -12,6 +12,8 @@ HRX=${HARDROXIDE:-target/debug/hardroxide}
 [ -x "$HRX" ] || { cargo build -q -p hardroxide-cli && HRX=target/debug/hardroxide; }
 WORK=${WORK:-work/board-regression}
 FILTER=${1:-}
+# Only HRX_SD_SERIAL below gives a program leave to write to a card, whatever the shell has set.
+unset HRX_ERASE_SERIAL HRX_WRITE_SERIAL
 mkdir -p "$WORK"
 pass=0; fail=0; failed=()
 
@@ -45,6 +47,26 @@ run_check() {
   fi
 }
 
+# smoke <label> <program in baremetal/> <expected text>...: the processor's and the kernel's own tests, which among other
+# things check that interrupts and task switches preserve every register.
+smoke() {
+  local label=$1 program=$2; shift 2
+  [ -n "$FILTER" ] && [[ "$label" != *$FILTER* ]] && return
+  local out missing=
+  out=$( (cd "baremetal/$program" && cargo build -q --release 2>&1) &&
+    timeout 90 "$HRX" run "baremetal/$program/target/armv7a-none-eabihf/release/$program" \
+      --xsa fixtures/board/pynq_base_overlay.xsa --watch 15 2>&1)
+  for expect in "$@"; do grep -qF -- "$expect" <<<"$out" || missing=$expect; done
+  if [ -z "$missing" ]; then
+    echo "PASS  $label"; pass=$((pass + 1))
+  else
+    echo "FAIL  $label (expected: $missing)"; echo "$out" | tail -8 | sed 's/^/      /'
+    fail=$((fail + 1)); failed+=("$label")
+  fi
+}
+smoke "processor/ps7-smoke" ps7-smoke "all 32 double registers whole across 5 interrupts: true" "ALL OK"
+smoke "processor/rt-smoke" rt-smoke "0 broken (preserved)" "RT ALL OK"
+
 B=fixtures/board_tests_bm
 gen gpio-bm fixtures/board/pynq_z2_gpio.xsa baremetal "$B/baremetal_gpio" && {
   run_check "baremetal/gpio board_check" gpio-bm board_check fixtures/board/pynq_z2_gpio.xsa 8 "all checks passed"
@@ -63,10 +85,14 @@ gen dma fixtures/board/pynq_z2_dma_loopback.xsa baremetal "$B/baremetal_dma" && 
 gen base-bm fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremetal && {
   run_check "base/board_check" base-bm board_check fixtures/board/pynq_base_overlay.xsa 8 "all checks passed"
   run_check "base/selftest" base-bm selftest fixtures/board/pynq_base_overlay.xsa 10 "SELFTEST OK"
+  # The tutorials' first programs; the buttons are for a person to press.
+  run_check "base/leds (bare metal tutorial 1)" base-bm leds fixtures/board/pynq_base_overlay.xsa 25 "done"
+  run_check "base/button_irq (bare metal tutorial 2)" base-bm button_irq fixtures/board/pynq_base_overlay.xsa 25 "SELF TEST OK"
 }
 gen base-rt fixtures/board/pynq_base_overlay.xsa rtos apps/base/rtos && {
   run_check "base/rt_irq_latency" base-rt rt_irq_latency fixtures/board/pynq_base_overlay.xsa 20 "LATENCY OK"
   run_check "base/rt_lights" base-rt rt_lights fixtures/board/pynq_base_overlay.xsa 8 "mood light"
+  run_check "base/control (RTOS tutorial 1)" base-rt control fixtures/board/pynq_base_overlay.xsa 8 "worst deviation from the 10 ms period"
 }
 
 # The video programs need a monitor on HDMI OUT to be seen; this only checks that the pipeline comes up and the
@@ -108,9 +134,10 @@ gen base-audio fixtures/board/pynq_base_overlay.xsa baremetal apps/base/baremeta
       run_check "base/net_https (TLS 1.3 server up)" base-audio net_https fixtures/board/pynq_base_overlay.xsa 45 "NET HTTPS READY"
     fi
     # SD card: ERASES the card in the slot, so it runs only when HRX_SD_SERIAL names that card (the serial number
-    # `sd_info` prints, for example 0x2df43e3b); the format test refuses any other card that holds data.
+    # `sd_info` prints, for example 0x2df43e3b). The programs are built for that card alone and refuse any other.
     if [ -n "${HRX_SD_SERIAL:-}" ]; then
-      (cd "$WORK/base-audio" && HRX_ERASE_SERIAL="$HRX_SD_SERIAL" cargo build -q --release --example sd_erase_and_test 2>&1) &&
+      (cd "$WORK/base-audio" && HRX_ERASE_SERIAL="$HRX_SD_SERIAL" HRX_WRITE_SERIAL="$HRX_SD_SERIAL" cargo build -q --release \
+        --example sd_erase_and_test --example sd_logger --example sd_wav --example sd_bmp 2>&1) &&
         run_check "base/sd_erase_and_test (formats the card!)" base-audio sd_erase_and_test fixtures/board/pynq_base_overlay.xsa 150 "SD TEST OK"
       run_check "base/sd_logger" base-audio sd_logger fixtures/board/pynq_base_overlay.xsa 25 "SD LOGGER OK"
       run_check "base/sd_wav" base-audio sd_wav fixtures/board/pynq_base_overlay.xsa 30 "SD WAV OK"

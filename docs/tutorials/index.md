@@ -6,9 +6,12 @@ matches how you will deploy; all three start from the same `.xsa` and the same g
 
 | Flavor | `--platform` | Your program is | Start with |
 |---|---|---|---|
-| [**Linux**](linux/index.md) | `linux` (default) | a Linux process on the stock PYNQ image; Linux owns the PS peripherals, Hardroxide manages the PL | [Linux 1: LEDs, buttons and switches](linux/01-gpio.md) |
+| [**Linux**](linux/index.md) | `linux` (default) | a Linux process on the stock PYNQ image; Linux owns the PS peripherals, Hardroxide manages the PL | [Linux 1: LEDs, buttons and switches](linux/01-lights.md) |
 | [**Bare metal**](baremetal/index.md) | `baremetal` | the only software on core 0: startup, interrupts, timers, UART and caches come from `hardroxide-ps7`; started over JTAG or from SD | [Bare metal 1: Run over JTAG](baremetal/01-jtag.md) |
 | [**RTOS**](rtos/index.md) | `rtos` | bare metal plus the `hardroxide-rt` kernel: prioritised tasks, semaphores, mutexes, queues, 10 ms control loops | [RTOS 1: A 10 ms control loop](rtos/01-control-loop.md) |
+
+**Zynq UltraScale+** (on the RFSoC 4x2: bare metal, the kernel, Linux and the radio) has
+[its own tutorials](rfsoc/index.md). The rest of this page is about the PYNQ-Z2.
 
 **Applications** ([setup](apps/index.md)) are programs that do something worth showing on the PYNQ base overlay, built with the bare-metal and RTOS flavors.
 
@@ -21,29 +24,25 @@ captured on a PYNQ-Z2. See [Choosing a flavor](../guide/workflow.md#choosing-a-f
 
 ## The tutorials
 
+**Start on the board's base overlay.** The first tutorials of every flavor, and the applications, use the one FPGA
+design your board already has: the PYNQ base overlay (`fixtures/board/pynq_base_overlay.xsa`). Then
+[your own design](own-design/index.md) goes through what that overlay does not have.
+
 **Linux** ([setup](linux/index.md))
 
 | # | Tutorial | You learn |
 |---|---|---|
-| 1 | [LEDs, buttons and switches](linux/01-gpio.md) | the whole workflow, end to end |
-| 2 | [Timer, SPI and interrupts](linux/02-timer-spi-irq.md) | waiting for an interrupt; applying the overlay |
-| 3 | [UART and I2C without wires](linux/03-uart-iic-loopback.md) | two cores wired together inside the FPGA |
-| 4 | [An HLS kernel](linux/04-hls-vadd.md) | typed registers for a Vitis HLS kernel |
-| 5 | [An HLS kernel that reads memory](linux/05-hls-pointers.md) | pointer arguments and DMA buffers |
-| 6 | [AXI DMA](linux/06-dma.md) | moving data with ownership-checked buffers |
-| 7 | [Many interrupts, one controller](linux/07-interrupt-controller.md) | AXI interrupt controller fan-in |
-| 8 | [Block RAM and UART](linux/08-bram-uart.md) | memory as a byte buffer |
-| 9 | [AXI4-Stream FIFO](linux/09-stream-fifo.md) | packets, and why lengths round up |
-| 10 | [Updating a bitstream](linux/10-update.md) | swapping a rebuilt design without touching code |
-| 11 | [A design you did not build](linux/11-base-overlay.md) | the PYNQ base overlay: 70 IP, one command |
+| 1 | [LEDs, buttons and switches](linux/01-lights.md) | the whole workflow, end to end |
+| 2 | [Interrupts: wait for a button](linux/02-interrupts.md) | the interrupt overlay and controller |
+| 3 | [Memory inside the FPGA](linux/03-block-ram.md) | block RAM as words and bytes |
+| 4 | [The whole overlay](linux/04-base-overlay.md) | a large design you did not build |
 
 **Bare metal** ([setup](baremetal/index.md))
 
 | # | Tutorial | You learn |
 |---|---|---|
 | 1 | [Run over JTAG](baremetal/01-jtag.md) | no operating system: `--platform baremetal`, `hardroxide run` |
-| 2 | [A PL interrupt through the GIC](baremetal/02-timer-interrupt.md) | `IrqWait`, handler-free interrupts, a periodic interrupt measured |
-| 3 | [DMA with the caches on](baremetal/03-dma.md) | non-cacheable `.dma` buffers; DMA speed against CPU speed |
+| 2 | [A PL interrupt through the GIC](baremetal/02-interrupt.md) | `IrqWait`, handler-free interrupts, waiting for a button |
 
 **RTOS** ([setup](rtos/index.md))
 
@@ -58,3 +57,17 @@ captured on a PYNQ-Z2. See [Choosing a flavor](../guide/workflow.md#choosing-a-f
 | 1 | [Lights and buttons on the base overlay](apps/01-base-lights.md) | the PYNQ base overlay without an OS; interrupts through the controller; `IrqEvent`; a mood light |
 | 2 | [Pixels on the HDMI output](apps/02-hdmi.md) | HDMI output and a graphics library |
 | 3 | [Sound](apps/03-audio.md) | codec, WAV playback, synthesis, recording, a loopback self-test |
+
+**Your own design** ([overview](own-design/index.md)): small designs made for one purpose each.
+
+| # | Tutorial | You learn |
+|---|---|---|
+| 1 | [Timer, SPI and interrupts](own-design/01-timer-spi-irq.md) | waiting for an interrupt |
+| 2 | [UART and I2C without wires](own-design/02-uart-iic-loopback.md) | two cores wired together inside the FPGA |
+| 3 | [An HLS kernel](own-design/03-hls-vadd.md) | typed registers for a Vitis HLS kernel |
+| 4 | [An HLS kernel that reads memory](own-design/04-hls-pointers.md) | pointer arguments and DMA buffers |
+| 5 | [AXI DMA](own-design/05-dma.md) | moving data with ownership-checked buffers |
+| 6 | [AXI4-Stream FIFO](own-design/06-stream-fifo.md) | packets, and why lengths round up |
+| 7 | [Updating a bitstream](own-design/07-update.md) | swapping a rebuilt design without touching code |
+| 8 | [A timer's interrupt on bare metal](own-design/08-baremetal-timer.md) | a periodic PL interrupt, measured |
+| 9 | [DMA on bare metal](own-design/09-baremetal-dma.md) | non-cacheable `.dma` buffers; DMA speed against CPU speed |

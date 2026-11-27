@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hardroxide: typed Rust HALs from Vivado XSA files</title>
-<meta name="description" content="Hardroxide turns a Vivado XSA into a typed Rust HAL crate for Zynq-7000: Linux userspace, bare metal, or a real-time kernel.">
+<meta name="description" content="Hardroxide turns a Vivado XSA into a typed Rust HAL crate for Zynq-7000 and Zynq UltraScale+: Linux userspace, bare metal, or a real-time kernel.">
 <link rel="icon" href="logo.png">
 <style>
 :root{--bg:#fbfaf8;--fg:#1d1b19;--mute:#625d57;--card:#fff;--line:#e3ded7;--accent:#b4491c;--code:#f1ede7}
@@ -38,7 +38,7 @@ footer{margin:56px 0 40px;color:var(--mute);font-size:.9rem;border-top:1px solid
   <img src="logo.png" alt="Hardroxide logo">
   <div>
     <h1>Hardroxide</h1>
-    <p class="lead">Turn a Vivado XSA into a typed Rust HAL crate: a Rust counterpart to the PYNQ overlay framework. Run it under Linux, on bare metal, or on a real-time kernel.</p>
+    <p class="lead">Turn a Vivado XSA into a typed Rust HAL crate: a Rust counterpart to the PYNQ overlay framework. For Zynq-7000 and Zynq UltraScale+: run it under Linux, on bare metal, or on a real-time kernel.</p>
     <div class="btns">
       <a class="p" href="book/tutorials/index.html">Start the tutorials</a>
       <a href="book/index.html">Read the book</a>
@@ -60,7 +60,7 @@ d.vadd_0.set_a(40)?; d.vadd_0.start()?;      // named registers for HLS kernels<
 
 <h2>Three platforms, one generated API</h2>
 <div class="grid">
-  <div class="card"><h3>Linux</h3><p><code>--platform linux</code>. Userspace on the PS with <code>/dev/mem</code> or UIO, interrupts, DMA buffers, optional async. Validated on a PYNQ-Z2.</p></div>
+  <div class="card"><h3>Linux</h3><p><code>--platform linux</code>. Userspace on the PS with <code>/dev/mem</code> or UIO, interrupts, DMA buffers, optional async. Validated on a PYNQ-Z2 and an RFSoC 4x2.</p></div>
   <div class="card"><h3>Bare metal</h3><p><code>--platform baremetal</code>. No OS: startup, GIC, timers, UART, MMU and caches, with no third-party dependencies. Run it over JTAG or from a <code>BOOT.BIN</code>.</p></div>
   <div class="card"><h3>RTOS</h3><p><code>--platform rtos</code>. A priority-preemptive kernel with semaphores, priority-inheritance mutexes and queues, for 10 ms control loops.</p></div>
 </div>
@@ -68,7 +68,7 @@ d.vadd_0.set_a(40)?; d.vadd_0.start()?;      // named registers for HLS kernels<
 <h2>Where to go</h2>
 <table>
 <tr><th>You want to</th><th>Go to</th></tr>
-<tr><td>see it work with real board output</td><td><a href="book/tutorials/index.html">Thirteen tutorials</a>, from LEDs to DMA to a 70-IP design</td></tr>
+<tr><td>see it work with real board output</td><td><a href="book/tutorials/index.html">Tutorials</a>, from the LEDs on the base overlay to DMA, HLS and your own designs</td></tr>
 <tr><td>use it on your own design</td><td><a href="book/guide/workflow.html">The workflow</a> and <a href="book/guide/vivado.html">exporting an XSA</a></td></tr>
 <tr><td>look something up</td><td><a href="book/reference/cli.html">CLI reference</a> and the <a href="api/index.html">rustdoc API reference</a></td></tr>
 <tr><td>understand the design</td><td><a href="book/design-index.html">Design notes and ADRs</a></td></tr>
@@ -86,7 +86,9 @@ d.vadd_0.set_a(40)?; d.vadd_0.start()?;      // named registers for HLS kernels<
   <div class="card"><h3><a href="api/hardroxide_dma/index.html">dma</a></h3><p>DMA buffers with ownership tracking.</p></div>
   <div class="card"><h3><a href="api/hardroxide_irq/index.html">irq</a></h3><p>PL interrupt waiting, blocking and async.</p></div>
   <div class="card"><h3><a href="api/hardroxide_ps7/index.html">ps7</a></h3><p>Zynq-7000 bare-metal support: startup, GIC, timers, UART, MMU.</p></div>
-  <div class="card"><h3><a href="api/hardroxide_rt/index.html">rt</a></h3><p>The real-time kernel for the Cortex-A9.</p></div>
+  <div class="card"><h3><a href="api/hardroxide_psu/index.html">psu</a></h3><p>Zynq UltraScale+ bare-metal support on the Cortex-A53.</p></div>
+  <div class="card"><h3><a href="api/hardroxide_board/index.html">board</a></h3><p>Board chips: power monitors, EEPROM, OLED, clock chips.</p></div>
+  <div class="card"><h3><a href="api/hardroxide_rt/index.html">rt</a></h3><p>The real-time kernel for the Cortex-A9 and Cortex-A53.</p></div>
 </div>
 
 <footer>

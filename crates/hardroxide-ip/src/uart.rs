@@ -1,6 +1,7 @@
 //! AXI UART Lite (`xilinx.com:ip:axi_uartlite`, PG142): 8N1-style serial port
 //! with 16-byte FIFOs. Baud rate and framing are fixed at build time.
-//! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
+//! Offsets/bits are asserted against the HWH; verified on a PYNQ-Z2 between two cores
+//! wired together in the FPGA (docs/08, G14).
 
 use core::time::Duration;
 use hardroxide_mmio::time::Instant;

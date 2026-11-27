@@ -127,20 +127,24 @@ hrx_svc_entry:
 global_asm!(
     r#"
     .arm
-    .fpu vfpv3-d16
+    .fpu vfpv3
     .section .text.hrx_exceptions,"ax"
     .global hrx_irq_entry
 hrx_irq_entry:
     sub     lr, lr, #4
     stmfd   sp!, {{r0-r3, r12, lr}}
-    @ Save the caller-saved VFP state (d0-d7, FPSCR): handlers are ordinary Rust.
+    @ Save the caller-saved VFP/NEON state (d0-d7, d16-d31, FPSCR): handlers are ordinary Rust, and the compiler uses
+    @ NEON registers to copy memory.
     vmrs    r1, fpscr
     stmfd   sp!, {{r1, r2}}
     vstmdb  sp!, {{d0-d7}}
+    vstmdb  sp!, {{d16-d31}}
     bl      hrx_irq_dispatch
+    vldmia  sp!, {{d16-d31}}
     vldmia  sp!, {{d0-d7}}
     ldmfd   sp!, {{r1, r2}}
     vmsr    fpscr, r1
+    clrex                           @ an exclusive access begun before the interrupt must not succeed after it
     ldmfd   sp!, {{r0-r3, r12, pc}}^
 "#
 );

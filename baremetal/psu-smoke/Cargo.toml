@@ -1,0 +1,31 @@
+[package]
+name = "psu-smoke"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# A standalone workspace: this builds for the bare-metal target, not the host.
+[workspace]
+
+[features]
+# Run under QEMU's xlnx-zcu102 machine (console on UART 0; no clock registers to read).
+qemu = []
+# On the board with the fixture `rfsoc4x2_loopback` in the PL: registers in the PL and its interrupts.
+pl = ["dep:hardroxide-irq"]
+
+[dependencies]
+hardroxide-psu = { path = "../../crates/hardroxide-psu", features = ["panic-handler"] }
+hardroxide-dma = { path = "../../crates/hardroxide-dma", default-features = false }
+hardroxide-irq = { path = "../../crates/hardroxide-irq", default-features = false, optional = true }
+hardroxide-mmio = { path = "../../crates/hardroxide-mmio", default-features = false, features = ["physmem"] }
+
+[build-dependencies]
+hardroxide-psu = { path = "../../crates/hardroxide-psu" }
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+debug = true
+
+[profile.dev]
+panic = "abort"

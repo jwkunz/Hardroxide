@@ -72,9 +72,15 @@ of its own, `f2p_bit`/`gic_spi` are `None`, and `open()` fails with
 controller's own `IRQ_IRQ` line instead.
 
 `find_uio` scans a `/sys/class/uio`-style tree and returns the device number
-`N` of `uioN`: a device whose `name` equals `node` wins; otherwise the *only*
-device whose `maps/map0/addr` equals `base`; otherwise `None` (also `None` if
-the directory does not exist). `open()` uses `/sys/class/uio` and `/dev`;
+`N` of `uioN`: a device whose `name` equals `node` wins; then one named
+`node@...` (some kernels name the device after the node with its unit address;
+if there are several, the only one at `base`); otherwise, if no name matched, the
+*only* device whose `maps/map0/addr` equals `base`, **not counting the PYNQ
+image's own `fabric` device** (its address says nothing about its interrupt);
+otherwise `None` (also `None` if the directory does not exist). `open()` makes one
+exception: without a device of its own, a level-triggered `IRQ_F2P[0]` (SPI cell
+29) of a Zynq-7000 block at `fabric`'s address uses that device, which holds that
+very line. `open()` uses `/sys/class/uio` and `/dev`;
 `open_in` lets tests substitute both. If no device is found the error is
 `IrqError::NotFound { instance, port, node, base }`, whose message points at
 the overlay. Discovery behaviour on the real kernel is verified
@@ -90,7 +96,7 @@ Returns a future resolving to `Result<Option<u32>, IrqError>`. Each call
 spawns a helper thread that blocks in `wait` and wakes the task, so it works
 under any executor; it needs the `UioIrq` in an `Arc`.
 
-**Status:** tested only against a fake descriptor. On the board each interrupt
+**Status:** the unit tests use a fake descriptor. On the board each interrupt
 needs a `generic-uio` device-tree node; the generated crate's
-`interrupts.dtso` provides them, but applying it on the stock PYNQ image is
-unverified ([G11](../08-verification-gaps.md)).
+`interrupts.dtso` provides them. Applied and used on the stock PYNQ images of a
+PYNQ-Z2 ([G11](../08-verification-gaps.md)) and an RFSoC 4x2.

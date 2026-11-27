@@ -1,6 +1,7 @@
 //! AXI IIC (`xilinx.com:ip:axi_iic`, PG090) as an I2C master, using the
 //! dynamic controller logic: START/STOP are flagged in the TX FIFO words.
-//! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
+//! Offsets/bits are asserted against the HWH; verified on a PYNQ-Z2 between two cores
+//! wired together in the FPGA, not against an external device (docs/08, G12).
 
 use core::time::Duration;
 use embedded_hal::i2c::{self, ErrorKind, ErrorType, NoAcknowledgeSource, Operation};

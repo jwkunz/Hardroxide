@@ -2,6 +2,7 @@
 
 use crate::FpgaError;
 use sha2::{Digest, Sha256};
+use std::ops::RangeInclusive;
 use std::path::{Path, PathBuf};
 
 fn io<T>(path: &Path, r: std::io::Result<T>) -> Result<T, FpgaError> {
@@ -48,11 +49,21 @@ impl Default for FpgaPaths {
 /// First PL address on Zynq-7000 (M_AXI_GP0 starts here; GP1 is `0x8000_0000..`).
 const PL_ADDR_LO: u64 = 0x4000_0000;
 const PL_ADDR_HI: u64 = 0xBFFF_FFFF;
+// One range, in the shape the check takes (the other family has several).
+#[allow(clippy::single_range_in_vec_init)]
+const ZYNQ_PL: [RangeInclusive<u64>; 1] = [PL_ADDR_LO..=PL_ADDR_HI];
 
 /// Platform devices at PL addresses that have a driver other than
 /// `uio_pdrv_genirq` bound, as `"<device> (<driver>)"`. Platform device names
 /// look like `41200000.gpio`; a missing directory means none.
 pub fn pl_drivers_in_use(platform_devices: &Path) -> Result<Vec<String>, FpgaError> {
+    drivers_at(platform_devices, &ZYNQ_PL)
+}
+
+fn drivers_at(
+    platform_devices: &Path,
+    addresses: &[RangeInclusive<u64>],
+) -> Result<Vec<String>, FpgaError> {
     let Ok(rd) = std::fs::read_dir(platform_devices) else {
         return Ok(Vec::new());
     };
@@ -65,7 +76,7 @@ pub fn pl_drivers_in_use(platform_devices: &Path) -> Result<Vec<String>, FpgaErr
         let Ok(a) = u64::from_str_radix(addr, 16) else {
             continue;
         };
-        if !(PL_ADDR_LO..=PL_ADDR_HI).contains(&a) {
+        if !addresses.iter().any(|r| r.contains(&a)) {
             continue;
         }
         let Ok(drv) = std::fs::read_link(e.path().join("driver")) else {
@@ -92,6 +103,16 @@ pub fn load_bitstream(
     bin: &[u8],
     expected_sha256: &str,
 ) -> Result<(), FpgaError> {
+    load_bitstream_checking(paths, bin, expected_sha256, &ZYNQ_PL)
+}
+
+/// [`load_bitstream`] for a processor that sees the PL at `pl_addresses`.
+pub(crate) fn load_bitstream_checking(
+    paths: &FpgaPaths,
+    bin: &[u8],
+    expected_sha256: &str,
+    pl_addresses: &[RangeInclusive<u64>],
+) -> Result<(), FpgaError> {
     let actual = sha256_hex(bin);
     if actual != expected_sha256 {
         return Err(FpgaError::HashMismatch {
@@ -100,7 +121,7 @@ pub fn load_bitstream(
         });
     }
     if paths.refuse_bound_pl_drivers {
-        let bound = pl_drivers_in_use(&paths.platform_devices)?;
+        let bound = drivers_at(&paths.platform_devices, pl_addresses)?;
         if !bound.is_empty() {
             return Err(FpgaError::PlInUse(bound.join(", ")));
         }

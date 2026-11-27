@@ -17,8 +17,8 @@ recovers it with a system reset, so there is no board prep and no power cycling.
 
 ## Extras
 
-- The tutorials use `fixtures/board/pynq_z2_gpio.xsa`, the board-accurate variant whose PS UART is enabled. A design
-  without a board preset prints nothing on the console ([why](../../guide/baremetal.md#workflow)).
+- The tutorials use `fixtures/board/pynq_base_overlay.xsa`, the board's base overlay with its start-up settings. A
+  design without a board preset prints nothing on the console ([why](../../guide/baremetal.md#workflow)).
 - No cross linker is needed: bare-metal crates build with `cargo` for `armv7a-none-eabihf`
   (`rustup target add armv7a-none-eabihf`).
 - To start a program without a host, see [Booting on its own](../../guide/baremetal.md#booting-on-its-own)
@@ -28,9 +28,9 @@ recovers it with a system reset, so there is no board prep and no power cycling.
 
 | # | Tutorial | You learn |
 |---|---|---|
-| 1 | [Run over JTAG](01-jtag.md) | generate, build, `hardroxide run`, the console |
-| 2 | [A PL interrupt through the GIC](02-timer-interrupt.md) | `IrqWait`, level and edge lines, a periodic interrupt measured |
-| 3 | [DMA with the caches on](03-dma.md) | `.dma` buffers, ownership, DMA speed against CPU speed |
+| 1 | [Run over JTAG](01-jtag.md) | generate, build, `hardroxide run`, the console, the LEDs and buttons |
+| 2 | [A PL interrupt through the GIC](02-interrupt.md) | `IrqWait`, the interrupt controller, waiting for a button |
 
-The examples are described in the [bare-metal crate reference](../../reference/baremetal.md).
-Next: the [RTOS tutorials](../rtos/index.md).
+Then the [RTOS tutorial](../rtos/index.md) and the [applications](../apps/index.md). A timer's interrupt and DMA are in
+[Your own design](../own-design/index.md). The examples are described in the
+[bare-metal crate reference](../../reference/baremetal.md).

@@ -61,10 +61,12 @@ enum Cmd {
     Inspect { xsa: PathBuf },
     /// Run a bare-metal program on a board over JTAG (needs the Vitis tools).
     ///
-    /// Resets the board, runs the XSA's own ps7_init, programs the PL, loads the ELF, starts
-    /// it and shows the UART console. The board must be in JTAG boot mode.
+    /// Resets the board, runs the XSA's own ps7_init (Zynq-7000) or psu_init (Zynq
+    /// UltraScale+), programs the PL, loads the ELF, starts it and shows the UART console. The
+    /// board must be in JTAG boot mode.
     Run {
-        /// The program (an ELF built for armv7a-none-eabihf).
+        /// The program (an ELF built for armv7a-none-eabihf, or aarch64-unknown-none for Zynq
+        /// UltraScale+).
         elf: PathBuf,
         /// The XSA of the design it runs on (supplies ps7_init and the bitstream).
         #[arg(long)]
@@ -82,9 +84,11 @@ enum Cmd {
     /// Build a BOOT.BIN that starts a bare-metal program on its own from SD or QSPI (needs the Vitis tools).
     ///
     /// Packs the vendor's first-stage loader (built from the XSA, so it runs the design's own PS
-    /// setup), the bitstream and the program with bootgen.
+    /// setup), the bitstream and the program with bootgen. The XSA decides between a Zynq-7000 and
+    /// a Zynq UltraScale+ image; the program must be built for the same.
     Package {
-        /// The program (an ELF built for armv7a-none-eabihf).
+        /// The program (an ELF built for armv7a-none-eabihf, or aarch64-unknown-none for Zynq
+        /// UltraScale+).
         elf: PathBuf,
         /// The XSA of the design it runs on.
         #[arg(long)]
@@ -125,7 +129,14 @@ enum Cmd {
         out: PathBuf,
     },
     /// Check that the host can drive a board: Vitis tools, JTAG cable access, console port.
+    ///
+    /// With --xsa, also checks what that design needs: that `run` and `package` can use its XSA,
+    /// that its Rust target is installed, and that its chip is on the JTAG chain (this starts
+    /// hw_server if it is not running).
     Doctor {
+        /// Also check what this design needs, and the board for its chip.
+        #[arg(long)]
+        xsa: Option<PathBuf>,
         /// Console serial port.
         #[arg(long, default_value = "/dev/ttyUSB1")]
         tty: PathBuf,
@@ -264,8 +275,8 @@ fn main() -> Result<()> {
                     .join(":")
             );
         }
-        Cmd::Doctor { tty } => {
-            let checks = host::doctor(&tty);
+        Cmd::Doctor { xsa, tty } => {
+            let checks = host::doctor(&tty, xsa.as_deref());
             let mut bad = 0;
             for c in &checks {
                 println!(

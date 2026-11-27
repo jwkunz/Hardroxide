@@ -1,9 +1,9 @@
-//! The Zynq-7000's SD/SDIO host controllers (`SDIO0`, `SDIO1`) driving an SD memory card in
+//! The SD/SDIO host controllers of the Zynq-7000 and Zynq UltraScale+ (`SDIO0`, `SDIO1`) driving an SD memory card in
 //! 4-bit mode with programmed I/O: card initialisation (identification, RCA, 4-bit bus, clock) and
 //! reading and writing 512-byte blocks.
 //!
-//! The controller follows the standard SD Host Controller interface, so the register layout is the
-//! standard one (and the vendor driver's header agrees). Cards of every capacity class are handled:
+//! The controllers follow the standard SD Host Controller interface (version 2.00 on the Zynq-7000, 3.00 on UltraScale+,
+//! which divide the clock differently), so the register layout is the standard one (and the vendor driver's header agrees). Cards of every capacity class are handled:
 //! standard capacity (byte addressing) and SDHC/SDXC (block addressing). Not supported: UHS-I
 //! voltage switching and speeds, MMC/eMMC, SDIO cards, DMA (the data goes through the buffer data
 //! port), and the high-speed switch (the bus runs at 25 MHz).
@@ -25,6 +25,10 @@ const CLOCK: usize = 0x2C; // clock control [15:0], timeout [23:16], software re
 const INT_STATUS: usize = 0x30; // normal [15:0], error [31:16]
 const INT_ENABLE: usize = 0x34; // status enable: normal [15:0], error [31:16]
 const INT_SIGNAL: usize = 0x38;
+const VERSION: usize = 0xFC; // slot interrupt status [15:0], host controller version [31:16]
+
+/// The version field's value for specification 3.00.
+const SPEC_3: u32 = 2;
 
 const PRES_CMD_INHIBIT: u32 = 1 << 0;
 const PRES_DAT_INHIBIT: u32 = 1 << 1;
@@ -115,6 +119,22 @@ pub struct CardInfo {
     pub clock_hz: u32,
 }
 
+impl CardInfo {
+    /// Whether `named` is this card's serial number, in hexadecimal with or without `0x`. A program that writes to a card
+    /// asks its owner's leave with this, naming one card when it is built:
+    /// `info.serial_matches(option_env!("HRX_WRITE_SERIAL"))`. Nothing named, or anything else, is `false`.
+    pub fn serial_matches(&self, named: Option<&str>) -> bool {
+        named.is_some_and(|text| {
+            let text = text.trim();
+            let digits = text
+                .strip_prefix("0x")
+                .or_else(|| text.strip_prefix("0X"))
+                .unwrap_or(text);
+            u32::from_str_radix(digits, 16) == Ok(self.serial)
+        })
+    }
+}
+
 /// `(divisor register value, achieved Hz)` for a bus clock of at most `target` from `base_hz`:
 /// the register holds 0 (base clock) or a power of two up to 128, giving `base / (2 * value)`.
 pub fn clock_divisor(base_hz: u32, target_hz: u32) -> (u32, u32) {
@@ -125,6 +145,19 @@ pub fn clock_divisor(base_hz: u32, target_hz: u32) -> (u32, u32) {
     while d < 128 && base_hz / (2 * d) > target_hz {
         d *= 2;
     }
+    (d, base_hz / (2 * d))
+}
+
+/// `(divisor value, achieved Hz)` as [`clock_divisor`], for a controller of specification 3.00 or later: any value up
+/// to 1023, giving `base / (2 * value)` (0: the base clock). Such controllers' faster base clocks need it to get as low
+/// as the 400 kHz of identification.
+pub fn clock_divisor_v3(base_hz: u32, target_hz: u32) -> (u32, u32) {
+    if base_hz <= target_hz {
+        return (0, base_hz);
+    }
+    let d = base_hz
+        .div_ceil(target_hz.max(1).saturating_mul(2))
+        .clamp(1, 1023);
     (d, base_hz / (2 * d))
 }
 
@@ -196,14 +229,21 @@ impl<R: Mmio> SdHost<R> {
     }
 
     fn set_clock(&self, target_hz: u32) -> Result<u32, SdError> {
-        let (d, hz) = clock_divisor(self.base_hz, target_hz);
+        // The divisor's field of the clock control register: bits 15:8, and from 3.00 its two high bits in 7:6.
+        let (field, hz) = if (self.regs.read32(VERSION)? >> 16) & 0xFF >= SPEC_3 {
+            let (d, hz) = clock_divisor_v3(self.base_hz, target_hz);
+            ((d & 0xFF) << 8 | (d >> 8) << 6, hz)
+        } else {
+            let (d, hz) = clock_divisor(self.base_hz, target_hz);
+            (d << 8, hz)
+        };
         let timeout = self.regs.read32(CLOCK)? & 0x00FF_0000;
         // Stop the card clock, change the divisor, wait for the internal clock to settle, restart.
         self.regs.write32(CLOCK, timeout)?;
-        self.regs.write32(CLOCK, timeout | d << 8 | CLK_INT_EN)?;
+        self.regs.write32(CLOCK, timeout | field | CLK_INT_EN)?;
         self.wait(|r| Ok(r.read32(CLOCK)? & CLK_INT_STABLE != 0), 100)?;
         self.regs
-            .write32(CLOCK, timeout | d << 8 | CLK_INT_EN | CLK_SD_EN)?;
+            .write32(CLOCK, timeout | field | CLK_INT_EN | CLK_SD_EN)?;
         Ok(hz)
     }
 
@@ -556,6 +596,40 @@ mod tests {
     }
 
     #[test]
+    fn only_the_named_card_may_be_written() {
+        let card = CardInfo {
+            blocks: 0,
+            high_capacity: true,
+            manufacturer: 2,
+            product: *b"SA32G",
+            serial: 0x0abc_12de,
+            rca: 1,
+            clock_hz: 25_000_000,
+        };
+        for yes in [
+            "0x0abc12de",
+            "0xabc12de",
+            "0X0ABC12DE",
+            "abc12de",
+            " 0x0abc12de\n",
+        ] {
+            assert!(card.serial_matches(Some(yes)), "{yes:?}");
+        }
+        for no in [
+            "",
+            "0x",
+            "0x0abc12df",
+            "0x2abc12de",
+            "yes",
+            "*",
+            "0x10abc12de",
+        ] {
+            assert!(!card.serial_matches(Some(no)), "{no:?}");
+        }
+        assert!(!card.serial_matches(None));
+    }
+
+    #[test]
     fn the_clock_divisor_is_a_power_of_two() {
         // 50 MHz base: identification wants at most 400 kHz -> 50/(2*64) = 390.6 kHz.
         assert_eq!(clock_divisor(50_000_000, 400_000), (64, 390_625));
@@ -565,6 +639,44 @@ mod tests {
         // Never above the target.
         for t in [400_000, 1_000_000, 10_000_000, 25_000_000] {
             assert!(clock_divisor(50_000_000, t).1 <= t);
+        }
+    }
+
+    #[test]
+    fn a_version_3_controller_divides_by_any_value() {
+        // The RFSoC 4x2's 187.5 MHz base clock: identification at 399 kHz (a power of two would give 732 kHz).
+        assert_eq!(clock_divisor_v3(187_499_969, 400_000), (235, 398_936));
+        assert_eq!(clock_divisor(187_499_969, 400_000).1, 732_421);
+        assert_eq!(clock_divisor_v3(187_499_969, 25_000_000), (4, 23_437_496));
+        assert_eq!(clock_divisor_v3(50_000_000, 50_000_000), (0, 50_000_000));
+        // Never above the target, up to the field's end.
+        for base in [50_000_000u32, 200_000_000] {
+            for t in [400_000, 1_000_000, 25_000_000] {
+                assert!(clock_divisor_v3(base, t).1 <= t, "{base} {t}");
+            }
+        }
+        assert_eq!(clock_divisor_v3(200_000_000, 1).0, 1023);
+    }
+
+    #[test]
+    fn the_clock_register_field_follows_the_controller_version() {
+        use hardroxide_mmio::{MmioBackend, MockBackend};
+        // 187.5 MHz down to 400 kHz on a controller reporting 3.00: divisor 235 in bits 15:8. A slow identification
+        // clock from a fast base also uses the two high bits.
+        for (version, base, want) in [
+            (2u32, 187_499_969u32, 235 << 8),
+            (2, 200_000_000 * 2, (500 & 0xFF) << 8 | (500 >> 8) << 6),
+            (1, 50_000_000, 64 << 8),
+        ] {
+            let be = MockBackend::new();
+            be.poke(0x1000 + VERSION as u64, version << 16);
+            // Keep the "internal clock stable" bit the driver waits for set across its writes.
+            be.set_write1_clear_mask(0x1000 + CLOCK as u64, CLK_INT_STABLE);
+            be.poke(0x1000 + CLOCK as u64, CLK_INT_STABLE);
+            let sd = SdHost::new(be.map(0x1000, 0x100).unwrap(), base);
+            sd.set_clock(400_000).unwrap();
+            let c = be.peek(0x1000 + CLOCK as u64);
+            assert_eq!(c & 0xFFC0, want, "version {version}, base {base}");
         }
     }
 

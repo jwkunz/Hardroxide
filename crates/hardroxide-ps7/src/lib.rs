@@ -16,6 +16,14 @@ pub mod clocks;
 pub mod console;
 #[cfg(target_arch = "arm")]
 pub mod cp15;
+/// The processor operations under the name `hardroxide-psu` also has, so that a program can use `ps::cpu` on both
+/// processor families.
+#[cfg(target_arch = "arm")]
+pub mod cpu {
+    pub use crate::cp15::{
+        cpu_id, disable_irq, dmb, dsb, enable_irq, irq_enabled, isb, wfe, wfi, without_irq,
+    };
+}
 pub mod devcfg;
 pub mod gem;
 pub mod gic;
@@ -25,6 +33,7 @@ pub mod map;
 #[cfg(target_arch = "arm")]
 pub mod mem;
 pub mod sd;
+pub mod spi;
 #[cfg(target_arch = "arm")]
 pub mod time;
 pub mod timer;

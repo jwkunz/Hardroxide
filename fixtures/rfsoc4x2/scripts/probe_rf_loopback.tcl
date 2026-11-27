@@ -1,0 +1,98 @@
+# The board's clock chips, the data converter's tiles, the waveform players and the capture path. With SMA cables from
+# the DAC outputs to the ADC inputs, the captured tones show which output reaches which input (rf_analyse.py, run by
+# probe.py). Each DAC plays its own frequency at half of full scale.
+set rf $base(rfdc)
+set gpio 0xFF0A0000
+
+# ---- clock chips on SPI 0 -------------------------------------------------------------------------------------------
+if {[info exists ::hrx_keep_clocks]} {
+  puts "PROBE ok    clock chips left as found"
+} else {
+  hrx_clocks
+}
+
+# ---- data converter tiles -------------------------------------------------------------------------------------------
+foreach {name offset} {"DAC tile 0" 0x4000 "DAC tile 2" 0xC000 "ADC tile 2" 0x1C000} {
+  set t [expr {$rf + $offset}]
+  wr [expr {$t + 0x04}] 1
+  set up [wait_for [expr {$t + 0x0C}] 0xF 0xF 600]
+  set state [rd [expr {$t + 0x0C}]]
+  set status [rd [expr {$t + 0x228}]]
+  check "$name: powered up" $up [format "(state %d, status 0x%08x)" [expr {$state & 0xF}] $status]
+  check "$name: PLL locked" [expr {($status & 0x8) != 0}]
+}
+
+# ---- tones ----------------------------------------------------------------------------------------------------------
+# 4096 words of 8 I/Q pairs = 32768 samples per loop at 2457.6 MS/s: `cycles` per loop is a tone of cycles * 75 kHz.
+# I is the tone, Q zero; with the mixer's frequency at 0 the converter puts out I.
+set pi 3.141592653589793
+foreach {n cycles} {0 1365 1 2731} {
+  set words {}
+  for {set s 0} {$s < 32768} {incr s} {
+    set i [expr {round(16384 * sin(2 * $pi * (($cycles * $s) % 32768) / 32768.0))}]
+    lappend words [expr {$i & 0xFFFF}]
+  }
+  set mem $base(axi_bram_ctrl_$n)
+  require_room axi_bram_ctrl_$n [expr {4 * [llength $words]}]
+  write_words $mem $words
+  check "player $n: waveform memory" [expr {[read_words [expr {$mem + 0x1FFC0}] 16] eq [lmap w [lrange $words end-15 end] {format 0x%08x $w}]}]
+  set g $base(axi_gpio_play_$n)
+  wr $g 0
+  wr $g [expr {(4095 << 16) | 0x3}]
+}
+after 100
+
+# ---- capture --------------------------------------------------------------------------------------------------------
+set cg $base(axi_gpio_capture)
+set dma $base(axi_dma_0)
+# As many words as the FIFO holds; each is 32 bytes: 8 samples of vin2_01, then 8 of vin2_23, taken on the same clock.
+set words 16384
+set bytes [expr {$words * 32}]
+# Record both inputs into memory at once and save each as <prefix>_<input>.hex for rf_analyse.py.
+proc capture_both {prefix at what} {
+  global cg dma words bytes work
+  write_words $at [lrepeat 16 0xDEADBEEF]
+  wr [expr {$dma + 0x30}] 0x4
+  check "$what: DMA reset" [wait_for [expr {$dma + 0x30}] 0x4 0x0]
+  wr [expr {$dma + 0x30}] 0x1001
+  wr [expr {$dma + 0x48}] $at
+  wr [expr {$dma + 0x4C}] 0
+  wr [expr {$dma + 0x58}] $bytes
+  set ctrl [expr {$words << 8}]
+  wr $cg $ctrl
+  wr $cg [expr {$ctrl | 1}]
+  set done [wait_for [expr {$dma + 0x34}] 0x1002 0x1002]
+  check "$what: capture reaches memory" $done [format "(DMA status 0x%08x, capture status 0x%x)" [rd [expr {$dma + 0x34}]] [rd [expr {$cg + 8}]]]
+  expect "$what: capture done, nothing dropped" [expr {[rd [expr {$cg + 8}]] & 0x7}] 0x2
+  expect "$what: bytes" [rd [expr {$dma + 0x58}]] $bytes
+  check "$what: DMA interrupt" [irq_line [irq0 0]]
+  wr [expr {$dma + 0x34}] 0x7000
+  if {$done} {
+    set all [mrd -force -value $at [expr {$bytes / 4}]]
+    foreach {first name} {0 vin2_01 4 vin2_23} {
+      set f [open $work/${prefix}_$name.hex w]
+      for {set i $first} {$i < [llength $all]} {incr i 8} { puts $f [join [lrange $all $i $i+3] \n] }
+      close $f
+    }
+  }
+}
+capture_both memory 0x20000000 "waveform memory"
+
+# ---- constant mode: the player repeats one I/Q value and the converter's mixer makes the tone --------------------
+# The mixer frequency is a 48-bit fraction of the 4915.2 MS/s sampling rate (registers as in the xrfdc driver):
+# fs/16 = 307.2 MHz on DAC tile 0, fs/8 = 614.4 MHz on tile 2, applied at once.
+foreach {n tile upper} {0 0 0x1000 1 2 0x2000} {
+  set g $base(axi_gpio_play_$n)
+  wr $g 0
+  wr [expr {$g + 8}] 0x00004000
+  wr $g 0x1
+  set block [expr {$rf + 0x6000 + $tile * 0x4000}]
+  wr [expr {$block + 0x94}] $upper
+  wr [expr {$block + 0x98}] 0
+  wr [expr {$block + 0x9C}] 0
+  wr [expr {$block + 0x8C}] [expr {[rd [expr {$block + 0x8C}]] & ~0x7}]
+  wr [expr {$block + 0x20}] [expr {([rd [expr {$block + 0x20}]] & ~0xF) | 0x2}]
+  expect "DAC tile $tile: mixer frequency word" [rd [expr {$block + 0x94}]] $upper
+}
+after 100
+capture_both mixer 0x24000000 "mixer tone"

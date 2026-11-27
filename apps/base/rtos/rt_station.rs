@@ -7,6 +7,7 @@
 //! (the certificate is the throwaway test one of `fixtures/tls/`: **for a measurement, not for use**); the page shows the status and has the controls. `/api/status` is
 //! JSON, `/led?v=N`, `/audio?cmd=play|stop|mute|unmute|next`, `/volume?v=0..62`, `/display?mode=0..2`, `/load?on=0|1`, `/screen.bmp` (the screen, a quarter of its size).
 //! The SD card is optional: put `.wav` files (16-bit PCM) in its root and `/audio?cmd=next` steps through them; without a card the built-in chime plays.
+//! **The card is only read**, unless it was named when building (`HRX_WRITE_SERIAL=0x...`): then the random seed in `/RNGSEED` is renewed at every start.
 //! Copy `apps/base/data/chime.wav`, `test-cert.der` and `test-key.bin` to the crate's `examples/`. Needs `hardroxide-audio`, `-gfx`, `-video`, `-net`, `-crypto`, `-tls` and `-fat`,
 //! and the `net` feature of `hardroxide-ps7`. Base overlay application 25.
 
@@ -356,8 +357,10 @@ fn network() {
     drbg.add_entropy(&ps7::time::now_ns().to_le_bytes());
     let mut files = [[0u8; 32]; 8];
     let mut n_files = 0;
+    let mut may_write = false;
     let mut vol = if let Ok(info) = sd.init() {
         SD_MIB.store((info.blocks / 2048) as u32, Relaxed);
+        may_write = info.serial_matches(option_env!("HRX_WRITE_SERIAL"));
         Volume::mount(sd).ok()
     } else {
         None
@@ -368,12 +371,15 @@ fn network() {
             let n = f.read(v, &mut old).unwrap_or(0);
             drbg.add_entropy(&old[..n]);
         }
-        let mut fresh = [0u8; 32];
-        drbg.fill(&mut fresh);
-        if let Ok(mut f) = v.open("/RNGSEED", OpenMode::Write) {
-            let _ = f.write(v, &fresh);
-            let _ = f.close(v);
-            let _ = v.sync();
+        // The only write, and only to the card named when building.
+        if may_write {
+            let mut fresh = [0u8; 32];
+            drbg.fill(&mut fresh);
+            if let Ok(mut f) = v.open("/RNGSEED", OpenMode::Write) {
+                let _ = f.write(v, &fresh);
+                let _ = f.close(v);
+                let _ = v.sync();
+            }
         }
         let _ = v.read_dir("/", |e| {
             let name = e.name.as_str();

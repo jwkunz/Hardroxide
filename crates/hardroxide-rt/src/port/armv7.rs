@@ -1,0 +1,159 @@
+//! The Cortex-A9 port: context switching. ARM only.
+//!
+//! A task's context lives on its own (System-mode) stack while it is not running:
+//!
+//! ```text
+//! low   d16-d31 (32 words)   d0-d15 (32)   fpscr + pad (2)   r0-r12, lr (14)   pc, cpsr (2)   high
+//! ```
+//!
+//! Both entries (an interrupt, and the `svc` that a blocking call executes) push the
+//! interrupted task's context this way with `srs`, hand the stack pointer to Rust, which saves
+//! it in the task's control block, picks the next task and returns *its* stack pointer, and
+//! restore from that stack with `rfe`. Interrupts stay masked in the kernel; a task runs in
+//! System mode with them enabled.
+
+use core::arch::global_asm;
+
+/// What the kernel needs from the processor besides the context switch.
+pub(crate) mod platform {
+    pub use hardroxide_ps7::cp15::{wfe, wfi, without_irq};
+    pub use hardroxide_ps7::{gic::Gic, irq, map};
+
+    use hardroxide_mmio::{MmioBackend, PhysMem, PhysRegion};
+    use hardroxide_ps7::timer::PrivateTimer;
+
+    /// The interrupt of the tick timer.
+    pub const TICK_INTERRUPT: u32 = map::ppi::PRIVATE_TIMER;
+    /// The smallest task stack accepted.
+    pub const MIN_STACK: usize = 512;
+    /// The idle task's stack.
+    pub const IDLE_STACK: usize = 1024;
+
+    /// The global timer's low count word: one device read, wrapping every 13 s at 325 MHz (intervals between uses are far
+    /// shorter).
+    #[inline(always)]
+    pub fn stamp() -> u32 {
+        // SAFETY: a read of the Cortex-A9 global timer's counter register, which the time source keeps running.
+        unsafe { core::ptr::read_volatile(map::GLOBAL_TIMER_BASE as *const u32) }
+    }
+
+    fn private_timer(be: &PhysMem) -> Option<PrivateTimer<PhysRegion>> {
+        be.map(map::PRIVATE_TIMER_BASE as u64, map::PRIVATE_TIMER_SIZE)
+            .ok()
+            .map(PrivateTimer::new)
+    }
+
+    /// Start the private timer interrupting `tick_hz` times a second; `periph_hz` is its clock.
+    pub fn start_tick(be: &PhysMem, periph_hz: u64, tick_hz: u32) {
+        let per_tick = (periph_hz / u64::from(tick_hz.max(1))) as u32;
+        private_timer(be)
+            .expect("timer")
+            .start_periodic(per_tick)
+            .expect("timer");
+    }
+
+    /// In the tick's interrupt: drop the timer's line.
+    pub fn acknowledge_tick(be: &PhysMem) {
+        if let Some(t) = private_timer(be) {
+            let _ = t.clear_interrupt();
+        }
+    }
+}
+
+/// Words in a saved context.
+pub const FRAME_WORDS: usize = 82;
+/// System mode, IRQ and FIQ enabled, ARM state.
+pub const TASK_CPSR: u32 = 0x1F;
+
+global_asm!(
+    r#"
+    .arm
+    .fpu vfpv3
+    .section .text.hrx_rt_port,"ax"
+
+    @ Save the interrupted context onto the System-mode stack (already switched to).
+    .macro SAVE_CONTEXT
+    push    {{r0-r12, lr}}
+    vmrs    r1, fpscr
+    push    {{r1, r2}}
+    vpush   {{d0-d15}}
+    vpush   {{d16-d31}}              @ the compiler uses these too (NEON copies)
+    .endm
+
+    .macro RESTORE_CONTEXT
+    vpop    {{d16-d31}}
+    vpop    {{d0-d15}}
+    pop     {{r1, r2}}
+    vmsr    fpscr, r1
+    pop     {{r0-r12, lr}}
+    clrex                           @ the next task must not complete an exclusive access it did not begin
+    rfeia   sp!
+    .endm
+
+    .global hrx_irq_entry
+hrx_irq_entry:
+    sub     lr, lr, #4
+    srsdb   sp!, #0x1F              @ push the return address and SPSR onto the System stack
+    cps     #0x1F
+    SAVE_CONTEXT
+    mov     r0, sp
+    cps     #0x12                   @ run the Rust handler on the IRQ stack
+    bl      hrx_rt_irq
+    cps     #0x1F
+    mov     sp, r0
+    RESTORE_CONTEXT
+
+    .global hrx_svc_entry
+hrx_svc_entry:
+    srsdb   sp!, #0x1F
+    cps     #0x1F
+    SAVE_CONTEXT
+    mov     r0, sp
+    cps     #0x13
+    bl      hrx_rt_svc
+    cps     #0x1F
+    mov     sp, r0
+    RESTORE_CONTEXT
+
+    @ Start the first task: r0 = its saved stack pointer.
+    .global hrx_rt_start_first
+hrx_rt_start_first:
+    mov     sp, r0
+    RESTORE_CONTEXT
+"#
+);
+
+unsafe extern "C" {
+    /// Begin running the task whose saved context is at `sp`. Never returns.
+    pub fn hrx_rt_start_first(sp: usize) -> !;
+}
+
+/// Block the calling task and let the scheduler choose (a supervisor call).
+#[inline(always)]
+pub fn yield_now() {
+    // SAFETY: the SVC entry saves and restores the whole task context.
+    unsafe {
+        core::arch::asm!("svc #0", out("r0") _, out("r1") _, out("r2") _, out("r3") _, out("r12") _, options(nostack))
+    };
+}
+
+/// Build the initial saved context for a task at the top of `stack`, so that "restoring" it
+/// starts `entry`; when `entry` returns it continues at `on_return`. Returns the stack
+/// pointer to store in the task's control block.
+pub fn init_frame(stack: &'static mut [u8], entry: fn(), on_return: extern "C" fn() -> !) -> usize {
+    let top = (stack.as_mut_ptr() as usize + stack.len()) & !7;
+    let sp = top - FRAME_WORDS * 4;
+    let frame = sp as *mut u32;
+    // SAFETY: `sp..top` lies inside `stack` (checked by the caller via its length), which this
+    // function has exclusive access to.
+    unsafe {
+        for i in 0..FRAME_WORDS {
+            frame.add(i).write(0);
+        }
+        // r0-r12 are words 66..79, lr is 79, pc 80, cpsr 81.
+        frame.add(79).write(on_return as usize as u32);
+        frame.add(80).write(entry as usize as u32);
+        frame.add(81).write(TASK_CPSR);
+    }
+    sp
+}

@@ -1,24 +1,28 @@
 # hardroxide-rt
 
-A FreeRTOS-style real-time kernel for the Zynq-7000's Cortex-A9, written in this repository
-with no third-party dependencies ([ADR 0003](../decisions/0003-bare-metal-and-rtos-platforms.md)).
-`no_std`, single core, static allocation. The scheduling policy (`sched`) is plain Rust, unit-tested on
-the host; the context switch and tick (`port`, `kernel`) exist only for `target_arch = "arm"`.
+A FreeRTOS-style real-time kernel for the Zynq-7000's Cortex-A9 and, new in 3.0, the Cortex-A53 of Zynq UltraScale+, written
+in this repository with no third-party dependencies ([ADR 0003](../decisions/0003-bare-metal-and-rtos-platforms.md),
+[ADR 0005](../decisions/0005-ultrascale-plus.md)). `no_std`, single core, static allocation. The scheduling policy (`sched`)
+is plain Rust, unit-tested on the host, and the kernel API is the same on both; the context switch (`port`) and the tick
+depend on the target, which chooses them.
 
-Verified on a PYNQ-Z2 and under QEMU with `baremetal/rt-smoke` (priority preemption, periodic release
-without drift, queues, interrupt-to-task hand-off, priority inheritance resolving an inversion);
-see [Verification gaps](../08-verification-gaps.md).
+Verified under QEMU and on a board with `baremetal/rt-smoke`, one program for both processors: priority preemption, periodic
+release without drift, queues, interrupt-to-task hand-off, priority inheritance resolving an inversion, registers intact
+across task switches (on the Cortex-A53 of an RFSoC 4x2 and the Cortex-A9 of a PYNQ-Z2); see
+[Verification gaps](../08-verification-gaps.md).
 
-The kernel supplies the IRQ and SVC vector entries, so a program using it depends on
-`hardroxide-ps7` with `default-features = false` (otherwise the link fails with duplicate symbols).
+The kernel supplies the interrupt and supervisor-call entries, so a program using it depends on the processor's support crate
+with `default-features = false` (otherwise the link fails with duplicate symbols):
+[`hardroxide-ps7`](ps7.md) on the Zynq-7000, [`hardroxide-psu`](psu.md) on UltraScale+.
 
 ## Model
 
 **Priorities: a higher number is more urgent**; `0` is the idle task (the kernel's own), user tasks use 1 and up.
 The most urgent ready task runs; equals share the processor round-robin, one tick each; a more urgent task
-that becomes ready preempts at once. Tasks have their own stacks (`task_stack!`), at least 512 bytes. All state
-is static: at most 16 tasks and 32 semaphores/mutexes. Interrupts are masked only inside the kernel's short
-critical sections.
+that becomes ready preempts at once. Tasks have their own stacks (`task_stack!`), at least 512 bytes on the Zynq-7000 (a
+saved context there is 328 bytes) and 2048 on UltraScale+ (800 bytes). All state is static: at most 16 tasks and 32
+semaphores/mutexes.
+Interrupts are masked only inside the kernel's short critical sections.
 
 ```rust,ignore
 pub fn spawn(name: &'static str, prio: u8, stack: &'static mut [u8], entry: fn()) -> Result<TaskId, Error>
@@ -26,10 +30,22 @@ pub fn start(periph_hz: u64, tick_hz: u32) -> !
 macro_rules! task_stack
 ```
 
-`spawn` may be called before `start` or from a task. `start(periph_hz, tick_hz)` creates the idle task, starts the tick (the
-private timer, `periph_hz` from `hardroxide_ps7::clocks::periph_hz`) and runs the most urgent task; the GIC must already be
-initialised (the generated `Design::init` does it). A task function that returns ends the task. Floating point
-may be used in tasks and handlers: the context switch saves `d0`-`d15` and `FPSCR`.
+`spawn` may be called before `start` or from a task. `start(periph_hz, tick_hz)` creates the idle task, starts the tick and
+runs the most urgent task; the GIC must already be initialised (the generated `Design::init` does it). `periph_hz` is the clock
+of the tick's timer: on the Zynq-7000 the private timer's (`hardroxide_ps7::clocks::periph_hz`), on UltraScale+ the system
+counter's (`hardroxide_psu::clocks::timestamp_hz`; the timer is the secure physical timer). A task function that returns ends
+the task. Floating point may be used in tasks and handlers: the context switch saves `d0`-`d31` and `FPSCR` on the Cortex-A9,
+all of `q0`-`q31`, `FPCR` and `FPSR` on the Cortex-A53.
+
+> **Update from 2.x on the Zynq-7000.** Up to 2.7.0 the kernel did not save `d16`-`d31`, nor did
+> [`hardroxide-ps7`](ps7.md)'s interrupt entry. The compiler uses those registers to copy memory, so an interrupt or a task
+> switch could silently corrupt data. Fixed in 3.0.0.
+
+**Before `start`** no task runs: `main` may create semaphores, give them and take what is there, and enable interrupts (their
+handlers run and return to `main`). A call that would have to wait returns at once with its failure value, and `delay` does
+nothing. (2.x could switch to a task here, abandoning `main` until every task blocked.)
+
+On UltraScale+ tasks run at EL3 on `SP_EL0` and the handlers on the linker script's exception stack.
 
 ## Time
 
@@ -70,7 +86,8 @@ urgent waiter (the longest-waiting among equals). **`Mutex` has priority inherit
 at that task's priority (along a chain of holders), so a medium-priority task cannot starve it; the priority drops back on
 release. `MutexGuard` unlocks on drop and is not recursive. The `*_from_isr` calls never switch tasks themselves; the switch
 happens as the interrupt returns, if a more urgent task became ready. Interrupt handlers are the plain functions of
-[`hardroxide_ps7::irq`](ps7.md#interrupt-handlers) (they run on the IRQ stack).
+[`hardroxide_ps7::irq`](ps7.md#interrupt-handlers) or `hardroxide_psu::irq` (they run on the interrupt, or exception, stack and
+must not unmask interrupts).
 
 ## Sleeping on a hardware interrupt
 
@@ -118,6 +135,9 @@ Two hours on a PYNQ-Z2 under load (a never-sleeping low-priority task and a cach
 at most 10.2 us late (mean 1.06 us) over 726,197 releases with none missed, and a software interrupt reached its waiting
 task within 5.4 us (mean 3.95 us). Details and limits: [Verification gaps](../08-verification-gaps.md); the program is
 `baremetal/rt-jitter`.
+
+On an RFSoC 4x2 (Cortex-A53, two hours, same program and load): release lateness at most 5.9 us (mean 0.77 us) over 720,223
+releases with none missed; interrupt to task at most 4.7 us (mean 3.04 us).
 
 ## Statistics
 

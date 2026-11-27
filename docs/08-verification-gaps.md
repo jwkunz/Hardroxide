@@ -1,10 +1,8 @@
-# 08 - Verification gaps (no hardware available)
+# 08 - Verification gaps
 
-Everything below was implemented without a PYNQ-Z2 attached. Each item says
-what was assumed, what evidence exists, how to verify on the board, and what
-to change if the assumption is wrong. Work through the list in order: later
-items depend on earlier ones. When an item is verified, change its status here
-and record the date and image/kernel version.
+What has been checked, where, and what has not. The list of items below began before any board was attached: each says
+what was assumed, what evidence exists, how to verify it on the board, and what to change if the assumption is wrong. The
+[board results](#board-results) record the runs since; [the 3.0.0 release run](#300-release-run) is the latest.
 
 Status key: **VERIFIED-OFFLINE** (checked against a vendor tool, no board
 needed), **UNVERIFIED** (needs the board), **DESIGN-GAP** (known incomplete).
@@ -61,6 +59,11 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | HTTPS (2.6, 2026-11-21) | **Passes on the PYNQ-Z2 with `curl`, `openssl s_client` and Microsoft Edge (headless)**, after one fix found by the browser. Host: `hardroxide-crypto` against OpenSSL and Python `cryptography` on more than 800 random vectors and the RFC examples (hashes at every length around the block boundaries; HMAC; HKDF; ChaCha20-Poly1305 including rejection of altered tags, ciphertext and aad; X25519; Ed25519; P-256 public keys and **70 RFC 6979 ECDSA signatures byte for byte equal to OpenSSL's**), `hardroxide-tls` against `openssl s_client` and `curl` over TCP (Ed25519 and P-256 certificates; refusals; 200 random streams), `hardroxide make-cert` (OpenSSL verifies the signature; `curl` fully verifies by DNS name and by IP and refuses a wrong name). QEMU: the whole stack against `curl` and `openssl s_client` (a page, 100,000 bytes byte for byte, POST, 30 handshakes, 6 concurrent over 4 sockets, refusal of a client without ChaCha20, garbage and an idle connection). Board: `net_https` over TLS 1.3 (`TLS_CHACHA20_POLY1305_SHA256`, `ecdsa_secp256r1_sha256`, X25519) to curl, s_client and Edge; X25519 26 ms, P-256 signature 22 ms, Ed25519 signature 44 ms; 10.9 requests/s sequential (83 ms, each a full handshake) and 12.5/s with 4 clients (100 of 100 succeeded); `rt_https`: 489 TLS requests in 40 s from 3 clients, 0 errors, control loop worst deviation 2 us over ~6,900 releases. Found by Edge: **Chromium offers no Ed25519 signature algorithm** (captured ClientHello: ECDSA P-256/P-384, RSA-PSS, RSA; X25519 with a post-quantum share), so the Ed25519-only server was refused (`ERR_SSL_VERSION_OR_CIPHER_MISMATCH`); fixed by adding ECDSA P-256, which matched OpenSSL on the first run. **Not run / known weak**: Firefox and Safari, an interactive browser session, certificate chains, resumption, hours of traffic; the random bytes are **weak** (clock, connection timing and a card-held seed; the Zynq has no hardware generator); "constant time" is by construction and not measured; no independent review; handshakes cost ~80 ms of the single core so a few connections a second keep the server busy |
 | Integration (2.7, 2026-11-21) | **Passes on the PYNQ-Z2**, after three bugs that only showed with everything running. `rt_station` (RTOS: an HTTPS dashboard, HDMI 720p at ~60 frames/s, audio by timer interrupt at 97.656 kHz, a 10 ms control task, a processor burner): with three HTTPS clients (392 status requests and 21 screen grabs in 45 s, 0 errors), the burner on, six display-mode changes, audio stop and start and LED writes, the control loop's worst deviation was **4 us over 5,179 releases** (3 us before), the audio pump wrote 2,528,966 frames with **0 underruns**. The audio pump alone (`rt_audio`, with a processor hog): 1.47 million frames in 30 s, 0 underruns, interrupts **10.4 %** of the processor, the feeder 1.1 %, a constant -17 ppm between the codec's clock and the processor's, the control loop 3 us. **Soak: 17 minutes (planned: two hours; stopped for the release)**: 1,202 requests, 0 failed, 55 bursts of six concurrent handshakes, 105,866 control releases with the worst deviation 4 us in every minute, 51.7 million audio frames with 0 underruns, 66,164 display frames, every task's stack high-water mark identical in the first and last minute. Found: the first per-task processor accounting (sampling at the kernel tick) was wrong (the 10 ms task showed 0 %, the burner 99 %, interrupt time was charged to the interrupted task), replaced by time stamps at every context switch with interrupt time counted separately; `task_info` scanned a 256 KiB stack with interrupts masked and delayed the control loop by 409 us on every status request (found as a one-off spike by recording what the other subsystems were doing, fixed by scanning outside the critical section); the network task used 87 % of the processor for lack of a sleep (the new monitor showed it at once); the on-screen panel was repainted in one of two frame buffers (it flickered between versions; seen in a screen grab fetched through the web server). **Not run / not done**: the **audio was never listened to** (counters only), an interactive browser session, **HDMI input capture** (needs a VDMA write-channel driver and the overlay's HDMI receiver bring-up, which do not exist), a soak of hours, the display's frame times during TLS handshakes alone |
 | RTOS jitter, 2 hours (2026-11-21) | **Passes** (`baremetal/rt-jitter`, board over JTAG, 121 minutes, 7.26 million kernel ticks). Load: a priority-1 task that never sleeps, a priority-3 task thrashing a 4 MiB array (past the 512 KiB L2) for about 3 ms of every 10 ms, and a priority-2 reporter. **Release lateness of the 10 ms task** (726,197 releases, measured against the 3 ns global timer): mean 1.06 us, maximum 10.2 us; 91.7 % under 1 us, 8.3 % between 8 and 12 us, none above 12 us; **0 missed releases**. **Interrupt-to-task latency** (907,875 software interrupts raised at 7 to 9 ms intervals, through the IRQ entry, a semaphore give and the context switch to a priority-7 task): mean 3.95 us, maximum 5.44 us, 99.99 % under 5 us. Neither maximum moved after the first minute, so the first minute already held the worst case seen. Not covered: PL-originated interrupts under load, a second master hammering DDR, temperature extremes |
+| **Vector registers across interrupts (2026-11-26)** | **Bug in every 2.x release, fixed on `v3`:** on the Zynq-7000 neither the bare-metal interrupt entry nor the kernel's context switch saved `d16`-`d31`, which compiled code uses to copy memory. Found on the PYNQ-Z2 as TLS "bad signature" failures of `rt_station` under load (7 to 19 per run of about 440 requests, on 2.7.0 too; why the 2.5 to 2.7 runs recorded none is not known). Direct checks in `ps7-smoke` and `rt-smoke` failed before the fix and pass after it on the board and under QEMU; no failures in four loaded runs afterwards. The earlier register test covered only `d0`-`d15` |
+| Linux on `v3`, PYNQ 3.1 image (2026-11-26) | **Passes** on the PYNQ-Z2 (kernel 6.6.10, programs cross-built, run as root from memory, `fixtures/board_tests/`): `board_check` loads every design and reads its clocks back; interrupts through UIO for the interrupt controller, stream FIFO, HLS `vadd`, peripherals (timer, SPI, IIC), DMA (both channels; 1 MiB at 400 MB/s, 200 loopbacks with 0 mismatches) and the loopback design (UART pair, IIC pair, UART 1's edge-triggered interrupt and an IIC interrupt); HLS `scale` on `u-dma-buf` buffers; block RAM; the base overlay's tour. **Limits found:** the image's `fabric` device held `IRQ_F2P[0]` until `overlay.sh` was changed to release it; an edge-triggered line there is still not registered (seen with UART 0 of the loopback design; the memory design's UART uses the same line); one hang while replacing an overlay (cause unknown); `reboot` ended in `Reboot failed -- System halted`; in `lifecycle`, a 10 ms delay right after a load read up to 10.9 ms in a few of 25 cycles (not investigated). **Not run:** the base overlay's interrupt (a second overlay in one boot), `gpio_interactive` |
+| HDMI and audio on `v3` (2026-11-26) | **Passes** on the PYNQ-Z2 over JTAG, judged by the maintainer: `video_demo` at 1280x720 (test pattern and animation looked right; 60 frames per second, no display errors), `audio_tone` and `audio_wav` on headphones (scale, chord and chime clean; 0 samples missed); with a cable from HPH OUT to LINE IN, `audio_loopback_test` (1000 Hz on both channels, 0 missed) and `audio_record_test` (recorded, played back and recorded again). **Not run:** the SD card tests (no spare card) |
+| Base overlay tutorials, bare metal and RTOS (2026-11-26) | **Pass** on the PYNQ-Z2 over JTAG, the maintainer at the board: `leds` (all buttons and switch positions; colours red, green, blue), `button_irq` (software-raised check, then real presses through the controller), `control` (LEDs follow the buttons; 10 ms loop within 1 us over 2,600 releases). Found: `lights` and `rt_lights` had red and blue swapped on the colour LEDs; fixed and confirmed by eye. The three new entries of `test-board.sh` pass |
+| Base overlay tutorials, Linux (2026-11-26) | **Pass** on the PYNQ-Z2 under PYNQ 3.1, the maintainer at the board: `board_check` (with and without the overlay), `lights` (all buttons, switches and colours), `block_ram` (64 KiB, 0 wrong), `interrupts` (software-raised check, then presses through UIO). Not rerun afterwards: tutorial 4's `gpio_smoke` (it ran earlier that day). **The test card then failed:** twice, minutes into a boot, the controller reported command timeouts, a write failed and the root file system went read-only; cause not established (the card, its contact after being reinserted, or the board; no spare card was tried) |
 | Generated RTOS crate (2026-11-21) | **Passes** on the PYNQ-Z2: `hardroxide generate --platform rtos` from the board-preset GPIO design, built and run with `hardroxide run`; the 10 ms control task's period deviated 1 us at most over 700 releases (measured against the global timer, so it shows release regularity, not interrupt latency). Every fixture's RTOS crate builds for the target in the test suite |
 | MMU, caches, L2 (2026-11-21) | **Passes** on the PYNQ-Z2 and under QEMU: 20 passes over 64 KiB take 100.7 ms with the caches off and 4.4 ms on; the bare-metal `timer_irq` and the RTOS example still pass; a generated `dma_loopback` moves 4096 bytes through `.dma` buffers with the caches on. Not tested: cached buffers with explicit `clean_range`/`invalidate_range` against a PL master, SCU/ACP, multi-core |
 | G16 guard | **Passes**: with `gpio-xilinx` rebound to `41200000.gpio`, `load()` refuses with `PlInUse` naming the device and does not touch the PL; after unbinding it loads. Passive `uio_pdrv_genirq` devices at PL addresses are correctly ignored |
@@ -74,6 +77,38 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | G7 singleton | **Passes**: a second `load()` while one `Design` is alive returns `AlreadyLoaded` and leaves the first working; 25 load/delay/drop cycles in one process, loads about 300 ms each |
 | Base-design line mapping | On this image SPI 29 (`IRQ_F2P[0]`) is already mapped level-triggered at boot, so an overlay node that needs it as edge (for example an AXI UART Lite on F2P bit 0) gets a UIO device whose reads and writes return `EIO`, with no kernel message. Put edge-triggered cores on other F2P bits |
 | G6 | Not exercised |
+
+## 3.0.0 release run
+
+By the maintainer's decision (2026-11-27) the release regression is the automatic checks (CI: tests, compatibility with
+2.7.0, QEMU, emulated ARM) and one unattended run on the RFSoC 4x2:
+`HRX_NET=1 HRX_RF_LOOPBACK=1 scripts/test-board-rfsoc.sh`, JTAG, Ethernet to the host, cables from DAC A to ADC A and
+DAC B to ADC B.
+
+**It passed on 2026-11-26** at commit `9a53187`: the processor and kernel tests, the board's hardware, the base overlay,
+the generated crates, the radio loopback on bare metal and on the kernel (the 1 ms control task within 2 us over 692
+releases), HTTP 15.76 MB/s and 211 requests/s, HTTPS 22.0 handshakes/s, the kernel's web page 500 of 500 requests with
+the 10 ms loop within 1 us. The commits made for the release after that changed documentation (comments in the code
+among it), version numbers and the version generated crates ask crates.io for.
+
+**On the host for the release** (2026-11-27):
+
+- The commands of every tutorial page that run on a computer (generate, copy, build, inspect, update, package,
+  make-cert; board steps left out) were run in page order from a copy of the repository: all succeed. This found and led
+  to fixes of two pages whose `cargo add` cargo rejects, one that copied programs the crate could not build, one that did
+  not say which directory to be in and one missing a copy step.
+- `hardroxide package` for a Zynq-7000 design (`fixtures/board/pynq_z2_gpio.xsa`) wrote a boot image byte-identical to
+  the one 2.7.0 writes.
+
+**Not run for 3.0.0:**
+
+- The PYNQ-Z2, last run on 2026-11-26 (rows above): what changed after, the radio drivers and the new commands of the
+  host tool, runs nothing new on it.
+- SD card tests on either board in this run. On the RFSoC they passed on 2026-11-25; on the PYNQ-Z2 the programs that
+  write only to a card named by serial number have not been run with a card.
+- A boot image from a card on a Zynq-7000.
+- The radio loopback under Linux at this commit (it passed on the board earlier the same day, with the same driver
+  code).
 
 ## Needs the board
 
@@ -348,7 +383,7 @@ Status: **observed, cause unknown.**
   UART Lite and AXI4-Stream FIFO (AXI4-Lite mode). HLS IP gets generated typed
   accessors for 32-bit scalar registers and 64-bit pointer register pairs
   (`set_*_addr` / `set_*_buffer`, no size check against the buffer). Not done:
-  DMA scatter-gather, 64-bit DMA addressing, HLS AXI-Stream and array (BRAM)
+  DMA scatter-gather, HLS AXI-Stream and array (BRAM)
   ports, `ap_ctrl_chain` specifics, Timer 1 / PWM / capture, SPI dual/quad
   modes. Any other IP (custom RTL included) is exposed as a raw register
   window with its `pac` constants.
@@ -366,10 +401,10 @@ Status: **observed, cause unknown.**
 - **D5 Other Vivado versions / designs**: HWH parsing is validated against
   eight 2025.2 fixtures plus real third-party designs (the PYNQ `base`,
   `logictools` and six `vidcap` overlays, Vivado 2024.1 to 2025.2), an HLS design
-  from Vivado 2019.2 and an UltraScale+ RFSoC design from Vivado 2020.2 (parsed;
-  `generate` refuses it with `UnsupportedArch`). Only parsing and generation are
-  checked for versions other than 2025.2; they have not been run on hardware.
-  Still missing: Vivado 2021 to 2023 samples and UltraScale+ support itself.
+  from Vivado 2019.2 and an UltraScale+ RFSoC design from Vivado 2020.2 (a handoff
+  file alone: parsed in the tests, not generated from). Versions other than 2025.2
+  have not been run on hardware, except RFSoC-PYNQ's base overlay as that project
+  ships it. Still missing: Vivado 2021 to 2023 samples.
 - **D6 `cargo hardroxide` shim, optional zstd, rename map, async**: not done.
 - **D7 UIO backend**: `Uio` maps map 0 only; untested against a real device.
 - **D8 CI**: `.github/workflows/ci.yml` runs fmt, clippy, all tests (including

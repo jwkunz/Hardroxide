@@ -89,6 +89,8 @@ pub struct AxiDma<R: Mmio> {
     regs: R,
     max_len: usize,
     irq: bool,
+    /// Bits of address the engine puts on its memory ports.
+    address_width: u32,
 }
 
 impl<R: Mmio> AxiDma<R> {
@@ -100,7 +102,16 @@ impl<R: Mmio> AxiDma<R> {
             regs,
             max_len,
             irq: false,
+            address_width: 64,
         }
+    }
+
+    /// The width of the engine's memory addresses in bits (HWH `c_addr_width`), 32 to 64. A transfer that reaches
+    /// beyond it is then refused (as `MmioError::BadAddress`) instead of going to a truncated address. Without this the
+    /// driver does not check; crates generated for Zynq UltraScale+ set it, where memory above 4 GiB exists.
+    pub fn with_address_width(mut self, bits: u32) -> Self {
+        self.address_width = bits.clamp(32, 64);
+        self
     }
 
     pub fn new(regs: R) -> Self {
@@ -203,6 +214,11 @@ impl<R: Mmio> AxiDma<R> {
                 buf: buf.len(),
             });
         }
+        let phys = buf.phys_addr();
+        let last = phys.saturating_add(len as u64 - 1);
+        if self.address_width < 64 && last >> self.address_width != 0 {
+            return Err(MmioError::BadAddress(phys).into());
+        }
         let r = Self::r(dir);
         let sr = self.regs.read32(r.sr)?;
         if sr & (SR_HALTED | SR_IDLE) == 0 {
@@ -215,7 +231,6 @@ impl<R: Mmio> AxiDma<R> {
         };
         self.regs.write32(r.cr, CR_RS | irq)?;
         self.regs.write32(r.sr, SR_W1C)?; // clear stale flags (write-1-to-clear)
-        let phys = buf.phys_addr();
         self.regs.write32(r.addr, phys as u32)?;
         self.regs.write32(r.addr_msb, (phys >> 32) as u32)?;
         // Writing LENGTH starts the transfer; it must come last.
@@ -353,6 +368,41 @@ mod tests {
             be.peek(BASE) & (CR_IOC_IRQ_EN | CR_ERR_IRQ_EN),
             CR_IOC_IRQ_EN | CR_ERR_IRQ_EN
         );
+    }
+
+    #[test]
+    fn an_address_beyond_the_engines_width_is_refused_before_anything_is_written() {
+        let (be, dma) = setup();
+        let dma = dma.with_address_width(32);
+        // Above 4 GiB, and starting below it but ending above.
+        for (address, len) in [(0x8_0000_0000, 64), (0xFFFF_FFC0, 128)] {
+            let before = be.log().len();
+            let e = dma
+                .start(Direction::MemToStream, MockBuffer::new(256, address), len)
+                .unwrap_err();
+            assert!(
+                matches!(e.error, DmaIpError::Mmio(MmioError::BadAddress(a)) if a == address),
+                "{:?}",
+                e.error
+            );
+            assert_eq!(e.buffer.len(), 256);
+            assert_eq!(be.log().len(), before, "the engine was touched");
+        }
+        // The last byte it can reach.
+        let t = dma
+            .start(Direction::MemToStream, MockBuffer::new(64, 0xFFFF_FFC0), 64)
+            .unwrap();
+        drop(t);
+        let (_be, wide) = setup();
+        let wide = wide.with_address_width(40);
+        let t = wide
+            .start(
+                Direction::MemToStream,
+                MockBuffer::new(64, 0x8_0000_0000),
+                64,
+            )
+            .unwrap();
+        drop(t);
     }
 
     #[test]

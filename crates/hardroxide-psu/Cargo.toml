@@ -1,0 +1,35 @@
+[package]
+name = "hardroxide-psu"
+description = "Zynq UltraScale+ processing-system support for bare metal on the Cortex-A53: startup, exceptions, MMU, GIC, generic timer, clocks, UART console"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+default = ["default-irq-entry", "default-sync-entry"]
+# Provide a `#[panic_handler]` that prints the panic on the console and halts.
+panic-handler = []
+# The default (non-nesting) IRQ vector entry. The RTOS kernel turns this off and
+# supplies its own, scheduler-aware entry.
+default-irq-entry = []
+# The default synchronous-exception entry (reports it and halts). The kernel supplies its own.
+default-sync-entry = []
+# `impl hardroxide_net::Device for gem::Gem`, so the network stack can run on the Ethernet MAC.
+net = ["hardroxide-ps7/net"]
+
+[dependencies]
+hardroxide-mmio = { workspace = true, features = ["physmem"] }
+# The drivers for peripheral blocks both families have live here and are re-exported.
+hardroxide-ps7.workspace = true
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+hardroxide-irq.workspace = true
+
+[dev-dependencies]
+hardroxide-mmio = { workspace = true, features = ["std"] }

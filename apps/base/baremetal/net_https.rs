@@ -5,8 +5,9 @@
 //! `scripts/make-cert.sh` and replace the two `include_bytes!` (the certificate in DER and the 32-byte private scalar)). The program times the public-key operations of a handshake on this board and prints them.
 //!
 //! Where the unpredictable bytes come from (the Zynq has no hardware random number generator): a generator is seeded from the clock, mixes in the timing of every new connection, and,
-//! if a FAT32 card is in the slot, a 32-byte seed stored in `/RNGSEED` that is replaced from the generator at every start, so entropy accumulates across runs. **That is weak**: the first run
-//! after formatting has only the clock; see the reference page. Needs `hardroxide-net`, `hardroxide-crypto`, `hardroxide-tls` and `hardroxide-fat` (the card is optional at run time).
+//! if a FAT32 card is in the slot, a 32-byte seed read from `/RNGSEED`. **The card is only read** unless it was named when building
+//! (`HRX_WRITE_SERIAL=0x...`, the serial number `sd_info` prints): then the seed is replaced from the generator at every start, so entropy accumulates across runs. **That is weak**: without a seed
+//! there is only the clock and the connection timing; see the reference page. Needs `hardroxide-net`, `hardroxide-crypto`, `hardroxide-tls` and `hardroxide-fat` (the card is optional at run time).
 //! Base overlay application 22.
 
 #![no_std]
@@ -53,7 +54,7 @@ fn main() -> ! {
     let base = ps7::clocks::sdio_ref_hz(&slcr, 50_000_000).unwrap() as u32;
     let mut sd = SdHost::new(be.map(ps7::map::SDIO0_BASE as u64, ps7::map::SDIO_SIZE).unwrap(), base);
     let mut seeded_from_card = false;
-    if sd.init().is_ok()
+    if let Ok(card) = sd.init()
         && let Ok(mut vol) = Volume::mount(sd)
     {
         let mut old = [0u8; 64];
@@ -62,14 +63,19 @@ fn main() -> ! {
             drbg.add_entropy(&old[..n]);
             seeded_from_card = n >= 32;
         }
-        // A fresh seed for next time (made after the old one was mixed in, so it depends on both it and this run's timing).
-        drbg.add_entropy(&ps7::time::now_ns().to_le_bytes());
-        let mut fresh = [0u8; 32];
-        drbg.fill(&mut fresh);
-        if let Ok(mut f) = vol.open("/RNGSEED", OpenMode::Write) {
-            let _ = f.write(&mut vol, &fresh);
-            let _ = f.close(&mut vol);
-            let _ = vol.sync();
+        // A fresh seed for next time (made after the old one was mixed in, so it depends on both it and this run's
+        // timing), written only to the card named when building.
+        if card.serial_matches(option_env!("HRX_WRITE_SERIAL")) {
+            drbg.add_entropy(&ps7::time::now_ns().to_le_bytes());
+            let mut fresh = [0u8; 32];
+            drbg.fill(&mut fresh);
+            if let Ok(mut f) = vol.open("/RNGSEED", OpenMode::Write) {
+                let _ = f.write(&mut vol, &fresh);
+                let _ = f.close(&mut vol);
+                let _ = vol.sync();
+            }
+        } else {
+            println!("the card's seed is read but not renewed: build with HRX_WRITE_SERIAL={:#010x} to let this program write to this card", card.serial);
         }
     }
     println!("random generator: {}", if seeded_from_card { "seeded from the clock and the seed file on the card" } else { "seeded from the clock only (no seed file yet: weak)" });

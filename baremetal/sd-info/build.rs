@@ -1,0 +1,1 @@
+include!("../common/link.rs");

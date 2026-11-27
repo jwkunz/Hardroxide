@@ -1,4 +1,4 @@
-//! The kernel API: tasks, time, semaphores, mutexes and queues. ARM only.
+//! The kernel API: tasks, time, semaphores, mutexes and queues. Arm only.
 //!
 //! Single core. The scheduler state is only touched with interrupts masked (a critical
 //! section), which on one core is mutual exclusion. A blocking call marks the task blocked
@@ -7,25 +7,19 @@
 //! queues (`*_from_isr`), which never switch tasks themselves: the switch happens as the
 //! interrupt returns, if a more urgent task became ready.
 
-use crate::port;
+use crate::port::{self, platform};
 use crate::sched::{FOREVER, ObjId, Sched, TaskId};
 use core::cell::UnsafeCell;
 use core::mem::MaybeUninit;
 use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use hardroxide_mmio::{MmioBackend, PhysMem};
-use hardroxide_ps7::{cp15, gic::Gic, irq, map, timer::PrivateTimer};
+use platform::{Gic, irq, map};
 
 static mut SCHED: Sched = Sched::new();
-/// The global timer's count (low word) when processor time was last charged, and the time spent in interrupt handlers, in timer ticks.
+/// The time stamp (low word of a free-running timer) when processor time was last charged, and the time spent in interrupt
+/// handlers, in that timer's ticks.
 static LAST_STAMP: AtomicU32 = AtomicU32::new(0);
 static IRQ_TICKS: AtomicU64 = AtomicU64::new(0);
-
-/// The global timer's low count word: one device read, wrapping every 13 s at 325 MHz (intervals between uses are far shorter).
-#[inline(always)]
-fn stamp() -> u32 {
-    // SAFETY: a read of the Cortex-A9 global timer's counter register, which the time source keeps running.
-    unsafe { core::ptr::read_volatile(map::GLOBAL_TIMER_BASE as *const u32) }
-}
 
 /// Charge the processor time since the last charge to the running task.
 fn charge_until(s: &mut Sched, now: u32) {
@@ -36,10 +30,15 @@ fn charge_until(s: &mut Sched, now: u32) {
 static TICK_HZ: AtomicU32 = AtomicU32::new(0);
 static STARTED: AtomicU32 = AtomicU32::new(0);
 
+/// Whether [`start`] has run.
+fn started() -> bool {
+    STARTED.load(Ordering::Acquire) != 0
+}
+
 /// Run `f` on the scheduler state with interrupts masked.
 #[inline(always)]
 fn cs<R>(f: impl FnOnce(&mut Sched) -> R) -> R {
-    cp15::without_irq(|| {
+    platform::without_irq(|| {
         // SAFETY: single core, interrupts masked: nothing else can touch `SCHED` now.
         f(unsafe { &mut *core::ptr::addr_of_mut!(SCHED) })
     })
@@ -98,19 +97,20 @@ extern "C" fn task_returned() -> ! {
 
 fn idle() {
     loop {
-        cp15::wfi();
+        platform::wfi();
     }
 }
 
 /// Create a task with priority `prio` (1 and up; **higher is more urgent**) that runs
-/// `entry` on `stack` (at least 512 bytes). May be called before [`start`] or from a task.
+/// `entry` on `stack` (at least 512 bytes on the Zynq-7000, 2048 on UltraScale+, where a saved context alone is 800
+/// bytes). May be called before [`start`] or from a task.
 pub fn spawn(
     name: &'static str,
     prio: u8,
     stack: &'static mut [u8],
     entry: fn(),
 ) -> Result<TaskId, Error> {
-    if stack.len() < 512 {
+    if stack.len() < platform::MIN_STACK {
         return Err(Error::StackTooSmall);
     }
     let (base, len) = (stack.as_ptr() as usize, stack.len());
@@ -145,7 +145,8 @@ pub struct TaskInfo {
     /// The effective priority (raised while it holds a mutex others want).
     pub priority: u8,
     pub state: TaskState,
-    /// Processor time this task has used, in timer ticks (the peripheral clock, [`hardroxide_ps7::clocks::periph_hz`]; 325 MHz on the PYNQ-Z2),
+    /// Processor time this task has used, in timer ticks (on the Zynq-7000 the peripheral clock, `clocks::periph_hz`, 325 MHz on
+    /// the PYNQ-Z2; on UltraScale+ the system counter, `clocks::timestamp_hz`, 33 MHz on the RFSoC 4x2),
     /// charged at every context switch. Interrupt handlers' time is counted separately ([`irq_ticks`]), not charged to the task they interrupted.
     /// A task's share of the processor is `run_ticks / cpu_total_ticks()`.
     pub run_ticks: u64,
@@ -214,23 +215,24 @@ pub fn task_info(slot: usize) -> Option<TaskInfo> {
 
 extern "C" fn dummy() -> ! {
     loop {
-        cp15::wfe();
+        platform::wfe();
     }
 }
 
-/// Start the scheduler: create the idle task, start the tick (a private-timer interrupt at
-/// `tick_hz`; `periph_hz` is [`hardroxide_ps7::clocks::periph_hz`]) and run the most urgent
-/// task. Never returns. The GIC must already be initialised (`Design::init` does it).
+/// Start the scheduler: create the idle task, start the tick (a timer interrupt at `tick_hz`) and run the most urgent task.
+/// Never returns. The GIC must already be initialised (`Design::init` does it). `periph_hz` is the clock of the tick's timer:
+/// on the Zynq-7000 the private timer's (`clocks::periph_hz`), on UltraScale+ the system counter's
+/// (`clocks::timestamp_hz`).
 pub fn start(periph_hz: u64, tick_hz: u32) -> ! {
     TICK_HZ.store(tick_hz, Ordering::Relaxed);
-    let idle_stack = crate::task_stack!(1024).expect("kernel started twice");
+    let idle_stack = crate::task_stack!(platform::IDLE_STACK).expect("kernel started twice");
     let (idle_base, idle_len) = (idle_stack.as_ptr() as usize, idle_stack.len());
     let idle_sp = port::init_frame(idle_stack, idle, dummy);
     cs(|s| {
         s.init_idle(idle_sp);
         s.set_stack(0, idle_base, idle_len);
     });
-    // SAFETY: the GIC and private-timer windows belong to the kernel tick from here on.
+    // SAFETY: the GIC and tick timer belong to the kernel from here on.
     let be = unsafe { PhysMem::new() };
     let gic = Gic::new(
         be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE)
@@ -238,16 +240,11 @@ pub fn start(periph_hz: u64, tick_hz: u32) -> ! {
         be.map(map::GIC_CPU_BASE as u64, map::GIC_CPU_SIZE)
             .expect("gic"),
     );
-    let timer = PrivateTimer::new(
-        be.map(map::PRIVATE_TIMER_BASE as u64, map::PRIVATE_TIMER_SIZE)
-            .expect("timer"),
-    );
-    gic.set_priority(map::ppi::PRIVATE_TIMER, 0x40)
+    gic.set_priority(platform::TICK_INTERRUPT, 0x40)
         .expect("gic");
-    gic.enable(map::ppi::PRIVATE_TIMER).expect("gic");
-    let per_tick = (periph_hz / u64::from(tick_hz.max(1))) as u32;
-    timer.start_periodic(per_tick).expect("timer");
-    LAST_STAMP.store(stamp(), Ordering::Relaxed);
+    gic.enable(platform::TICK_INTERRUPT).expect("gic");
+    platform::start_tick(&be, periph_hz, tick_hz);
+    LAST_STAMP.store(platform::stamp(), Ordering::Relaxed);
     STARTED.store(1, Ordering::Release);
     let first = cs(|s| {
         s.schedule();
@@ -257,8 +254,12 @@ pub fn start(periph_hz: u64, tick_hz: u32) -> ! {
     unsafe { port::hrx_rt_start_first(first) }
 }
 
-/// Save `sp` for the running task, choose the next one, and return its stack pointer.
+/// Save `sp` for the running task, choose the next one, and return its stack pointer. Before [`start`] there is no
+/// running task: an interrupt then returns to where it came from.
 fn switch(sp: usize, force: bool) -> usize {
+    if !started() {
+        return sp;
+    }
     cs(|s| {
         s.tasks[s.current].sp = sp;
         if force || s.should_preempt() {
@@ -270,8 +271,12 @@ fn switch(sp: usize, force: bool) -> usize {
 
 #[unsafe(no_mangle)]
 extern "C" fn hrx_rt_svc(sp: usize) -> usize {
+    // Before `start` there is nothing to switch to: a call from `main` returns to it.
+    if !started() {
+        return sp;
+    }
     // A blocking call or an explicit yield: always reschedule.
-    let now = stamp();
+    let now = platform::stamp();
     cs(|s| {
         charge_until(s, now);
         s.tasks[s.current].sp = sp;
@@ -282,8 +287,8 @@ extern "C" fn hrx_rt_svc(sp: usize) -> usize {
 
 #[unsafe(no_mangle)]
 extern "C" fn hrx_rt_irq(sp: usize) -> usize {
-    let t_in = stamp();
-    // SAFETY: the GIC and private-timer windows are used only by the interrupt path.
+    let t_in = platform::stamp();
+    // SAFETY: the GIC and tick timer are used only by the interrupt path.
     let be = unsafe { PhysMem::new() };
     let (Ok(d), Ok(c)) = (
         be.map(map::GIC_DIST_BASE as u64, map::GIC_DIST_SIZE),
@@ -294,10 +299,8 @@ extern "C" fn hrx_rt_irq(sp: usize) -> usize {
     let gic = Gic::new(d, c);
     let mut tick_switch = false;
     if let Ok(Some(id)) = gic.acknowledge() {
-        if id == map::ppi::PRIVATE_TIMER {
-            if let Ok(t) = be.map(map::PRIVATE_TIMER_BASE as u64, map::PRIVATE_TIMER_SIZE) {
-                let _ = PrivateTimer::new(t).clear_interrupt();
-            }
+        if id == platform::TICK_INTERRUPT {
+            platform::acknowledge_tick(&be);
             tick_switch = cs(|s| s.tick());
         } else {
             match irq::dispatch(id) {
@@ -314,7 +317,7 @@ extern "C" fn hrx_rt_irq(sp: usize) -> usize {
         let _ = gic.end_of_interrupt(id);
     }
     // The running task is charged up to the moment the interrupt came, and the interrupt's own time goes to its own account.
-    let t_out = stamp();
+    let t_out = platform::stamp();
     cs(|s| charge_until(s, t_in));
     IRQ_TICKS.fetch_add(u64::from(t_out.wrapping_sub(t_in)), Ordering::Relaxed);
     LAST_STAMP.store(t_out, Ordering::Relaxed);
@@ -348,7 +351,7 @@ pub struct IrqEvent {
 }
 
 impl IrqEvent {
-    /// Bind GIC interrupt `id` (for a PL interrupt see `ps7::map::f2p_irq`). `None` if `id` is
+    /// Bind GIC interrupt `id` (for a PL interrupt see `ps7::map::f2p_irq` or `psu::map::pl_irq`). `None` if `id` is
     /// out of range or all eight events are in use. The line stays masked until [`IrqEvent::rearm`].
     pub fn new(id: u32) -> Option<IrqEvent> {
         if !irq::register_event(id) {
@@ -410,8 +413,11 @@ pub fn yield_now() {
     port::yield_now();
 }
 
-/// Sleep for at least `ticks` ticks.
+/// Sleep for at least `ticks` ticks. Before [`start`] it returns at once.
 pub fn delay(ticks: u64) {
+    if !started() {
+        return;
+    }
     cs(|s| s.delay_current(ticks));
     port::yield_now();
 }
@@ -496,14 +502,14 @@ impl Semaphore {
     }
 
     /// Take a permit, waiting up to `timeout` ticks ([`FOREVER`] to wait for ever, 0 to
-    /// poll). `true` if a permit was taken.
+    /// poll). `true` if a permit was taken. Before [`start`] it never waits.
     pub fn take(&self, timeout: u64) -> bool {
         let id = self.id();
         let blocked = cs(|s| {
             if s.sem_try_take(id) {
                 return Some(true);
             }
-            if timeout == 0 {
+            if timeout == 0 || !started() {
                 return Some(false);
             }
             s.block_current_on(id, timeout);
@@ -556,14 +562,14 @@ impl Mutex {
         self.id.get(|s| s.new_mutex())
     }
 
-    /// Take the lock, waiting up to `timeout` ticks. `None` on timeout.
+    /// Take the lock, waiting up to `timeout` ticks. `None` on timeout. Before [`start`] it never waits.
     pub fn lock(&self, timeout: u64) -> Option<MutexGuard<'_>> {
         let id = self.id();
         let outcome = cs(|s| {
             if s.mutex_try_take(id) {
                 return Some(true);
             }
-            if timeout == 0 {
+            if timeout == 0 || !started() {
                 return Some(false);
             }
             s.mutex_boost_owner(id);
@@ -725,7 +731,7 @@ impl<T> Shared<T> {
 
     /// Store the value. Call this before [`start`] (it does not take the lock).
     pub fn set(&self, v: T) {
-        cp15::without_irq(|| {
+        platform::without_irq(|| {
             // SAFETY: before the kernel runs nothing else can access the value.
             unsafe { *self.value.get() = Some(v) };
         });

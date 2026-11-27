@@ -29,7 +29,8 @@ makes the dependency lines use `path = "<root>/crates/<crate>"` instead of a
 crates.io version. `write_to` creates directories as needed and overwrites
 files.
 
-`GenError`: `Bit(BitError)`, `Xsa(hardroxide_hwh::Error)`, `UnsupportedArch { arch, device }` (anything but Zynq-7000),
+`GenError`: `Bit(BitError)`, `Xsa(hardroxide_hwh::Error)`, `UnsupportedArch { arch, device }` (anything but Zynq-7000 and
+Zynq UltraScale+; also `update` with an XSA of the other family than the crate),
 `Io { path, source }`.
 
 ## Updating

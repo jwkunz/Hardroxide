@@ -34,10 +34,11 @@ Real designs from other sources are in `fixtures/real/` (see its README).
 board). The bare-metal and RTOS flavors need these, because `ps7_init` takes the console pins and clocks from the XSA; the
 plain fixtures above leave the PS UART disabled, so a bare-metal program built from them prints nothing.
 
-Each [Linux tutorial](../tutorials/linux/index.md) uses one of these designs and the matching
-programs in `fixtures/board_tests/`; `cargo test -p hardroxide-gen --test board_tests`
-compiles every one of those programs against a freshly generated crate, so the
-tutorial code cannot drift from the API.
+The [tutorials](../tutorials/index.md) start on the base overlay, with programs from `apps/base/`; the tutorials of
+[Your own design](../tutorials/own-design/index.md) each use one of these designs and programs in
+`fixtures/board_tests/` (Linux) and `fixtures/board_tests_bm/` (bare metal), which also serve as driver tests. The tests
+`--test apps`, `--test board_tests` and `--test baremetal` of `hardroxide-gen` build every one of those programs against
+a freshly generated crate, so the tutorial code cannot drift from the API.
 
 Rebuild one (Vivado 2025.2 required; not needed to use Hardroxide):
 
@@ -56,3 +57,23 @@ The bare-metal and RTOS tutorial programs are in `fixtures/board_tests_bm/{barem
 separate `baremetal/` workspace (`ps7-smoke`, `rt-smoke` for QEMU and the board, `rt-jitter` for the long timing run).
 
 `fixtures/board_tests/` holds the on-board test programs (see its README); `board_tests/loopback/{uart_pair,iic_pair}.rs` test the loopback fixture (generate its crate, copy them into `examples/`, build for the board). The UART pair exchanges 256 bytes each way; the IIC pair makes core 1 a target at `0x2A` (its `ADR` register, offset `0x110`), writes five bytes from core 0, and scans the bus.
+
+## RFSoC 4x2 base overlay
+
+`fixtures/board/rfsoc4x2_base_overlay.xsa` is made from RFSoC-PYNQ's SD card image (BSD 3-Clause, see
+`fixtures/board/LICENSE.rfsoc-pynq`):
+
+```console
+$ source ~/AMD/2025.2/Vivado/settings64.sh
+$ vivado -mode batch -source fixtures/rfsoc4x2/scripts/build_base_ps.tcl -tclargs <workdir> <ps-only.xsa>
+$ python3 fixtures/scripts/package_rfsoc4x2_base.py RFSoC4x2-4.0.0.img <ps-only.xsa>
+```
+
+The first builds a design of the processor alone (the board preset plus the overlay's processor-to-FPGA settings) for its
+`psu_init`, and needs no license; the second copies `base.bit` and `base.hwh` out of the image (read only, without root)
+and packs the three together, with the processor-only export's index files (`xsa.xml`, `hwdef.xml`), without which the
+vendor's tools cannot build a boot loader from the XSA (`hardroxide package`). The Zynq-7000's is packed the same way. The overlay's own processor settings are not used: they describe 8 GiB of processor memory,
+and the preset's, proven on the board, 4 GiB.
+
+The other RFSoC 4x2 designs (`fixtures/rfsoc4x2/`) are driver tests with their blocks wired to each other.
+

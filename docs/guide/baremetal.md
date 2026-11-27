@@ -1,5 +1,10 @@
 # Running bare metal and RTOS
 
+The workflow is the same for both families. This page is written for the **Zynq-7000**; for **Zynq UltraScale+** the
+target is `aarch64-unknown-none`, the processor support is [`hardroxide-psu`](../reference/psu.md), the crate differs as
+[listed here](../reference/baremetal.md#zynq-ultrascale), and the [RFSoC tutorials](../tutorials/rfsoc/index.md) walk
+through it on a board.
+
 A bare-metal program runs on core 0 of the Zynq with no operating system
 ([ADR 0003](../decisions/0003-bare-metal-and-rtos-platforms.md)). This page is the host setup and the
 workflow; the crate itself is described in [Bare-metal crate](../reference/baremetal.md). Everything here applies to the
@@ -83,11 +88,13 @@ Share the `Design` between tasks with `Shared`. See [RTOS 1](../tutorials/rtos/0
 $ hardroxide package target/armv7a-none-eabihf/release/examples/rt_control --xsa design.xsa -o BOOT.BIN
 ```
 
-Copy `BOOT.BIN` to the root of a FAT-formatted SD card, set the board's boot-mode jumper to SD, and
+For a Zynq UltraScale+ the command is the same, with a program built for `aarch64-unknown-none`. Copy `BOOT.BIN` to the
+root of a FAT-formatted SD card, set the board to boot from SD (a jumper on the PYNQ-Z2, a switch on the RFSoC 4x2), and
 power-cycle. The boot ROM runs the first-stage loader the command built from your XSA, which initialises the PS
 and the PL and then starts the program; the console appears on the same UART as under `run`. The same file
 can be written to QSPI flash with the Vitis `program_flash`. The first-stage loader is the vendor's
 (built on your machine from your Vitis install; nothing of it is redistributed by Hardroxide).
 
-This image has been built but **not yet booted from an SD card on hardware**; every other flow on this page is verified
+An image has been booted from an SD card on the RFSoC 4x2 (the loader prints `PMU-FW is not running, certain
+applications may not be supported`, which these programs do not need), but **not yet on the PYNQ-Z2**; every other flow on this page is verified
 (see [Verification gaps](../08-verification-gaps.md)).

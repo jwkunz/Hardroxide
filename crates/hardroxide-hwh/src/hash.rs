@@ -35,6 +35,9 @@ impl Design {
             for (k, v) in i.driver_config() {
                 let _ = writeln!(s, " config {k}={v}");
             }
+            if let Some(w) = self.dma_address_width(&i.name) {
+                let _ = writeln!(s, " config c_addr_width={w}");
+            }
             for p in &i.interrupts {
                 let _ = writeln!(s, " irq {} w{} -> {:?}", p.name, p.width, p.sinks);
             }

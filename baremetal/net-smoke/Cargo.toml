@@ -8,18 +8,24 @@ publish = false
 [workspace]
 
 [features]
-# Run under QEMU's xilinx-zynq-a9 machine (does the PLL/UART-clock setup ps7_init would).
+# Run under QEMU (xilinx-zynq-a9 or xlnx-zcu102): set up what the boot code would.
 qemu = []
 
 [dependencies]
-hardroxide-ps7 = { path = "../../crates/hardroxide-ps7", features = ["panic-handler", "net"] }
 hardroxide-mmio = { path = "../../crates/hardroxide-mmio", default-features = false, features = ["physmem"] }
 hardroxide-net = { path = "../../crates/hardroxide-net" }
 hardroxide-crypto = { path = "../../crates/hardroxide-crypto" }
 hardroxide-tls = { path = "../../crates/hardroxide-tls" }
 
+[target.'cfg(target_arch = "arm")'.dependencies]
+hardroxide-ps7 = { path = "../../crates/hardroxide-ps7", features = ["panic-handler", "net"] }
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+hardroxide-psu = { path = "../../crates/hardroxide-psu", features = ["panic-handler", "net"] }
+
 [build-dependencies]
 hardroxide-ps7 = { path = "../../crates/hardroxide-ps7" }
+hardroxide-psu = { path = "../../crates/hardroxide-psu" }
 
 [profile.release]
 panic = "abort"

@@ -1,6 +1,6 @@
 //! AXI BRAM Controller (`xilinx.com:ip:axi_bram_ctrl`, PG078) as a plain
 //! word-addressed memory. The window is the block RAM itself, so the driver is
-//! a thin, bounds-checked view over [`Mmio`]. UNVERIFIED on hardware.
+//! a thin, bounds-checked view over [`Mmio`]. Verified on a PYNQ-Z2 (docs/08, G14).
 
 use hardroxide_mmio::{Mmio, MmioError};
 

@@ -71,8 +71,10 @@ fn guide_examples_compile() {
         by_fixture.entry(fx).or_default().push(src);
     }
     for (fx, sources) in by_fixture {
-        let name = format!("my_design_{fx}");
-        let tmp = std::env::temp_dir().join(format!("hrx-guide-{fx}-{}", std::process::id()));
+        // A fixture in a subdirectory (`board/...`) still gives a crate name and a directory name.
+        let flat = fx.replace('/', "_");
+        let name = format!("my_design_{flat}");
+        let tmp = std::env::temp_dir().join(format!("hrx-guide-{flat}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         let xsa = Xsa::open(root().join(format!("fixtures/{fx}.xsa"))).unwrap();
         let opts = Options {

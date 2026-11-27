@@ -4,7 +4,7 @@
 //! and the core reports the received length in whole words too (it has no byte
 //! strobe), so a 37-byte packet comes back as 40 bytes. Callers that need an exact
 //! length must carry it in the payload.
-//! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
+//! Offsets/bits are asserted against the HWH; verified on a PYNQ-Z2 (docs/08, G15).
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;

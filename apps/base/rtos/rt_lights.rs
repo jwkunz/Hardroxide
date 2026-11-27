@@ -134,7 +134,8 @@ fn colour() {
         let bright = BRIGHT.load(Relaxed);
         let scale = |v: u32| if OFF.load(Relaxed) { 0 } else { (v * bright * STEPS / 255).div_ceil(STEPS).min(STEPS) };
         let (r, g, b) = (scale(r), scale(g), scale(b));
-        for (i, v) in [r, g, b, r, g, b].into_iter().enumerate() {
+        // Each LED's three pins are blue, green, red.
+        for (i, v) in [b, g, r, b, g, r].into_iter().enumerate() {
             LEVEL[i].store(v, Relaxed);
         }
     }

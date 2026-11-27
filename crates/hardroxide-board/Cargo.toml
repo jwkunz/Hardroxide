@@ -1,0 +1,20 @@
+[package]
+name = "hardroxide-board"
+description = "Drivers for chips found on FPGA boards: INA220 power monitors, AT24MAC402 identity EEPROM, US2066 OLED, LMK04828 and LMX2594 clock chips; RFSoC 4x2 wiring"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+embedded-hal.workspace = true
+hardroxide-mmio.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+hardroxide-mmio = { workspace = true, features = ["std"] }

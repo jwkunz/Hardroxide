@@ -1,6 +1,6 @@
 //! Zynq-7000 PL clock (FCLK0..3) configuration through the System Level
 //! Control Registers (UG585 ch. 25/B.28). Register offsets are transcribed
-//! from the TRM and UNVERIFIED on hardware.
+//! from the TRM; verified on a PYNQ-Z2 (docs/08, G2).
 
 use crate::FpgaError;
 use hardroxide_mmio::Mmio;

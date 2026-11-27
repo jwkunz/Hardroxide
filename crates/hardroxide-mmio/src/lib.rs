@@ -33,7 +33,10 @@ pub enum MmioError {
     OutOfBounds { offset: usize, len: usize },
     #[error("offset {0:#x} is not 4-byte aligned")]
     Unaligned(usize),
-    #[error("physical address {0:#x} does not fit in a pointer on this target")]
+    /// A pointer on this target, or a device's address registers, cannot hold the address.
+    #[error(
+        "physical address {0:#x} is out of reach: it does not fit a pointer on this target, or a device's address width"
+    )]
     BadAddress(u64),
     #[cfg(feature = "std")]
     #[error("I/O error on {what}: {source}")]

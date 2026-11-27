@@ -11,7 +11,10 @@ they are complete, working recipes for everything below.
 ## What the design needs
 
 **Target.** A Zynq-7000 device. The fixtures use the PYNQ-Z2's `xc7z020clg400-1`
-(PS crystal 50 MHz). Other architectures, such as UltraScale+, are refused.
+(PS crystal 50 MHz). A Zynq UltraScale+ design is accepted too (the processing system is
+`zynq_ultra_ps_e`, the AXI masters `M_AXI_HPM*`, interrupts `pl_ps_irq0` and `pl_ps_irq1`; the
+recipes in `fixtures/rfsoc4x2/scripts/` show it); other architectures are refused. The rest of
+this page names the Zynq-7000's ports.
 
 **Processing system.** Add the *ZYNQ7 Processing System* and enable what your design
 uses. In the fixtures:

@@ -1,5 +1,5 @@
-//! The applications in `apps/` build for the Cortex-A9 against a freshly generated crate of the
-//! platform their directory is named after, from the board-ready PYNQ base overlay.
+//! The applications in `apps/` build (Linux ones: type-check) for their board's processor against a freshly generated crate of the platform
+//! their directory is named after, from the board's base overlay.
 
 use hardroxide_gen::{Options, Platform, generate};
 use hardroxide_hwh::Xsa;
@@ -27,20 +27,52 @@ const APPS: &[(&str, &str, Platform, &str)] = &[
         Platform::Rtos,
         "fixtures/board/pynq_base_overlay.xsa",
     ),
+    (
+        "base",
+        "linux",
+        Platform::Linux,
+        "fixtures/board/pynq_base_overlay.xsa",
+    ),
+    (
+        "rfsoc4x2",
+        "baremetal",
+        Platform::BareMetal,
+        "fixtures/board/rfsoc4x2_base_overlay.xsa",
+    ),
+    (
+        "rfsoc4x2",
+        "rtos",
+        Platform::Rtos,
+        "fixtures/board/rfsoc4x2_base_overlay.xsa",
+    ),
+    (
+        "rfsoc4x2",
+        "linux",
+        Platform::Linux,
+        "fixtures/board/rfsoc4x2_base_overlay.xsa",
+    ),
 ];
 
 #[test]
 fn applications_build() {
-    let installed = Command::new("rustup")
+    let targets = Command::new("rustup")
         .args(["target", "list", "--installed"])
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).contains("armv7a-none-eabihf"))
-        .unwrap_or(false);
-    if !installed {
-        eprintln!("skipping: `rustup target add armv7a-none-eabihf` to run this test");
-        return;
-    }
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .unwrap_or_default();
     for &(set, dir, platform, design) in APPS {
+        let ultrascale = set == "rfsoc4x2";
+        let linux = platform == Platform::Linux;
+        let target = match (ultrascale, linux) {
+            (true, true) => "aarch64-unknown-linux-gnu",
+            (true, false) => "aarch64-unknown-none",
+            (false, true) => "armv7-unknown-linux-gnueabihf",
+            (false, false) => "armv7a-none-eabihf",
+        };
+        if !targets.contains(target) {
+            eprintln!("skipping {set}/{dir}: `rustup target add {target}` to build it");
+            continue;
+        }
         let tmp = std::env::temp_dir().join(format!("hrx-app-{set}-{dir}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         let o = Options {
@@ -60,6 +92,23 @@ fn applications_build() {
             }
         }
         assert!(n > 0, "no applications in {}", src.display());
+        // Code the applications of several platforms share (`#[path = "common/loopback.rs"] mod loopback;`).
+        let common = root().join("apps").join(set).join("common");
+        if let Ok(rd) = std::fs::read_dir(&common) {
+            std::fs::create_dir_all(tmp.join("examples/common")).unwrap();
+            for e in rd.flatten() {
+                std::fs::copy(e.path(), tmp.join("examples/common").join(e.file_name())).unwrap();
+            }
+        }
+        // The radio applications without Linux program the RFSoC board's clock chips from their register files.
+        if ultrascale && !linux {
+            let clocks = root().join("fixtures/rfsoc4x2/clocks");
+            for e in std::fs::read_dir(clocks).unwrap().flatten() {
+                if e.path().extension().is_some_and(|x| x == "txt") {
+                    std::fs::copy(e.path(), tmp.join("examples").join(e.file_name())).unwrap();
+                }
+            }
+        }
         // Data the applications include (`include_bytes!("chime.wav")`) sits next to them.
         let data = root().join("apps").join(set).join("data");
         if let Ok(rd) = std::fs::read_dir(&data) {
@@ -73,8 +122,8 @@ fn applications_build() {
             }
         }
         let mut manifest = std::fs::read_to_string(tmp.join("Cargo.toml")).unwrap();
-        // The applications use the library crates beyond what a generated crate depends on.
-        manifest.push_str(&format!(
+        // The PYNQ-Z2's applications use the library crates beyond what a generated crate depends on.
+        let libraries = format!(
             "\n[dev-dependencies]\nhardroxide-gfx = {{ path = {:?} }}\nhardroxide-video = {{ path = {:?}, default-features = false }}\nhardroxide-audio = {{ path = {:?}, default-features = false }}\nhardroxide-fat = {{ path = {:?} }}\nhardroxide-net = {{ path = {:?} }}\nhardroxide-crypto = {{ path = {:?} }}\nhardroxide-tls = {{ path = {:?} }}\nhardroxide-ps7 = {{ path = {:?}, default-features = false, features = [\"net\"] }}\n\n[workspace]\n",
             root().join("crates/hardroxide-gfx"),
             root().join("crates/hardroxide-video"),
@@ -84,17 +133,49 @@ fn applications_build() {
             root().join("crates/hardroxide-crypto"),
             root().join("crates/hardroxide-tls"),
             root().join("crates/hardroxide-ps7")
-        ));
+        );
+        // The RFSoC's network application adds the network stack and the Ethernet driver's feature to the crate's
+        // development dependencies, as its tutorial says.
+        if ultrascale && platform == Platform::Rtos {
+            let section = "[dev-dependencies]\n";
+            assert!(manifest.contains(section), "{manifest}");
+            manifest = manifest.replace(
+                section,
+                &format!(
+                    "{section}hardroxide-net = {{ path = {:?} }}\nhardroxide-psu = {{ path = {:?}, default-features = false, features = [\"net\"] }}\n",
+                    root().join("crates/hardroxide-net"),
+                    root().join("crates/hardroxide-psu")
+                ),
+            );
+        }
+        // As their tutorial says, those add the board's chip drivers.
+        if ultrascale && !linux {
+            let section = "[dev-dependencies]\n";
+            assert!(manifest.contains(section), "{manifest}");
+            manifest = manifest.replace(
+                section,
+                &format!(
+                    "{section}hardroxide-board = {{ path = {:?} }}\n",
+                    root().join("crates/hardroxide-board")
+                ),
+            );
+        }
+        // The Linux applications need nothing beyond what the generated crate depends on.
+        manifest.push_str(if ultrascale || linux {
+            "\n[workspace]\n"
+        } else {
+            &libraries
+        });
         std::fs::write(tmp.join("Cargo.toml"), manifest).unwrap();
+        // A Linux application is only checked: that needs no cross linker.
+        let command: &[&str] = if linux {
+            &["check", "--examples"]
+        } else {
+            &["build", "--release", "--examples"]
+        };
         let out = Command::new(env!("CARGO"))
-            .args([
-                "build",
-                "--release",
-                "--examples",
-                "--target",
-                "armv7a-none-eabihf",
-                "--manifest-path",
-            ])
+            .args(command)
+            .args(["--target", target, "--manifest-path"])
             .arg(tmp.join("Cargo.toml"))
             .env(
                 "CARGO_TARGET_DIR",

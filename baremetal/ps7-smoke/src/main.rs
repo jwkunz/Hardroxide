@@ -32,7 +32,61 @@ fn tick() {
             .unwrap(),
     );
     let _ = t.clear_interrupt();
+    overwrite_double_registers();
     TICKS.fetch_add(1, Ordering::SeqCst);
+}
+
+/// Overwrite every double register, as a handler may: the interrupt entry has to preserve d0-d7 and d16-d31, and the
+/// compiler keeps d8-d15 across this.
+fn overwrite_double_registers() {
+    static JUNK: [u64; 16] = [0xA5A5_A5A5_A5A5_A5A5; 16];
+    // SAFETY: loads registers, all declared, from a static of the size loaded.
+    unsafe {
+        core::arch::asm!(
+            "vldmia {junk}, {{d0-d15}}",
+            "vldmia {junk}, {{d16-d31}}",
+            junk = in(reg) JUNK.as_ptr(),
+            out("d0") _, out("d1") _, out("d2") _, out("d3") _, out("d4") _, out("d5") _, out("d6") _, out("d7") _,
+            out("d8") _, out("d9") _, out("d10") _, out("d11") _, out("d12") _, out("d13") _, out("d14") _, out("d15") _,
+            out("d16") _, out("d17") _, out("d18") _, out("d19") _, out("d20") _, out("d21") _, out("d22") _, out("d23") _,
+            out("d24") _, out("d25") _, out("d26") _, out("d27") _, out("d28") _, out("d29") _, out("d30") _, out("d31") _,
+            options(nostack)
+        );
+    }
+}
+
+/// Fill all 32 double registers, wait with them loaded until another tick has been handled, and compare. Interrupts must
+/// be enabled and the timer running.
+fn double_registers_survive_an_interrupt() -> bool {
+    let before: [u64; 32] =
+        core::array::from_fn(|i| (i as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+    let mut after = [0u64; 32];
+    let target = TICKS.load(Ordering::SeqCst) + 1;
+    // SAFETY: loads from and stores to the two 256-byte arrays and reads the tick count; every register written is
+    // declared.
+    unsafe {
+        core::arch::asm!(
+            "vldmia {from}!, {{d0-d15}}",
+            "vldmia {from}, {{d16-d31}}",
+            "2:",
+            "ldr {seen}, [{ticks}]",
+            "cmp {seen}, {target}",
+            "blo 2b",
+            "vstmia {to}!, {{d0-d15}}",
+            "vstmia {to}, {{d16-d31}}",
+            from = inout(reg) before.as_ptr() => _,
+            to = inout(reg) after.as_mut_ptr() => _,
+            ticks = in(reg) TICKS.as_ptr(),
+            target = in(reg) target,
+            seen = out(reg) _,
+            out("d0") _, out("d1") _, out("d2") _, out("d3") _, out("d4") _, out("d5") _, out("d6") _, out("d7") _,
+            out("d8") _, out("d9") _, out("d10") _, out("d11") _, out("d12") _, out("d13") _, out("d14") _, out("d15") _,
+            out("d16") _, out("d17") _, out("d18") _, out("d19") _, out("d20") _, out("d21") _, out("d22") _, out("d23") _,
+            out("d24") _, out("d25") _, out("d26") _, out("d27") _, out("d28") _, out("d29") _, out("d30") _, out("d31") _,
+            options(nostack)
+        );
+    }
+    before == after
 }
 
 /// What `ps7_init` (or, here, a stand-in) leaves for the program: PLLs running and the
@@ -142,15 +196,21 @@ fn main() -> ! {
         cp15::wfi();
     }
     let span = t1.elapsed();
+    let ticks = TICKS.load(Ordering::SeqCst);
+    let registers = (0..5)
+        .filter(|_| double_registers_survive_an_interrupt())
+        .count()
+        == 5;
     pt.stop().unwrap();
     cp15::disable_irq();
     println!(
         "timer interrupts: {} in {} us (period target 10000 us)",
-        TICKS.load(Ordering::SeqCst),
+        ticks,
         span.as_micros()
     );
+    println!("all 32 double registers whole across 5 interrupts: {registers}");
     println!("unhandled interrupts: {}", irq::unhandled_count());
-    println!("ALL OK");
+    println!("{}", if registers { "ALL OK" } else { "FAILED" });
 
     println!("-- executing an undefined instruction on purpose");
     // SAFETY: deliberately raises an undefined-instruction exception to test the report.

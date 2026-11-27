@@ -21,6 +21,9 @@ The whole stack of this series in one RTOS program, [`apps/base/rtos/rt_station.
 | `report` | 2 | the console line every 5 seconds |
 | `hog` | 1 | burns the processor when the page says so (to show the others do not suffer) |
 
+The card is **only read**, unless the program was built with that card's serial number (`HRX_WRITE_SERIAL`,
+[Applications 4](04-sd.md#4-applications-that-use-the-card)): then it also renews the random seed at each start.
+
 `display` and `network` share a priority and so share the processor in turn, one kernel tick each; both are below `feed` and `control`, which sleep between short jobs. Everything above `hog` finishes its work and sleeps, so `hog` gets what is left.
 
 ## 2. Run it
@@ -28,8 +31,8 @@ The whole stack of this series in one RTOS program, [`apps/base/rtos/rt_station.
 ```console
 $ hardroxide generate fixtures/board/pynq_base_overlay.xsa --platform rtos -o work/rt --hardroxide-path . --name design_1
 $ cd work/rt
-$ cargo add --dev --path ../../crates/hardroxide-net --path ../../crates/hardroxide-crypto --path ../../crates/hardroxide-tls --path ../../crates/hardroxide-fat \
-      --path ../../crates/hardroxide-gfx --path ../../crates/hardroxide-video --path ../../crates/hardroxide-audio
+$ for c in net crypto tls fat gfx; do cargo add --dev --path ../../crates/hardroxide-$c; done
+$ for c in video audio; do cargo add --dev --path ../../crates/hardroxide-$c --no-default-features; done
 $ sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml
 $ cp ../../apps/base/rtos/rt_station.rs ../../apps/base/data/chime.wav ../../fixtures/tls/test-cert.der ../../fixtures/tls/test-key.bin examples/
 $ cargo build --release --example rt_station

@@ -10,21 +10,21 @@ checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
 
 [[package]]
 name = "hardroxide-irq"
-version = "2.6.0"
+version = "3.0.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "hardroxide-mmio"
-version = "2.6.0"
+version = "3.0.0"
 dependencies = [
  "thiserror",
 ]
 
 [[package]]
 name = "hardroxide-ps7"
-version = "2.6.0"
+version = "3.0.0"
 dependencies = [
  "embedded-hal",
  "hardroxide-irq",
@@ -33,12 +33,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "hardroxide-rt"
-version = "2.6.0"
+name = "hardroxide-psu"
+version = "3.0.0"
 dependencies = [
  "hardroxide-irq",
  "hardroxide-mmio",
  "hardroxide-ps7",
+]
+
+[[package]]
+name = "hardroxide-rt"
+version = "3.0.0"
+dependencies = [
+ "hardroxide-irq",
+ "hardroxide-mmio",
+ "hardroxide-ps7",
+ "hardroxide-psu",
 ]
 
 [[package]]
@@ -65,6 +75,7 @@ version = "0.0.0"
 dependencies = [
  "hardroxide-mmio",
  "hardroxide-ps7",
+ "hardroxide-psu",
  "hardroxide-rt",
 ]
 

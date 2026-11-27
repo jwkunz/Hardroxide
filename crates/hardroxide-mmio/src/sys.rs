@@ -94,6 +94,27 @@ impl Drop for SysRegion {
     }
 }
 
+/// On AArch64, finish earlier memory accesses (to a DMA buffer, which is normal memory there) before the register write
+/// that depends on them. The 32-bit ARM build is as it was.
+#[inline(always)]
+fn before_write() {
+    #[cfg(target_arch = "aarch64")]
+    // SAFETY: a data synchronisation barrier has no memory-safety effect.
+    unsafe {
+        std::arch::asm!("dsb sy", options(nostack, preserves_flags))
+    };
+}
+
+/// On AArch64, keep later memory accesses (to what a device wrote) after the register read that says it is done.
+#[inline(always)]
+fn after_read() {
+    #[cfg(target_arch = "aarch64")]
+    // SAFETY: as in `before_write`.
+    unsafe {
+        std::arch::asm!("dsb ld", options(nostack, preserves_flags))
+    };
+}
+
 impl Mmio for SysRegion {
     fn len(&self) -> usize {
         self.len
@@ -102,10 +123,13 @@ impl Mmio for SysRegion {
         check(offset, self.len)?;
         // SAFETY: offset is aligned and in bounds (checked); the mapping lives
         // as long as `self`.
-        Ok(unsafe { std::ptr::read_volatile(self.base.add(offset) as *const u32) })
+        let value = unsafe { std::ptr::read_volatile(self.base.add(offset) as *const u32) };
+        after_read();
+        Ok(value)
     }
     fn write32(&self, offset: usize, value: u32) -> Result<(), MmioError> {
         check(offset, self.len)?;
+        before_write();
         // SAFETY: as in `read32`.
         unsafe { std::ptr::write_volatile(self.base.add(offset) as *mut u32, value) };
         Ok(())

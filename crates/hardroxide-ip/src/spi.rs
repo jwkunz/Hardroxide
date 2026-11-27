@@ -1,6 +1,7 @@
 //! AXI Quad SPI (`xilinx.com:ip:axi_quad_spi`, PG153) in **standard SPI
-//! mode** as a master with manual slave select. UNVERIFIED on hardware;
-//! offsets/bits are asserted against the HWH.
+//! mode** as a master with manual slave select. Offsets/bits are asserted
+//! against the HWH; verified on a PYNQ-Z2 in internal loopback only, not against
+//! a real device (docs/08, G12).
 //!
 //! [`AxiSpi`] implements `embedded_hal::spi::SpiBus` (chip select driven by
 //! [`AxiSpi::set_chip_select`]); [`AxiSpi::device`] returns a

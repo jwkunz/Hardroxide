@@ -12,7 +12,7 @@ unchanged on `/dev/mem`, UIO, or a mock.
 
 Without `std` the crate is `#![no_std]` (it builds for `armv7a-none-eabihf`; see
 `scripts/check-no-std.sh`). `MmioError` gains `BadAddress(u64)` (a physical address that
-does not fit in a pointer on this target); `Io` exists only with `std`.
+does not fit a pointer on this target, or a device's address width); `Io` exists only with `std`.
 
 ## Traits
 
@@ -77,7 +77,9 @@ pub fn as_ptr(&self) -> *mut u8
 testing against a regular file) with `O_RDWR|O_SYNC` and `mmap`s the window;
 unaligned `phys` values are handled. Needs root; may be blocked by
 `CONFIG_STRICT_DEVMEM` on some kernels. `SysRegion` is the mapping, unmapped
-on drop; `map_file` maps any open file/device (used by the DMA buffers) and
+on drop. On AArch64 its register writes wait for earlier memory accesses (`dsb sy`) and its reads are completed before
+later ones (`dsb ld`), so that buffers in normal memory are in step with the device; `PhysRegion` does the same. `map_file` maps any open
+file/device (used by the DMA buffers) and
 `as_ptr` exposes the start of the window, valid for `len()` bytes while the
 region lives. This crate contains all of the workspace's `unsafe` hardware
 access; each use is documented in source.
@@ -97,7 +99,8 @@ it hands out is a raw window onto hardware: the caller asserts that addresses ar
 identity-mapped (with device-appropriate memory attributes for registers) and that nothing
 else uses the windows it maps. Writes are preceded by a data synchronisation barrier on
 ARM, so an earlier write to a buffer is visible before the register write that tells a
-device to use it. `PhysRegion` is `Send` (ownership of a window can move to another task)
+device to use it; on AArch64 a read is also completed before later memory accesses
+(`dsb ld`), so a buffer is not read ahead of the status that says it is ready. `PhysRegion` is `Send` (ownership of a window can move to another task)
 but not `Sync`. Unit tests use a heap buffer standing in for registers.
 
 ## UIO backend

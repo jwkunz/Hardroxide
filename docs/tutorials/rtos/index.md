@@ -8,7 +8,7 @@ queues and drift-free periodic releases.
 ## Setup
 
 Exactly the [bare-metal setup](../baremetal/index.md#host-setup): Vitis tools, the JTAG udev rule, the board in
-JTAG boot mode, and `fixtures/board/pynq_z2_gpio.xsa`. Do [Bare metal 1](../baremetal/01-jtag.md) first; it
+JTAG boot mode, and `fixtures/board/pynq_base_overlay.xsa`. Do [Bare metal 1](../baremetal/01-jtag.md) first; it
 shows the build-and-run loop these tutorials reuse.
 
 ## Tutorials

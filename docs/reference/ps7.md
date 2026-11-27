@@ -114,7 +114,8 @@ pub fn unhandled_count() -> usize
 ```
 
 A table of plain functions indexed by GIC ID, held in atomics (no locking). The IRQ
-vector entry saves the caller-saved registers and VFP state, acknowledges the interrupt,
+vector entry saves the caller-saved registers and VFP/NEON state (`d0`-`d7`, `d16`-`d31`, `FPSCR`; up to 2.7.0 it left
+out `d16`-`d31`, which corrupted data in interrupted code), acknowledges the interrupt,
 calls `dispatch`, signals end-of-interrupt and returns. Handlers run on the IRQ stack with
 interrupts masked; they may use floating point. `register` does not enable the interrupt
 in the GIC.
@@ -218,12 +219,36 @@ missing acknowledge is `I2cError::Nack(address)`.
 
 > **Verified on a PYNQ-Z2:** it configured the audio codec over the EMIO-routed I2C 1 (see [Verification gaps](../08-verification-gaps.md)). A bug found there: the `embedded-hal` `transaction` must call the controller's own `write`/`read`, not `self.write` (which resolves to the trait default and recurses).
 
+## SPI controllers
+
+```rust,ignore
+pub enum SpiError
+pub enum Mode
+pub fn prescale(input_hz: u32, max_hz: u32) -> Option<(u32, u32)>
+pub struct Spi<R: Mmio>
+pub fn new(regs: R) -> Self
+pub fn configure(&self, mode: Mode, input_hz: u32, max_hz: u32) -> Result<u32, SpiError>
+pub fn transfer(&self, cs: u8, out: &[u8], back: &mut [u8]) -> Result<(), SpiError>
+pub fn write(&self, cs: u8, out: &[u8]) -> Result<(), SpiError>
+pub fn device(&self, cs: u8) -> Device<'_, R>
+pub struct Device<'a, R: Mmio>
+```
+
+`hardroxide_ps7::spi` (new in 3.0): the Cadence SPI controllers, master mode, polled, 8-bit words, chip selects 0 to 2
+driven by software so that one stays asserted for a whole transfer. `configure` picks the fastest bus clock not above
+`max_hz`; the controller divides its input by 4 to 256. `device(cs)` implements `embedded_hal::spi::SpiDevice`.
+
+> **Verified** on an RFSoC 4x2 only (the display and the clock chips, through [`hardroxide-board`](board.md)); not run on
+> a Zynq-7000.
+
 ## SD card controller
 
 ```rust,ignore
 pub enum SdError
 pub struct CardInfo
+pub fn serial_matches(&self, named: Option<&str>) -> bool
 pub fn clock_divisor(base_hz: u32, target_hz: u32) -> (u32, u32)
+pub fn clock_divisor_v3(base_hz: u32, target_hz: u32) -> (u32, u32)
 pub fn csd_blocks(r: &[u32; 4]) -> u64
 pub struct SdHost<R: Mmio>
 pub fn new(regs: R, base_hz: u32) -> Self
@@ -244,7 +269,14 @@ bring-up: it applies the 3.3 V card power, runs the identification at 400 kHz (C
 switches the bus to four bits and the clock to 25 MHz, and returns a `CardInfo` (capacity in 512-byte blocks, SDHC or standard capacity, the manufacturer,
 the five-character product name and the serial number from the CID, and the bus clock). `init_ignoring_card_detect` skips the card-detect pin, for a board
 whose pin is not wired. `read` and `write` move whole 512-byte blocks (any number per call) and wait for the card to leave its programming state after
-a write. `SdHost` implements [`BlockDevice`](mmio.md#block-devices), so it plugs straight into [`hardroxide-fat`](fat.md). The card is expected to be a
+a write.
+
+`CardInfo::serial_matches(named)` is true when `named` is that card's serial number in hexadecimal, with or without `0x`.
+The programs of this repository that write to a card ask with it, so that building them names the one card they may
+change: `info.serial_matches(option_env!("HRX_WRITE_SERIAL"))` (`HRX_ERASE_SERIAL` for those that erase). Do the same in
+your own programs.
+
+`SdHost` implements [`BlockDevice`](mmio.md#block-devices), so it plugs straight into [`hardroxide-fat`](fat.md). The card is expected to be a
 standard SD card: SDSC, SDHC and SDXC work; MMC and eMMC do not. `SdError::NoResponse` means the card did not answer the first commands (a card that is not
 seated, a dead card or one that is not an SD card).
 
@@ -279,6 +311,11 @@ pub fn mdio_write(&self, phy: u8, reg: u8, value: u16) -> Result<(), GemError>
 pub fn find_phy(&mut self) -> Result<u8, GemError>
 pub fn link_up(&mut self, slcr: &impl Mmio, timeout_ms: u64) -> Result<Link, GemError>
 pub fn set_speed(&self, slcr: &impl Mmio, link: Link) -> Result<(), GemError>
+pub fn negotiate(&mut self, timeout_ms: u64) -> Result<Link, GemError>
+pub fn start(&mut self, link: Link) -> Result<(), GemError>
+pub fn mdio_read_extended(&self, phy: u8, reg: u16) -> Result<u16, GemError>
+pub fn mdio_write_extended(&self, phy: u8, reg: u16, value: u16) -> Result<(), GemError>
+pub fn dp83867_set_delays(&mut self, rx_code: u8, tx_code: u8) -> Result<bool, GemError>
 pub fn receive(&mut self, buf: &mut [u8]) -> Option<usize>
 pub fn transmit(&mut self, frame: &[u8]) -> bool
 ```

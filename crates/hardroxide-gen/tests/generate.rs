@@ -1,4 +1,4 @@
-use hardroxide_gen::{Options, generate};
+use hardroxide_gen::{Options, Platform, generate};
 use hardroxide_hwh::Xsa;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -37,6 +37,31 @@ fn deterministic() {
         generate(&fixture(), &o).unwrap(),
         generate(&fixture(), &o).unwrap()
     );
+}
+
+/// A generator released as N.x asks crates.io for the N.x runtime crates, for both families and every platform.
+/// Older ones lack what it generates calls to, or fixes (2.x lost registers across interrupts on the Zynq-7000).
+#[test]
+fn published_dependencies_are_of_the_generators_own_major_version() {
+    let want = format!("\"{}\"", env!("CARGO_PKG_VERSION_MAJOR"));
+    for design in ["pynq_z2_gpio", "rfsoc4x2/rfsoc4x2_gpio"] {
+        for platform in [Platform::Linux, Platform::BareMetal, Platform::Rtos] {
+            let opts = Options {
+                platform,
+                ..Default::default()
+            };
+            let g = generate(&fixture_named(design), &opts).unwrap();
+            let manifest = String::from_utf8_lossy(&g.files[Path::new("Cargo.toml")]).into_owned();
+            let ours: Vec<&str> = manifest
+                .lines()
+                .filter(|l| l.starts_with("hardroxide-"))
+                .collect();
+            assert!(!ours.is_empty(), "{design}: {manifest}");
+            for line in ours {
+                assert!(line.contains(&want), "{design} {platform:?}: {line}");
+            }
+        }
+    }
 }
 
 /// Golden snapshot of the generated sources. Regenerate with
@@ -352,10 +377,10 @@ fn interrupts_overlay_applies_with_fdtoverlay() {
 }
 
 #[test]
-fn non_zynq7000_designs_are_refused_with_a_clear_error() {
+fn designs_of_other_families_are_refused_with_a_clear_error() {
     let mut x = fixture();
-    x.design.arch = "zynquplus".into();
-    x.design.device = "xczu7ev".into();
+    x.design.arch = "versal".into();
+    x.design.device = "xcvc1902".into();
     let e = hardroxide_gen::generate(&x, &Default::default()).unwrap_err();
     assert!(
         matches!(e, hardroxide_gen::GenError::UnsupportedArch { .. }),

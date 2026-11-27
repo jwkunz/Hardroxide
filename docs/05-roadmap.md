@@ -66,7 +66,7 @@ What remains:
 - Booting a `hardroxide package` image from SD, cached DMA buffers with explicit cache maintenance against a PL master.
 - Kernel features listed under [Not yet](reference/rt.md#not-yet): event flags, software timers, GIC-priority-mask critical
   sections, tickless idle.
-- Both cores (SMP), UltraScale+, and more bare-metal tutorials (timers and interrupts, DMA).
+- Both cores (SMP). (UltraScale+ followed in 3.0, the bare-metal timer and DMA tutorials earlier.)
 
 ## 2.1 to 2.7: applications on the base overlay
 
@@ -79,7 +79,19 @@ server (2.5, board-verified, merged), HTTPS with a self-signed certificate (2.6,
 Not scheduled, recorded so they are not forgotten: a **hardware random source** in the PL (a ring-oscillator or the XADC noise) for TLS, whose random bytes are weak today ([TLS reference](reference/tls.md#where-the-random-bytes-come-from)); **faster
 public-key arithmetic** or PL accelerators for the TLS handshake (about 80 ms of the single core); **HDMI input capture** (the VDMA write channel and the overlay's HDMI receiver); regenerating the **other board fixtures' `ps7_init`** with the Ethernet and 1.8 V
 bank fixes; `fsck.fat` on a card the board formatted; listening to the audio pump; an interactive browser session and Firefox and Safari against the HTTPS server; an independent review of the cryptography and the TLS code; and the older items under "Not started" above
-(UltraScale+, SMP, HLS stream ports, scatter-gather DMA).
+(SMP, HLS stream ports, scatter-gather DMA; UltraScale+ followed in 3.0).
+
+## 3.0: Zynq UltraScale+ and the radio
+
+Released as 3.0.0. Plan and results: [ADR 0005](decisions/0005-ultrascale-plus.md) and, for the radio driver planned as
+3.1 and released with it, [ADR 0006](decisions/0006-radio.md). On an RFSoC 4x2: processor support, `hardroxide run`,
+`package` and `doctor`, the kernel (with a two-hour timing run), SD, Ethernet, I2C, the board's own chips, code generation
+for Linux, bare metal and RTOS, and the data converters' tiles and mixers with the base overlay's amplitude controllers
+and packet generators.
+
+Left out: USB, Pmod+ and SYZYGY, DisplayPort and the 100 Gb port (nothing to test them with). Not scheduled: the items
+under [Not in 3.1](decisions/0006-radio.md#not-in-31) for the radio, other UltraScale+ boards, SMP, HLS stream ports,
+scatter-gather DMA, and the open checks in [the release run](08-verification-gaps.md#300-release-run).
 
 ## Documentation site
 

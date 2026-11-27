@@ -25,10 +25,13 @@ net = ["dep:hardroxide-net"]
 
 [dependencies]
 hardroxide-mmio = { workspace = true, features = ["physmem"] }
-hardroxide-irq.workspace = true
 embedded-hal.workspace = true
 thiserror.workspace = true
 hardroxide-net = { workspace = true, optional = true }
+
+# Only the Arm-only modules wait on interrupts (`hardroxide-psu` also builds this crate, for AArch64).
+[target.'cfg(target_arch = "arm")'.dependencies]
+hardroxide-irq.workspace = true
 
 [dev-dependencies]
 hardroxide-mmio = { workspace = true, features = ["std"] }

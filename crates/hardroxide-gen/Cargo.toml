@@ -15,4 +15,5 @@ categories.workspace = true
 hardroxide-hwh.workspace = true
 hardroxide-fpga = { workspace = true, features = ["std"] }
 hardroxide-ps7.workspace = true
+hardroxide-psu.workspace = true
 thiserror.workspace = true

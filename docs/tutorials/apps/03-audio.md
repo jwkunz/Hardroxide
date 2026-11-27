@@ -111,10 +111,10 @@ works regardless (the converters run from the clocks the controller supplies). P
 
 ## 6. Under the kernel
 
-Not yet. The controller needs a frame every 20.5 microseconds, and the kernel's tick is a millisecond, so a task cannot pace it. The plan is an interrupt-driven pump: a PS timer
-interrupting at twice the sample rate whose handler moves a frame when the "new sample" flag is up, feeding a ring buffer that ordinary tasks fill. That costs about 15 % of the processor
-and keeps the other tasks' deadlines; it is the next step for audio in the RTOS flavor.
-
+The controller needs a frame every 20.5 microseconds, and the kernel's tick is a millisecond, so a task cannot pace
+it. An interrupt-driven pump (`hardroxide_audio::pump`) does: a timer interrupt moves a frame from a ring buffer that
+ordinary tasks fill. It runs in `rt_audio` and in the integrated application of
+[Applications 7](07-integration.md), where it costs about 10 % of the processor.
 ## 7. What the first run taught us
 
 1. **A stack overflow that the host tests could not see.** The first run printed the I2C clock and then took an exception in a loop. The cause (found by reading the CPU's banked registers over JTAG: the

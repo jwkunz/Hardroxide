@@ -80,7 +80,7 @@ impl<'a> BitFile<'a> {
     /// to little-endian, matching `bootgen -arch zynq -process_bitstream bin`
     /// byte for byte (verified against Vivado 2025.2 bootgen).
     ///
-    /// NOTE: not yet validated on hardware (see docs/06-session-handoff.md).
+    /// Loaded on a PYNQ-Z2 (docs/08, G1).
     pub fn to_bin_swapped(&self) -> Result<Vec<u8>, BitError> {
         if !self.payload.len().is_multiple_of(4) {
             return Err(BitError::Unaligned(self.payload.len()));

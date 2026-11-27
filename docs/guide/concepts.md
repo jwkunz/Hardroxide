@@ -4,6 +4,10 @@ This chapter explains what Hardroxide reads, what it generates, and what
 happens at run time, so the rest of the book makes sense. Nothing here is
 needed to *use* a generated crate, but it helps when something goes wrong.
 
+The details below are the **Zynq-7000's**. A Zynq UltraScale+ design goes through the same steps with its family's
+clock registers, interrupt numbers and processor support
+([Linux](linux-ultrascale.md), [bare metal](../reference/baremetal.md#zynq-ultrascale)).
+
 ## The input: an XSA
 
 Vivado's `write_hw_platform` produces an `.xsa`, which is a zip archive. Hardroxide

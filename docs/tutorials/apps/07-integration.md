@@ -31,8 +31,8 @@ The card is **only read**, unless the program was built with that card's serial 
 ```console
 $ hardroxide generate fixtures/board/pynq_base_overlay.xsa --platform rtos -o work/rt --hardroxide-path . --name design_1
 $ cd work/rt
-$ cargo add --dev --path ../../crates/hardroxide-net --path ../../crates/hardroxide-crypto --path ../../crates/hardroxide-tls --path ../../crates/hardroxide-fat \
-      --path ../../crates/hardroxide-gfx --path ../../crates/hardroxide-video --path ../../crates/hardroxide-audio
+$ for c in net crypto tls fat gfx; do cargo add --dev --path ../../crates/hardroxide-$c; done
+$ for c in video audio; do cargo add --dev --path ../../crates/hardroxide-$c --no-default-features; done
 $ sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml
 $ cp ../../apps/base/rtos/rt_station.rs ../../apps/base/data/chime.wav ../../fixtures/tls/test-cert.der ../../fixtures/tls/test-key.bin examples/
 $ cargo build --release --example rt_station

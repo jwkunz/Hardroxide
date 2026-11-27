@@ -24,14 +24,16 @@ metal and on the kernel ([RFSoC 11](../tutorials/rfsoc/11-radio.md)).
 
 ## `check-compat.py`: backward compatibility
 
-`scripts/check-compat.py [semver] [generator] [programs]` (all three by default; CI runs it) fails if anything a user of the published release (2.7.0; `COMPAT_BASE` to change it) relies on has changed, which
+`scripts/check-compat.py [semver] [generator] [programs]` (all three by default; CI runs it) fails if anything a user of the 2.7.0 release (`COMPAT_BASE` to change it) relies on has changed, which
 [ADR 0005](../decisions/0005-ultrascale-plus.md) promises will not happen:
 
-- **semver:** every library's public API against the crate on crates.io, with `cargo-semver-checks`, and for `hardroxide-ps7` and `hardroxide-rt` also as built for `armv7a-none-eabihf`, where their Arm-only modules exist.
-- **generator:** for every fixture design and all three platforms, the working tree's `generate` gives the same files as the published CLI (only the version in the dependencies may differ), `update` accepts the published CLI's crate and leaves it alone, and no command or flag has gone.
-- **programs:** crates made by the published CLI, with the programs of that release (read from the tag), build against the working tree's libraries.
+- **semver:** every library's public API against the release's, with `cargo-semver-checks`, and for `hardroxide-ps7` and `hardroxide-rt` also as built for `armv7a-none-eabihf`, where their Arm-only modules exist.
+- **generator:** for every fixture design and all three platforms, the working tree's `generate` gives the same files as the release's CLI (only the version in the dependencies may differ), `update` accepts the release's crate and leaves it alone, and no command or flag has gone.
+- **programs:** crates made by the release's CLI, with the programs of that release, build against the working tree's libraries.
 
-It needs `cargo install cargo-semver-checks --locked`, the `armv7a-none-eabihf` target and the release's git tag; the first run installs the published CLI under `target/compat/`.
+Everything about the release is built from its git tag, not downloaded from crates.io (where 2.7.0 is yanked). It needs
+`cargo install cargo-semver-checks --locked`, the `armv7a-none-eabihf` target and the tag; the first run builds the
+release's CLI under `target/compat/`.
 
 ## Board helpers
 

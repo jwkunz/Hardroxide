@@ -3,7 +3,7 @@
 //! examples are the Zynq-7000 bare-metal crate's with the processor crate's name changed; the start-up glue, the linker
 //! script and the target differ.
 
-use crate::render::{HEADER, Model, field_ctor, irq_lines};
+use crate::render::{HEADER, Model, RUNTIME_VERSION, field_ctor, irq_lines};
 use crate::{Options, Platform, baremetal};
 use hardroxide_hwh::Design;
 use std::fmt::Write;
@@ -38,7 +38,7 @@ pub fn cargo_toml(name: &str, opts: &Options) -> String {
                 "{c} = {{ path = \"{}\"{nd}{extra} }}",
                 root.join("crates").join(c).display()
             ),
-            None => format!("{c} = {{ version = \"3\"{nd}{extra} }}"),
+            None => format!("{c} = {{ version = \"{RUNTIME_VERSION}\"{nd}{extra} }}"),
         }
     };
     let (label, rt_dep) = if rtos {

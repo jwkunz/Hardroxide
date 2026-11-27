@@ -336,7 +336,7 @@ pub fn generate(xsa: &Xsa, opts: &Options) -> Result<GeneratedCrate, GenError> {
     let mut files = BTreeMap::new();
     files.insert(
         "Cargo.toml".into(),
-        render::cargo_toml(&crate_name, opts, &xsa.design).into_bytes(),
+        render::cargo_toml(&crate_name, opts).into_bytes(),
     );
     files.insert(
         "src/pac.rs".into(),

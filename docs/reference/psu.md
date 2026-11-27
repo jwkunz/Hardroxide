@@ -2,8 +2,8 @@
 
 Zynq UltraScale+ processing-system support for **bare metal** on the Cortex-A53: startup and exception vectors, the MMU and
 caches, the GIC, the generic timer, clocks, the Cadence UART and a console. `no_std`, no third-party dependencies. It is the
-counterpart of [`hardroxide-ps7`](ps7.md) for the Zynq-7000, new in 3.0 ([ADR 0005](../decisions/0005-ultrascale-plus.md)), which
-is in progress: the generator and the kernel do not use it yet.
+counterpart of [`hardroxide-ps7`](ps7.md) for the Zynq-7000, new in 3.0 ([ADR 0005](../decisions/0005-ultrascale-plus.md)). Generated
+bare-metal and RTOS crates for UltraScale+ designs and the [kernel](rt.md) are built on it.
 
 The PS must already be initialised (DDR, MIO, PLLs) by the vendor's `psu_init` or an FSBL. A program runs **on core 0, in
 AArch64, at EL3**, the state of the processor after a reset over JTAG (what [`hardroxide run`](cli.md#run) does); started any

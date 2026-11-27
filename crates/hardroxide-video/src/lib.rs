@@ -9,8 +9,8 @@
 //! Pixels are 32 bits, `0x00RRGGBB`, four bytes per pixel in memory ([`BYTES_PER_PIXEL`]).
 //!
 //! The steps follow PYNQ's video pipeline (Apache-2.0) for the colour and pixel-format settings
-//! and the vendor's drivers for the video timing controller; none of this has run on a board
-//! yet when this version of the crate was written (see the project's verification notes).
+//! and the vendor's drivers for the video timing controller. Verified on a PYNQ-Z2 at 800x600 to
+//! 1920x1080; the tested monitor rejects 640x480 (see the reference page).
 
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
 

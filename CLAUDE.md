@@ -31,13 +31,14 @@ Bare-metal/RTOS crates run on core 0 with no OS (`crates/hardroxide-ps7`, `crate
 dependencies); `hardroxide run`/`package`/`doctor` drive the board with the Vitis tools (JTAG boot mode for `run`).
 Their tests: `scripts/test-qemu.sh`, `cargo test -p hardroxide-gen --test baremetal` and `--test apps`, the board
 regression `scripts/test-board.sh`, programs in `baremetal/` (own workspace) and applications in `apps/` (built by the
-`apps` test against the generated crate; plan in ADR 0004, versions 2.1 to 2.7). `main` carries 2.7.0, released.
+`apps` test against the generated crate; plan in ADR 0004, versions 2.1 to 2.7). `main` carries 3.0.0, released
+2026-11-27.
 
-## 3.0 in progress: Zynq UltraScale+
+## 3.0.0: Zynq UltraScale+ and the radio (released 2026-11-27)
 
 [ADR 0005](docs/decisions/0005-ultrascale-plus.md) (accepted): RFSoC 4x2 first, Zynq-7000 stays and everything must remain **backward compatible with 2.7.0**
-(`scripts/check-compat.py`, in CI). Work is on branch `v3` (pushed to GitHub; `main` and releases stay at 2.7.0: by the maintainer's decision (2026-11-26) there is no release until 3.1, the radio
-driver, is finished). Done: step 0 (PYNQ-Z2 regression run 2026-11-26) and step 1: seven RFSoC 4x2 designs in
+(`scripts/check-compat.py`, in CI). Developed on branch `v3`, merged into `main` for the release and deleted. The release is **3.0.0** and carries the radio driver (planned as 3.1); the
+release regression is CI plus one RFSoC run (ADR 0005 decisions 8, 10, 11). Done: step 0 (PYNQ-Z2 regression run 2026-11-26) and step 1: seven RFSoC 4x2 designs in
 `fixtures/rfsoc4x2/`, proven on the board over JTAG (`scripts/probe.py` there). Step 2 done: `crates/hardroxide-psu` (AArch64, EL3) and `hardroxide run` for UltraScale+ (`scripts/test-board-rfsoc.sh`,
 `scripts/test-qemu-psu.sh`). Step 3 done: the kernel's AArch64 port (`port/aarch64.rs`; programs in `baremetal/` build for both
 families, shared setup in `baremetal/common/`; the two-hour jitter run passed on 2026-11-25). Step 4 done: SD, Ethernet, I2C
@@ -63,27 +64,29 @@ base overlay (3.0); all of them passed on the board,
 Linux included. The maintainer's PYNQ card then failed twice with write errors (cause unknown): Linux tests on the Z2 need
 another card.
 `doctor --xsa` and `package` handle UltraScale+ (step 7, done: both checked on the RFSoC board, an image booted from SD;
-no Zynq-7000 image has been booted from a card). Then 3.1, then the release.
+no Zynq-7000 image has been booted from a card).
 
 **3.1, the radio driver** ([ADR 0006](docs/decisions/0006-radio.md), accepted 2026-11-26: tones only on the base overlay,
 no common start of sending and recording, mixer frequency, phase and status only). R1 and R2
 (`hardroxide_ip::rfdc` and `::radio`, curated in generated crates) are done. R3 on the board (2026-11-26): the loopback program passed on bare metal (all four ADCs; ADC C is receiver 01, D 00) and Linux, and
 PYNQ's `xrfdc` reads our settings back as written. Receiver 20 (ADC B) fails beyond 30720 samples in RFSoC-PYNQ's
-bitstream (PYNQ's own software too), so the program records 16384. Written since, **not yet run on the board**: the
-kernel's program (`rt_radio_loopback`), the shared `apps/rfsoc4x2/common/`, tutorial `rfsoc/11-radio.md`. Next: one
-board run with `HRX_RF_LOOPBACK=1 scripts/test-board-rfsoc.sh`. Never touch the radio blocks outside `radio_rfdc`
+bitstream (PYNQ's own software too), so the program records 16384. The kernel's
+program (`rt_radio_loopback`) and tutorial `rfsoc/11-radio.md` are written, and the RFSoC board script with
+`HRX_NET=1 HRX_RF_LOOPBACK=1` passed on `9a53187` (2026-11-26; no SD card test). **3.1's plan is complete** and it
+shipped in 3.0.0. Merging to `main`, tagging and publishing wait for the maintainer's word every time
+(`docs/release.md`). Never touch the radio blocks outside `radio_rfdc`
 before the clock chips are programmed and the tiles run: the processor stalls.
 The Vivado evaluation license for the part expires 2026-12-29; the maintainer has another to use after that (2026-11-26),
 so the date is no deadline.
 
 ## Current state and next step
 
-Zynq-7000 only. `hardroxide generate`, `update` and `inspect` work (golden
+`hardroxide generate`, `update` and `inspect` work (golden
 snapshots, mock-MMIO tests, compile-tested guide examples, armv7 emulation tests)
 and the drivers were **validated on a PYNQ-Z2 on 2026-11-16**; results and the
 bugs that validation found are in `docs/08-verification-gaps.md`. Crates: hwh,
 mmio, fpga, dma, irq, ip (GPIO, HLS, DMA, Timer, IIC, SPI, INTC, BRAM, UART,
-FIFO, audio, VDMA, VTC, dynclk), gen, cli; for bare metal and the RTOS: ps7, rt; the applications on the PYNQ base
+FIFO, audio, VDMA, VTC, dynclk, rfdc, radio), gen, cli; for bare metal and the RTOS: ps7, psu, rt, board; the applications on the PYNQ base
 overlay (ADR 0004): video, gfx, audio, fat, net, crypto, tls (`docs/reference/libraries.md` says what each can and cannot do). On-board test programs are in `fixtures/board_tests/`; real
 third-party designs (PYNQ overlays) are in `fixtures/real/`.
 
@@ -94,7 +97,7 @@ fails if signatures, help text or links drift. Guide examples are compile-tested
 (`cargo test -p hardroxide-gen --test guide`; tag blocks
 `rust,ignore,fixture=<name>`, `# ` lines are hidden setup).
 
-**Next step:** 2.7.0 is released (tag `v2.7.0` and a GitHub release; 2.0.0 and 2.1.0 are tagged too; all 17 crates are on crates.io at 2.7.0, published 2026-11-22 under the maintainer's own account `jwkunz`; publishing a crate or a new version needs the maintainer's token and is irreversible, see `docs/release.md`). ADR 0004's plan is complete. Open items, recorded in `docs/05-roadmap.md` ("After 2.7"): a hardware random source in the PL (the TLS
+**Released:** 3.0.0 (tag `v3.0.0` and a GitHub release; all 19 crates on crates.io under the maintainer's own account `jwkunz`, published 2026-11-27; 2.7.0, 2.1.0 and 2.0.0 are tagged too; 2.7.0 is yanked on crates.io). Publishing a crate or a new version needs the maintainer's say-so and login and is irreversible, see `docs/release.md`. ADR 0004's plan is complete. Open items, recorded in `docs/05-roadmap.md` ("After 2.7"): a hardware random source in the PL (the TLS
 random bytes are weak), faster public-key arithmetic or PL accelerators (a TLS handshake is about 80 ms of the core), HDMI input capture, regenerating the other board fixtures' `ps7_init`, `fsck.fat` on a board-formatted card, listening to the audio, an interactive browser session, a longer soak, an independent review of the crypto and TLS.
 
 SD cards: nothing may write to a card its owner has not named. Example programs write only when built with the card's

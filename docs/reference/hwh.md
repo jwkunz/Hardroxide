@@ -15,8 +15,10 @@ pub fn bin(&self) -> Result<Vec<u8>, Error>
 pub fn parse_hwh(xml: &str) -> Result<Design, Error>
 ```
 
-`Xsa` requires exactly one `.hwh` and one `.bit` entry (`Error::MissingEntry`
-/ `Error::AmbiguousEntry` otherwise). `bit` holds the raw `.bit` bytes;
+`Xsa` requires one `.bit` entry and the design's `.hwh` (`Error::MissingEntry`
+/ `Error::AmbiguousEntry` otherwise). An archive may hold several handoff files
+(a Zynq UltraScale+ design's SmartConnects bring their own); the design's is
+then the one with the processing system in it. `bit` holds the raw `.bit` bytes;
 `bin()` is the loadable image. `parse_hwh` accepts the file text (a leading
 BOM is tolerated).
 
@@ -146,7 +148,7 @@ the one that holds the processing system.
 Maps a PS7 `IRQ_F2P` bit to the Zynq-7000 GIC SPI *device-tree cell*
 (`interrupts = <0 N 4>`): bits 0..=7 give 29..=36 (interrupt IDs 61..=68) and
 bits 8..=15 give 52..=59 (IDs 84..=91); `None` above 15. From UG585 table 7-4,
-unverified on hardware ([G11](../08-verification-gaps.md)).
+verified on a PYNQ-Z2 ([G11](../08-verification-gaps.md)).
 `InterruptPort::sensitivity` is the HWH `SENSITIVITY` attribute (for example
 `LEVEL_HIGH`), empty if absent.
 

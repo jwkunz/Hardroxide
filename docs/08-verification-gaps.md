@@ -1,10 +1,8 @@
-# 08 - Verification gaps (no hardware available)
+# 08 - Verification gaps
 
-Everything below was implemented without a PYNQ-Z2 attached. Each item says
-what was assumed, what evidence exists, how to verify on the board, and what
-to change if the assumption is wrong. Work through the list in order: later
-items depend on earlier ones. When an item is verified, change its status here
-and record the date and image/kernel version.
+What has been checked, where, and what has not. The list of items below began before any board was attached: each says
+what was assumed, what evidence exists, how to verify it on the board, and what to change if the assumption is wrong. The
+[board results](#board-results) record the runs since; [the 3.0.0 release run](#300-release-run) is the latest.
 
 Status key: **VERIFIED-OFFLINE** (checked against a vendor tool, no board
 needed), **UNVERIFIED** (needs the board), **DESIGN-GAP** (known incomplete).
@@ -79,6 +77,38 @@ build whose base overlay drives HDMI, audio and LEDs from the PL (see G16).
 | G7 singleton | **Passes**: a second `load()` while one `Design` is alive returns `AlreadyLoaded` and leaves the first working; 25 load/delay/drop cycles in one process, loads about 300 ms each |
 | Base-design line mapping | On this image SPI 29 (`IRQ_F2P[0]`) is already mapped level-triggered at boot, so an overlay node that needs it as edge (for example an AXI UART Lite on F2P bit 0) gets a UIO device whose reads and writes return `EIO`, with no kernel message. Put edge-triggered cores on other F2P bits |
 | G6 | Not exercised |
+
+## 3.0.0 release run
+
+By the maintainer's decision (2026-11-27) the release regression is the automatic checks (CI: tests, compatibility with
+2.7.0, QEMU, emulated ARM) and one unattended run on the RFSoC 4x2:
+`HRX_NET=1 HRX_RF_LOOPBACK=1 scripts/test-board-rfsoc.sh`, JTAG, Ethernet to the host, cables from DAC A to ADC A and
+DAC B to ADC B.
+
+**It passed on 2026-11-26** at commit `9a53187`: the processor and kernel tests, the board's hardware, the base overlay,
+the generated crates, the radio loopback on bare metal and on the kernel (the 1 ms control task within 2 us over 692
+releases), HTTP 15.76 MB/s and 211 requests/s, HTTPS 22.0 handshakes/s, the kernel's web page 500 of 500 requests with
+the 10 ms loop within 1 us. The commits made for the release after that changed documentation (comments in the code
+among it), version numbers and the version generated crates ask crates.io for.
+
+**On the host for the release** (2026-11-27):
+
+- The commands of every tutorial page that run on a computer (generate, copy, build, inspect, update, package,
+  make-cert; board steps left out) were run in page order from a copy of the repository: all succeed. This found and led
+  to fixes of two pages whose `cargo add` cargo rejects, one that copied programs the crate could not build, one that did
+  not say which directory to be in and one missing a copy step.
+- `hardroxide package` for a Zynq-7000 design (`fixtures/board/pynq_z2_gpio.xsa`) wrote a boot image byte-identical to
+  the one 2.7.0 writes.
+
+**Not run for 3.0.0:**
+
+- The PYNQ-Z2, last run on 2026-11-26 (rows above): what changed after, the radio drivers and the new commands of the
+  host tool, runs nothing new on it.
+- SD card tests on either board in this run. On the RFSoC they passed on 2026-11-25; on the PYNQ-Z2 the programs that
+  write only to a card named by serial number have not been run with a card.
+- A boot image from a card on a Zynq-7000.
+- The radio loopback under Linux at this commit (it passed on the board earlier the same day, with the same driver
+  code).
 
 ## Needs the board
 
@@ -353,7 +383,7 @@ Status: **observed, cause unknown.**
   UART Lite and AXI4-Stream FIFO (AXI4-Lite mode). HLS IP gets generated typed
   accessors for 32-bit scalar registers and 64-bit pointer register pairs
   (`set_*_addr` / `set_*_buffer`, no size check against the buffer). Not done:
-  DMA scatter-gather, 64-bit DMA addressing, HLS AXI-Stream and array (BRAM)
+  DMA scatter-gather, HLS AXI-Stream and array (BRAM)
   ports, `ap_ctrl_chain` specifics, Timer 1 / PWM / capture, SPI dual/quad
   modes. Any other IP (custom RTL included) is exposed as a raw register
   window with its `pac` constants.
@@ -371,10 +401,10 @@ Status: **observed, cause unknown.**
 - **D5 Other Vivado versions / designs**: HWH parsing is validated against
   eight 2025.2 fixtures plus real third-party designs (the PYNQ `base`,
   `logictools` and six `vidcap` overlays, Vivado 2024.1 to 2025.2), an HLS design
-  from Vivado 2019.2 and an UltraScale+ RFSoC design from Vivado 2020.2 (parsed;
-  `generate` refuses it with `UnsupportedArch`). Only parsing and generation are
-  checked for versions other than 2025.2; they have not been run on hardware.
-  Still missing: Vivado 2021 to 2023 samples and UltraScale+ support itself.
+  from Vivado 2019.2 and an UltraScale+ RFSoC design from Vivado 2020.2 (a handoff
+  file alone: parsed in the tests, not generated from). Versions other than 2025.2
+  have not been run on hardware, except RFSoC-PYNQ's base overlay as that project
+  ships it. Still missing: Vivado 2021 to 2023 samples.
 - **D6 `cargo hardroxide` shim, optional zstd, rename map, async**: not done.
 - **D7 UIO backend**: `Uio` maps map 0 only; untested against a real device.
 - **D8 CI**: `.github/workflows/ci.yml` runs fmt, clippy, all tests (including

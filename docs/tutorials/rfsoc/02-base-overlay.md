@@ -19,7 +19,7 @@ $ hardroxide run target/aarch64-unknown-none/release/examples/board_check \
 
 ```text
 == board check (design_1) ==
-PL configured, interface 9c52b6a36c78b78b77edb2e1a076b967de0f01207bf5d6eafddfa49068bcdf03
+PL configured, interface 9b0b5ac7f742c99ff44f2f5648502a09a8ea1288acfc0744dec229a25b0eb6bd
 FCLK0: 99999990 Hz (want 99999985) ok
 FCLK1: 299999970 Hz (want 299999939) ok
 irq axi_intc_0.irq -> GIC id 121 (level)

@@ -1,9 +1,9 @@
 # Running bare metal and RTOS
 
-Zynq UltraScale+ support is being added for 3.0 ([ADR 0005](../decisions/0005-ultrascale-plus.md)); so far
-code generation ([the crate](../reference/baremetal.md#zynq-ultrascale)), `hardroxide run`, the processor support
-([`hardroxide-psu`](../reference/psu.md)) and the kernel work ([UltraScale+ tutorials](../tutorials/rfsoc/index.md)).
-This page describes the Zynq-7000.
+The workflow is the same for both families. This page is written for the **Zynq-7000**; for **Zynq UltraScale+** the
+target is `aarch64-unknown-none`, the processor support is [`hardroxide-psu`](../reference/psu.md), the crate differs as
+[listed here](../reference/baremetal.md#zynq-ultrascale), and the [RFSoC tutorials](../tutorials/rfsoc/index.md) walk
+through it on a board.
 
 A bare-metal program runs on core 0 of the Zynq with no operating system
 ([ADR 0003](../decisions/0003-bare-metal-and-rtos-platforms.md)). This page is the host setup and the

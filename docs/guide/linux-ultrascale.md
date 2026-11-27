@@ -1,10 +1,11 @@
-# Linux on Zynq UltraScale+ (preview)
+# Linux on Zynq UltraScale+
 
-**Status:** on an RFSoC 4x2 with the PYNQ 4.0.0 image, generated crates have driven the base overlay and the six test
-designs other than the radio one: registers, interrupts, DMA and both HLS kernels
-([results](../decisions/0005-ultrascale-plus.md)). The radio blocks are untouched. To start with the base overlay, follow
-the tutorials: [first programs](../tutorials/rfsoc/08-linux.md), [a web page](../tutorials/rfsoc/09-linux-web.md),
-[the FPGA's memory](../tutorials/rfsoc/10-linux-memory.md).
+**What has run:** on an RFSoC 4x2 with the PYNQ 4.0.0 image, generated crates have driven the base overlay, its radio
+included, and the six test designs other than the radio one: registers, interrupts, DMA and both HLS kernels
+([results](../decisions/0005-ultrascale-plus.md), [radio](../decisions/0006-radio.md)). No other UltraScale+ board has
+been tried. To start with the base overlay, follow the tutorials: [first programs](../tutorials/rfsoc/08-linux.md),
+[a web page](../tutorials/rfsoc/09-linux-web.md), [the FPGA's memory](../tutorials/rfsoc/10-linux-memory.md),
+[a tone out and back](../tutorials/rfsoc/11-radio.md).
 
 ## What the crate does
 

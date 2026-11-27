@@ -2,7 +2,7 @@
 //! whose MAC clocks are set in `CRL_APB`.
 //!
 //! The rings and buffers [`Gem::new`] is given must be non-cacheable memory below 4 GiB
-//! ([`crate::mem::set_non_cacheable`] or the `.dma` section).
+//! (`mem::set_non_cacheable` or the `.dma` section).
 
 pub use hardroxide_ps7::gem::*;
 

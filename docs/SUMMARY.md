@@ -14,7 +14,7 @@
 - [Updating a bitstream](guide/updating.md)
 - [Running on hardware](guide/hardware.md)
 - [Running bare metal and RTOS](guide/baremetal.md)
-- [Linux on Zynq UltraScale+ (preview)](guide/linux-ultrascale.md)
+- [Linux on Zynq UltraScale+](guide/linux-ultrascale.md)
 
 # Tutorials
 
@@ -63,7 +63,7 @@
   - [8. A timer's interrupt on bare metal](tutorials/own-design/08-baremetal-timer.md)
   - [9. DMA on bare metal](tutorials/own-design/09-baremetal-dma.md)
 
-# Zynq UltraScale+ (3.0 preview)
+# Zynq UltraScale+ tutorials
 
 - [Setup (RFSoC 4x2)](tutorials/rfsoc/index.md)
   - [1. First light](tutorials/rfsoc/01-first-light.md)

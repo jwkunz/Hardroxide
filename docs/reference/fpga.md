@@ -67,9 +67,9 @@ frequency. The SLCR is unlocked for the write and relocked afterwards. Errors:
 frequency from the same registers (`0` if a divisor is zero), which the
 generated `board_check` example uses to compare against the design.
 `best_divisors` returns `(div0, div1, achieved_hz)`; ties prefer the smaller
-`div1`. The register layout is transcribed from the Zynq-7000 TRM and
-**unverified on hardware** ([G2](../08-verification-gaps.md)). PL resets are
-not handled ([G3](../08-verification-gaps.md)).
+`div1`. The register layout is transcribed from the Zynq-7000 TRM and verified on a
+PYNQ-Z2 ([G2](../08-verification-gaps.md)). PL resets are not handled
+([G3](../08-verification-gaps.md)).
 
 `FpgaError` variants: `HashMismatch`, `Io`, `NotOperating`, `BadClockIndex`,
 `ClockUnreachable`, `PllNotRunning`, `Mmio`.

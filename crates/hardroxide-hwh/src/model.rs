@@ -23,7 +23,7 @@ pub struct Design {
 /// Zynq-7000 GIC SPI *device-tree cell* for PS7 `IRQ_F2P[bit]` (UG585 table
 /// 7-4: `IRQ_F2P[7:0]` are interrupt IDs 61..=68 and `[15:8]` are 84..=91; the
 /// device-tree `interrupts = <0 N 4>` cell is ID - 32). `None` for bits >= 16.
-/// UNVERIFIED on hardware (see docs, G11).
+/// Verified on a PYNQ-Z2 (docs/08, G11).
 pub fn zynq7000_f2p_spi_cell(bit: u32) -> Option<u32> {
     match bit {
         0..=7 => Some(29 + bit),

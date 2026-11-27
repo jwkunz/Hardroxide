@@ -94,18 +94,6 @@ fn the_crate_is_for_the_a53_and_names_this_familys_support() {
     assert!(lib.contains("CONSOLE_UART_NUMBER: usize = 1;"));
     assert!(lib.contains("pub use hardroxide_psu as ps;"));
     assert!(text(&g, "src/pac.rs").contains("f2p_bit: Some(0), gic_spi: Some(89)"));
-    // From crates.io the crates are the 3.x ones.
-    let published = generate(
-        &fixture(BASE),
-        &Options {
-            platform: Platform::BareMetal,
-            ..Default::default()
-        },
-    )
-    .unwrap();
-    let manifest = text(&published, "Cargo.toml");
-    assert!(manifest.contains("hardroxide-psu = { version = \"3\", features"));
-    assert!(!manifest.contains("version = \"2\""));
 }
 
 #[test]

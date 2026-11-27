@@ -27,7 +27,7 @@ A self-signed certificate is not trusted by anything: a browser warns until you 
 ```console
 $ hardroxide generate fixtures/board/pynq_base_overlay.xsa --platform baremetal -o work/base --hardroxide-path . --name design_1
 $ cd work/base
-$ cargo add --dev --path ../../crates/hardroxide-net --path ../../crates/hardroxide-crypto --path ../../crates/hardroxide-tls --path ../../crates/hardroxide-fat
+$ for c in net crypto tls fat; do cargo add --dev --path ../../crates/hardroxide-$c; done
 $ sed -i 's/"panic-handler"\]/"panic-handler", "net"]/' Cargo.toml
 $ cp ../../apps/base/baremetal/net_https.rs ../../fixtures/tls/test-cert.der ../../fixtures/tls/test-key.bin examples/
 $ cargo build --release --example net_https

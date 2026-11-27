@@ -62,7 +62,7 @@ reachable from the PS (a field on the generated `Design`):
 0x83c20000      64 KiB  trace_analyzer_pmodb_trace_cntrl_32_0  ->  crate::ips::TraceAnalyzerPmodbTraceCntrl320 (HLS)  (xilinx.com:hls:trace_cntrl_32:1.4)
 
 24 instances: 18 with a curated driver, 6 HLS wrapper(s), 0 raw register window(s)
-45 instance(s) are not reachable from the PS (private to another master such as a MicroBlaze) and get no field: address_remap_0, iop_arduino_arduino_gpio, iop_arduino_iic ...
+45 instance(s) are not reachable from the PS (private to another master such as a MicroBlaze) and get no field: address_remap_0, iop_arduino_arduino_gpio, iop_arduino_iic_direct ...
 ```
 
 Three things to notice:

@@ -99,8 +99,11 @@ and Linux (`apps/rfsoc4x2/{baremetal,linux}/radio_loopback.rs`, shared measureme
 to be written.
 
 The kernel's program (`rtos/rt_radio_loopback.rs`, the measurement under a 1 ms task) and the tutorial
-(`tutorials/rfsoc/11-radio.md`) are written; the kernel's has not yet run on the board, and the bare-metal one has not
-since its wiring and clock code moved into `common/`.
+(`tutorials/rfsoc/11-radio.md`) followed. **The board run with everything** (`HRX_NET=1 HRX_RF_LOOPBACK=1
+scripts/test-board-rfsoc.sh`, 2026-11-26, `v3` at `9a53187`, over JTAG, about 17 minutes) passed: the earlier tests, the
+bare-metal loopback, and the kernel's, whose radio checks all passed while the 1 ms task ran 692 times, never more than
+2 us off. Network: HTTP 15.76 MB/s and 211 requests/s, HTTPS 22.0 handshakes/s, 500 of 500 requests to the kernel's web
+page. The SD card test was not run.
 
 **R3 on the board, bare metal** (RFSoC 4x2 over JTAG, 2026-11-26, cables DAC A to ADC A and DAC B to ADC B): acceptance
 1 to 3 passed. The four tiles started; each tone was at `f_tx - f_rx` for both signs, at -18.3 dBFS (DAC A) and -18.6

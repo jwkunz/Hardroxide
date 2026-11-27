@@ -96,7 +96,7 @@ Returns a future resolving to `Result<Option<u32>, IrqError>`. Each call
 spawns a helper thread that blocks in `wait` and wakes the task, so it works
 under any executor; it needs the `UioIrq` in an `Arc`.
 
-**Status:** tested only against a fake descriptor. On the board each interrupt
+**Status:** the unit tests use a fake descriptor. On the board each interrupt
 needs a `generic-uio` device-tree node; the generated crate's
-`interrupts.dtso` provides them, but applying it on the stock PYNQ image is
-unverified ([G11](../08-verification-gaps.md)).
+`interrupts.dtso` provides them. Applied and used on the stock PYNQ images of a
+PYNQ-Z2 ([G11](../08-verification-gaps.md)) and an RFSoC 4x2.

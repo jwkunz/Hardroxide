@@ -26,7 +26,10 @@ GPIO is its input 13 (`pac::btns_gpio::IRQ_IP2INTC_IRPT.via_intc`).
 
 ## 3. Run it
 
+From the repository's root, in the crate of tutorial 1:
+
 ```console
+$ cd work/base-bm
 $ cp ../../apps/base/baremetal/button_irq.rs examples/
 $ cargo build --release --example button_irq
 $ hardroxide run target/armv7a-none-eabihf/release/examples/button_irq --xsa ../../fixtures/board/pynq_base_overlay.xsa --watch 25

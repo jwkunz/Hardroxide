@@ -25,6 +25,11 @@ timestamps), with each 32-bit word byte-swapped and padded with NOP words to a
 multiple of 16 bytes. This is byte-identical to
 `bootgen -arch zynq -process_bitstream bin` output.
 
+A crate for a **Zynq UltraScale+** design has the same layout plus `bitstream/ports.cfg` (the widths of the ports
+between processor and PL, set at load), clocks set through that family's registers
+([`hardroxide_fpga::zynqmp`](fpga.md#zynq-ultrascale-zynqmp)) and `design.bin` in the form
+`bootgen -arch zynqmp` writes ([what `load` does there](../guide/linux-ultrascale.md#what-the-crate-does)).
+
 Cargo features and dependencies:
 
 | Item | Meaning |
@@ -106,8 +111,10 @@ whose `interrupts` cell is `<0 SPI trigger>` from the traced `IRQ_F2P` bit
 Interrupts that cannot be traced to `IRQ_F2P[15:0]` are listed in a comment and
 skipped. Offline checks: it compiles with `dtc` and merges onto a
 Zynq-7000-style base tree with `fdtoverlay` (a test does this when the tools
-are installed). Whether the stock PYNQ image can apply and use it is
-unverified ([G11](../08-verification-gaps.md)).
+are installed). The stock PYNQ-Z2 image applies and uses it
+([G11](../08-verification-gaps.md)). For a Zynq UltraScale+ design the nodes name
+that family's interrupt controller (`&gic`) and `pl_ps_irq0` and `pl_ps_irq1`
+([Linux on Zynq UltraScale+](../guide/linux-ultrascale.md)).
 
 ## Examples
 

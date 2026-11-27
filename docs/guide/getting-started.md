@@ -12,7 +12,8 @@ this page gets the tool and the toolchain ready. When you are, the
   installed; the repository has ready-made ones in `fixtures/`. To make your own,
   see [Exporting an XSA from Vivado](vivado.md).
 - To run on hardware, depending on the [flavor](workflow.md#choosing-a-flavor):
-  - **Linux:** a PYNQ-Z2 on the network (the stock PYNQ image, root access), and a cross linker for 32-bit ARM Linux.
+  - **Linux:** a PYNQ-Z2 on the network (the stock PYNQ image, root access) and a cross linker for 32-bit ARM Linux; for
+    an RFSoC 4x2, see [Linux on Zynq UltraScale+](linux-ultrascale.md).
   - **Bare metal / RTOS:** the AMD Vitis tools and a USB (JTAG) cable; no cross linker. See
     [Running bare metal](baremetal.md).
 
@@ -26,7 +27,7 @@ $ export PATH=$PWD/target/release:$PATH
 $ hardroxide --help
 ```
 
-Or install the released binary from crates.io (version 2.7.0 and later; it needs no checkout):
+Or install the released tool from crates.io (it needs no checkout; this book describes version 3):
 
 ```console
 $ cargo install hardroxide-cli
@@ -59,7 +60,7 @@ $ hardroxide generate fixtures/pynq_z2_gpio.xsa -o my_design \
 $ cd my_design && cargo build
 ```
 
-By default the generated crate depends on the runtime crates published on crates.io (version `"2"`); `--hardroxide-path` makes it depend on the runtime crates in your checkout
+By default the generated crate depends on the runtime crates published on crates.io (version `"3"`, the tool's own); `--hardroxide-path` makes it depend on the runtime crates in your checkout
 instead (to develop the runtime or to try a change that is not released; the path is made absolute for you). The crate
 builds on your workstation, where it can be tested against a mock backend
 ([Using a generated crate](using.md)); it can only reach hardware on the board.

@@ -62,8 +62,8 @@ The programs in `apps/base/` build against this crate (`cargo test -p hardroxide
 | `lights` (in `baremetal/`) | bare metal | buttons through the interrupt controller: count on the LEDs, colours from the switches |
 | `rt_lights` | RTOS | a mood light: four tasks with PWM, rainbow patterns, brightness and on/off from the buttons |
 | `rt_irq_latency` | RTOS | interrupt-to-task latency under load, as a histogram |
-| `video_demo` | bare metal | HDMI at 1280x720: test pattern and a double-buffered animation ([Applications 2](../tutorials/apps/02-hdmi.md); not yet run on a board) |
-| `rt_video` | RTOS | a 60 fps animation paced by the display's frame interrupt (not yet run on a board) |
+| `video_demo` | bare metal | HDMI at 1280x720: test pattern and a double-buffered animation ([Applications 2](../tutorials/apps/02-hdmi.md)) |
+| `rt_video` | RTOS | a 60 fps animation paced by the display's frame interrupt |
 
 `scripts/test-board.sh` runs the self-checking ones (and the earlier tutorials' programs) on a board in one go.
 
@@ -112,6 +112,6 @@ the others ([why](ip-radio.md#receive)).
 **Checked on a board** (`fixtures/rfsoc4x2/scripts/probe.py base`, raw register accesses): the LEDs, buttons and
 switches; the interrupt path from both GPIOs to the processor; the temperature; both Pmod memories; after programming
 the clock chips, all four converter tiles power up and lock and the eight capture DMAs reset; the FPGA's DDR4 at its
-start and just below 4 GiB. **Not checked:** data through the radio blocks, the 100 Gbit/s port, the Pmod processors
-running, SYZYGY.
+start and just below 4 GiB. The radio loopback above has since moved data through the radio blocks. **Not checked:**
+the 100 Gbit/s port, the Pmod processors running, SYZYGY.
 

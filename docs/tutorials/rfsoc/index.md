@@ -1,9 +1,9 @@
-# Zynq UltraScale+ on the RFSoC 4x2 (3.0 preview)
+# Zynq UltraScale+ on the RFSoC 4x2
 
-**Preview.** Zynq UltraScale+ support is being built for 3.0 ([ADR 0005](../../decisions/0005-ultrascale-plus.md)) and is
-on the `v3` branch only. What works today: **bare metal and the real-time kernel** (processor start-up, the kernel, SD,
-Ethernet, the board's own hardware) and **Linux** under the board's PYNQ image, each with crates generated from your
-design and the FPGA drivers.
+New in 3.0 ([plan and results](../../decisions/0005-ultrascale-plus.md)): **bare metal and the real-time kernel**
+(processor start-up, the kernel, SD, Ethernet, the board's own hardware) and **Linux** under the board's PYNQ image,
+each with crates generated from your design and the FPGA drivers, the radio's among them. The RFSoC 4x2 is the one
+UltraScale+ board it has been run on.
 
 These pages run ready-made programs on a Real Digital RFSoC 4x2. Those that use the FPGA are applications in
 `apps/rfsoc4x2/`, built against a generated crate; those that test the processor system and the board's own hardware are
@@ -35,7 +35,8 @@ need no Vivado license. Loading it over JTAG takes about half a minute.
 - The AMD **Vitis** tools (2025.2 was used). Running programs needs no Vivado and no license.
 - The board's JTAG udev rule and `hardroxide doctor`, as in [Running bare metal](../../guide/baremetal.md#host-setup-once).
 - The Rust target: `rustup target add aarch64-unknown-none`.
-- The command-line tool **from this checkout** (the released one is 2.x): `cargo install --path crates/hardroxide-cli`.
+- A checkout of this repository (the pages use its designs and programs) and the command-line tool, version 3:
+  `cargo install --path crates/hardroxide-cli` from the checkout, or `cargo install hardroxide-cli`.
 
 ## Board setup
 

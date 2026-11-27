@@ -8,7 +8,7 @@ depend on the target, which chooses them.
 
 Verified under QEMU and on a board with `baremetal/rt-smoke`, one program for both processors: priority preemption, periodic
 release without drift, queues, interrupt-to-task hand-off, priority inheritance resolving an inversion, registers intact
-across task switches (the Cortex-A53 on an RFSoC 4x2; the Cortex-A9 on a PYNQ-Z2 as of 2.7); see
+across task switches (on the Cortex-A53 of an RFSoC 4x2 and the Cortex-A9 of a PYNQ-Z2); see
 [Verification gaps](../08-verification-gaps.md).
 
 The kernel supplies the interrupt and supervisor-call entries, so a program using it depends on the processor's support crate

@@ -2,8 +2,9 @@
 
 Hardroxide turns each PL interrupt that is wired to the PS (`IRQ_F2P`, directly
 or through `xlconcat`) into an `IrqLine` constant and a device-tree overlay that
-exposes it to Linux as a UIO device. **None of this has been run on a board**
-([Verification gaps, G11](../08-verification-gaps.md)).
+exposes it to Linux as a UIO device. This has been run on the stock PYNQ image of a
+PYNQ-Z2 ([Verification gaps, G11](../08-verification-gaps.md)) and on an RFSoC 4x2, whose
+differences are in [Linux on Zynq UltraScale+](linux-ultrascale.md).
 
 ## One-time setup on the board
 

@@ -6,7 +6,9 @@ XSA export, as a Rust alternative to the PYNQ overlay framework.
 ## Status
 
 The 00-06 documents record the design interviews for the first (Linux) release and are kept as written, with notes
-where 2.0 changed them. The bare-metal and RTOS platforms are specified in [ADR 0003](decisions/0003-bare-metal-and-rtos-platforms.md). What is built
+where 2.0 changed them. The bare-metal and RTOS platforms are specified in [ADR 0003](decisions/0003-bare-metal-and-rtos-platforms.md), and
+3.0's Zynq UltraScale+ support and radio driver in [ADR 0005](decisions/0005-ultrascale-plus.md) and
+[ADR 0006](decisions/0006-radio.md). What is built
 and verified is in the [reference](reference/cli.md) and [Verification gaps](08-verification-gaps.md).
 
 ## Documents
@@ -22,7 +24,7 @@ and verified is in the [reference](reference/cli.md) and [Verification gaps](08-
 | [06-session-handoff.md](06-session-handoff.md) | Context from the original design session, risks, first steps |
 | [07-hwh-findings.md](07-hwh-findings.md) | What a real Vivado 2025.2 HWH contains |
 | [release.md](release.md) | Maintainer checklist for a release |
-| [08-verification-gaps.md](08-verification-gaps.md) | What is unverified without hardware, and how to check each item |
+| [08-verification-gaps.md](08-verification-gaps.md) | What has been verified on which board, what has not, and how to check each item |
 | [decisions/](decisions/) | ADRs: 0001 MMIO/DMA model, 0002 bitstream embedding and updates, 0003 bare-metal and RTOS platforms, 0004 base overlay applications (2.1 to 2.7, accepted), 0005 Zynq UltraScale+ (3.0, accepted), 0006 radio driver (3.1, accepted) |
 
 ## Baseline context

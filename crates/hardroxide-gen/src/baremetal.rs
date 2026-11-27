@@ -5,7 +5,7 @@
 //! of a device-tree overlay, and the examples are `no_std` programs that print on the PS UART.
 
 use crate::Options;
-use crate::render::{HEADER, Inst, Model, all_with, ctor, first_with, irq_lines};
+use crate::render::{HEADER, Inst, Model, RUNTIME_VERSION, all_with, ctor, first_with, irq_lines};
 use hardroxide_hwh::Design;
 use std::fmt::Write;
 
@@ -60,7 +60,7 @@ pub fn cargo_toml(name: &str, opts: &Options) -> String {
                 "{c} = {{ path = \"{}\"{nd}{extra} }}",
                 root.join("crates").join(c).display()
             ),
-            None => format!("{c} = {{ version = \"2\"{nd}{extra} }}"),
+            None => format!("{c} = {{ version = \"{RUNTIME_VERSION}\"{nd}{extra} }}"),
         }
     };
     let (label, rt_dep) = if rtos {

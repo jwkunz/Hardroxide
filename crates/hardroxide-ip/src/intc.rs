@@ -1,7 +1,7 @@
 //! AXI Interrupt Controller (`xilinx.com:ip:axi_intc`, PG099) used as a
 //! software-driven fan-in: many PL interrupts share the controller's single
 //! `irq` output (one UIO device); this driver says which input fired.
-//! UNVERIFIED on hardware; offsets/bits are asserted against the HWH.
+//! Offsets/bits are asserted against the HWH; verified on a PYNQ-Z2 (docs/08, G13).
 
 use core::time::Duration;
 use hardroxide_irq::{IrqError, IrqWaiter};

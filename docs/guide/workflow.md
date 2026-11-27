@@ -49,7 +49,7 @@ $ hardroxide generate design.xsa -o my_design [--hardroxide-path <checkout>]
 ```
 
 Output is **deterministic** (same XSA, byte-identical crate), so commit the crate
-and diff it. The runtime crates are on crates.io (2.7.0 and later); `--hardroxide-path` points the
+and diff it. The crate depends on the runtime crates of the tool's own version on crates.io; `--hardroxide-path` points the
 crate at a checkout of this repository instead. See [Generated crate](../reference/generated-crate.md).
 
 ## 4. Write your program
@@ -114,6 +114,11 @@ the typed IP drivers and the `Design` type are shared; the runtime underneath di
 | Timing | whatever Linux gives you | deterministic, single thread | deterministic, 10 ms loops with microsecond jitter |
 | Guide | [Running on hardware](hardware.md) | [Running bare metal](baremetal.md) | [Running bare metal](baremetal.md), [the kernel](../reference/rt.md) |
 | Tutorials | [Linux](../tutorials/linux/index.md) | [Bare metal](../tutorials/baremetal/index.md) | [RTOS](../tutorials/rtos/index.md) |
+
+The table and the steps above name the **Zynq-7000's** crates and targets. For a **Zynq UltraScale+** design the
+targets are `aarch64-unknown-linux-gnu` and `aarch64-unknown-none` and the processor support is
+[`hardroxide-psu`](../reference/psu.md) ([Linux](linux-ultrascale.md),
+[bare metal and RTOS](../reference/baremetal.md#zynq-ultrascale)).
 
 Both bare-metal flavors need the Vitis tools (they warn and stop if missing) and take over the board: Linux is not
 running while they do. `hardroxide update` works the same way for all three flavors.

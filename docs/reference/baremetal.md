@@ -1,7 +1,8 @@
 # Bare-metal crate
 
 `hardroxide generate design.xsa --platform baremetal -o my_design` writes a `no_std` crate for
-core 0 of the Zynq-7000 with no operating system, built on [`hardroxide-ps7`](ps7.md)
+core 0 of a Zynq-7000 with no operating system, built on [`hardroxide-ps7`](ps7.md)
+(for a [Zynq UltraScale+](#zynq-ultrascale) design, see below)
 ([ADR 0003](../decisions/0003-bare-metal-and-rtos-platforms.md)). It shares the register layer
 (`pac`), the curated drivers and the HLS wrappers with the [Linux crate](generated-crate.md);
 the platform glue differs.
@@ -51,7 +52,7 @@ Since 3.0 the same command writes a crate for a Zynq UltraScale+ design: core 0 
 | memory | 511 MiB from 1 MiB; `DDR_BYTES` 512 MiB | below 2 GiB, from 1 MiB; `DDR_BYTES` 4 GiB (the RFSoC 4x2's), also mapped above 4 GiB |
 | PL interrupts | `IRQ_F2P[15:0]` | `pl_ps_irq0` (IDs 121..=128) and `pl_ps_irq1` (136..=143) |
 | `periph_hz()` | the Cortex-A9 peripheral clock | the system counter's clock |
-| dependencies | version 2 | version 3, without `hardroxide-fpga`; `embedded-hal` as a dev-dependency |
+| dependencies | the runtime crates, version 3 | the same, without `hardroxide-fpga`; `embedded-hal` as a dev-dependency |
 | `hardroxide package` | yes (not yet booted from a card) | yes |
 
 `DDR_BYTES` assumes the RFSoC 4x2's memory; the design's own settings are not a reliable source (the board's base overlay

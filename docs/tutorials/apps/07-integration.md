@@ -1,12 +1,14 @@
 # Applications 7: Everything at once
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** RTOS (the real-time kernel)
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Needs:** [Applications 3](03-audio.md), [5](05-network.md) and [6](06-https.md) (the audio, the cable, HTTPS), an HDMI monitor, headphones in **HPH OUT**, a card (optional)
 
 > **Status: run on a PYNQ-Z2 (2026-11-21).** An HTTPS dashboard controls the HDMI graphics, the audio and the LEDs while a 10 ms control loop keeps its deadline, with a live per-task processor monitor. With three HTTPS clients,
 > a processor burner, display mode changes and audio start and stop at once, the control loop's worst deviation was **4 microseconds over 5,179 releases**. **Not run:** listening to the audio (the counters say it played, 0 underruns, but this
 > tutorial was written without anyone at the headphones), an interactive browser session, and HDMI input capture (section 8). A 17-minute soak is in section 7 (the plan was two hours).
 
-The whole stack of this series in one RTOS program, [`apps/base/rtos/rt_station.rs`](../../../apps/base/rtos/rt_station.rs): the kernel ([RTOS 1](../rtos/01-control-loop.md)), the HDMI pipeline ([Applications 2](02-hdmi.md)), the codec ([Applications 3](03-audio.md)), the SD card
+The whole stack of this series in one RTOS program, [`apps/base/rtos/rt_station.rs`](https://github.com/jwkunz/Hardroxide/blob/main/apps/base/rtos/rt_station.rs): the kernel ([RTOS 1](../rtos/01-control-loop.md)), the HDMI pipeline ([Applications 2](02-hdmi.md)), the codec ([Applications 3](03-audio.md)), the SD card
 ([Applications 4](04-sd.md)), the network and TLS ([Applications 5](05-network.md) and [6](06-https.md)), sharing one 650 MHz core.
 
 ## 1. The tasks

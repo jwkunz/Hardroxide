@@ -1,4 +1,4 @@
-//! Every display mode in turn, 4 seconds each, with the same colour bars and a mode label.
+//! Every display mode in turn, 12 seconds each, with the same colour bars and a mode label.
 #![no_std]
 #![no_main]
 use core::time::Duration;

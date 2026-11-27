@@ -1,6 +1,6 @@
 //! A 10 ms control loop under the kernel: the control task copies the buttons to the LEDs
 //! every 10 ms (priority 5); a lower-priority task reports the loop's timing every second.
-//! Both share the design through a `Shared`. RTOS tutorial 1.
+//! Both share the design through a `Shared`.
 
 #![no_std]
 #![no_main]

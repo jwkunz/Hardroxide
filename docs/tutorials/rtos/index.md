@@ -1,4 +1,6 @@
-# RTOS tutorials
+# PYNQ-Z2: RTOS tutorials
+
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** RTOS (the real-time kernel)
 
 `--platform rtos`: the bare-metal crate plus the [`hardroxide-rt`](../../reference/rt.md) kernel, a small
 FreeRTOS-style kernel written in this repository with no third-party dependencies. Tasks have fixed priorities

@@ -1,5 +1,5 @@
 //! Bare metal: loop data through the AXI DMA (MM2S to S2MM over the design's stream loopback),
-//! check every transfer and report the throughput. Bare metal tutorial 3.
+//! check every transfer and report the throughput.
 
 #![no_std]
 #![no_main]

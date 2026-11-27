@@ -1,5 +1,7 @@
 # Applications 6: HTTPS with a self-signed certificate
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal and RTOS (the real-time kernel)
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Needs:** [Applications 5](05-network.md) (the cable, the address), a host with `curl` or a browser; for your own certificate, the `hardroxide` binary
 
 > **Status: run on a PYNQ-Z2 (2026-11-21)** with the board cabled to a PC: HTTPS with TLS 1.3 to `curl`, `openssl s_client` and **Microsoft Edge** (a Chromium browser, headless), about 11 handshakes a second, and an RTOS variant serving 489 TLS requests in 40 seconds

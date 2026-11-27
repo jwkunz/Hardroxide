@@ -1,5 +1,4 @@
 //! Bare metal, no operating system: mirror the buttons and switches onto the LEDs.
-//! Bare metal tutorial 1.
 
 #![no_std]
 #![no_main]

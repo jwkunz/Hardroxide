@@ -1,7 +1,7 @@
 //! RFSoC 4x2 base overlay under Linux: send a tone from each DAC, record it with an ADC and find it in the spectrum.
 //!
 //! SMA cables from DAC A to ADC A and from DAC B to ADC B. Run as root, with `u-dma-buf` loaded (`/dev/udmabuf0` and
-//! `1`, at least 64 KiB each). It prints one line per check, then `RADIO LOOPBACK OK`. `common/loopback.rs` goes in
+//! `1`, at least 32 KiB each). It prints one line per check, then `RADIO LOOPBACK OK`. `common/loopback.rs` goes in
 //! `common/` next to this file.
 //!
 //! **The converters, and the radio blocks that run on their clocks, need the board's clock chips programmed.** Until

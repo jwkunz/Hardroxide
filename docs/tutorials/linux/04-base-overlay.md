@@ -1,5 +1,7 @@
 # Linux 4: The whole overlay
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 15 minutes · **Needs:** [Linux 1](01-lights.md)
 
 You have used the lights, the interrupt controller and a block RAM. The **PYNQ base overlay** holds much more: video

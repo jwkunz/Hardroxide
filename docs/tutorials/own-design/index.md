@@ -1,4 +1,6 @@
-# Your own design
+# PYNQ-Z2: your own design
+
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux and bare metal
 
 The tutorials before these run on the board's base overlay, which you did not have to build. These show what you do when
 the FPGA design is **yours**. Each has a small design made for one purpose, in `fixtures/`: its own bitstream, its own

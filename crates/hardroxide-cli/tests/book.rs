@@ -1,5 +1,6 @@
 //! Keeps the book honest: reference signatures must exist in the source,
-//! CLI help blocks must equal the real `--help`, and relative links resolve.
+//! CLI help blocks must equal the real `--help`, relative links resolve, every example program is listed and every
+//! tutorial names its board.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -152,7 +153,9 @@ fn relative_links_resolve() {
                 {
                     continue;
                 }
-                if !f.parent().unwrap().join(path).exists() {
+                // A file outside `docs/` exists here but not in the published book: link to it on GitHub.
+                let found = f.parent().unwrap().join(path).canonicalize();
+                if !found.is_ok_and(|p| p.starts_with(root().join("docs"))) {
                     bad.push(format!(
                         "{}: {target}",
                         f.strip_prefix(root()).unwrap().display()
@@ -162,4 +165,66 @@ fn relative_links_resolve() {
         }
     }
     assert!(bad.is_empty(), "broken relative links:\n{}", bad.join("\n"));
+}
+
+#[test]
+fn every_example_program_is_listed() {
+    let page = std::fs::read_to_string(root().join("docs/examples.md")).unwrap();
+    let mut programs = files(root().join("apps"), "rs");
+    // `common/` holds files the programs share, not programs.
+    programs.retain(|p| !p.components().any(|c| c.as_os_str() == "common"));
+    for dir in std::fs::read_dir(root().join("fixtures")).unwrap() {
+        let dir = dir.unwrap().path();
+        let name = dir.file_name().unwrap().to_string_lossy().into_owned();
+        if name.starts_with("board_tests") {
+            programs.extend(files(dir, "rs"));
+        }
+    }
+    for dir in std::fs::read_dir(root().join("baremetal")).unwrap() {
+        let main = dir.unwrap().path().join("src/main.rs");
+        if main.exists() {
+            programs.push(main);
+        }
+    }
+    assert!(
+        programs.len() > 60,
+        "only {} programs found",
+        programs.len()
+    );
+    let missing: Vec<String> = programs
+        .iter()
+        .map(|p| p.strip_prefix(root()).unwrap().display().to_string())
+        .filter(|p| !page.contains(&format!("/blob/main/{p})")))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "programs not listed in docs/examples.md:\n{}",
+        missing.join("\n")
+    );
+}
+
+#[test]
+fn every_tutorial_names_its_board() {
+    let tutorials = root().join("docs/tutorials");
+    let mut bad = Vec::new();
+    for f in files(tutorials.clone(), "md") {
+        // The front page covers both boards.
+        if f == tutorials.join("index.md") {
+            continue;
+        }
+        let board = if f.starts_with(tutorials.join("rfsoc")) {
+            "**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md)"
+        } else {
+            "**Board:** [PYNQ-Z2](../../boards/pynq-z2.md)"
+        };
+        let md = std::fs::read_to_string(&f).unwrap();
+        if !md.lines().take(4).any(|l| l.starts_with(board)) {
+            bad.push(f.strip_prefix(root()).unwrap().display().to_string());
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "tutorial pages that do not name their board under the title:\n{}",
+        bad.join("\n")
+    );
 }

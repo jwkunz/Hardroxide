@@ -2,7 +2,7 @@
 //!
 //! Open `https://<address>/` (the browser warns about the self-signed certificate; `curl -k` does not care). The certificate is an ECDSA P-256 one, because browsers do not accept Ed25519 ones. The page and `/api/status` show the board's state, `/led?v=N`
 //! sets the LEDs. The certificate and key are the **throwaway test identity** of `fixtures/tls/` (its private key is public: it protects nothing; make your own with
-//! `scripts/make-cert.sh` and replace the two `include_bytes!` (the certificate in DER and the 32-byte private scalar)). The program times the public-key operations of a handshake on this board and prints them.
+//! `hardroxide make-cert` and replace the two `include_bytes!` (the certificate in DER and the 32-byte private scalar)). The program times the public-key operations of a handshake on this board and prints them.
 //!
 //! Where the unpredictable bytes come from (the Zynq has no hardware random number generator): a generator is seeded from the clock, mixes in the timing of every new connection, and,
 //! if a FAT32 card is in the slot, a 32-byte seed read from `/RNGSEED`. **The card is only read** unless it was named when building

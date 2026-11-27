@@ -2,6 +2,13 @@
 
 [Introduction](introduction.md)
 
+# Boards and examples
+
+- [The boards](boards/index.md)
+  - [PYNQ-Z2](boards/pynq-z2.md)
+  - [RFSoC 4x2](boards/rfsoc-4x2.md)
+- [Example projects](examples.md)
+
 # User Guide
 
 - [The workflow](guide/workflow.md)
@@ -18,9 +25,9 @@
 
 # Tutorials
 
-- [Choosing a flavor](tutorials/index.md)
+- [Choosing a tutorial](tutorials/index.md)
 
-# Linux tutorials
+# PYNQ-Z2: Linux tutorials
 
 - [Setup](tutorials/linux/index.md)
   - [1. LEDs, buttons and switches](tutorials/linux/01-lights.md)
@@ -28,18 +35,18 @@
   - [3. Memory inside the FPGA](tutorials/linux/03-block-ram.md)
   - [4. The whole overlay](tutorials/linux/04-base-overlay.md)
 
-# Bare-metal tutorials
+# PYNQ-Z2: bare-metal tutorials
 
 - [Setup](tutorials/baremetal/index.md)
   - [1. Run over JTAG](tutorials/baremetal/01-jtag.md)
   - [2. A PL interrupt through the GIC](tutorials/baremetal/02-interrupt.md)
 
-# RTOS tutorials
+# PYNQ-Z2: RTOS tutorials
 
 - [Setup](tutorials/rtos/index.md)
   - [1. A 10 ms control loop on the kernel](tutorials/rtos/01-control-loop.md)
 
-# Application tutorials
+# PYNQ-Z2: application tutorials
 
 - [Setup](tutorials/apps/index.md)
   - [1. Lights and buttons on the base overlay](tutorials/apps/01-base-lights.md)
@@ -50,7 +57,7 @@
   - [6. HTTPS with a self-signed certificate](tutorials/apps/06-https.md)
   - [7. Everything at once](tutorials/apps/07-integration.md)
 
-# Your own design
+# PYNQ-Z2: your own design
 
 - [Beyond the base overlay](tutorials/own-design/index.md)
   - [1. Timer, SPI and interrupts](tutorials/own-design/01-timer-spi-irq.md)
@@ -63,7 +70,7 @@
   - [8. A timer's interrupt on bare metal](tutorials/own-design/08-baremetal-timer.md)
   - [9. DMA on bare metal](tutorials/own-design/09-baremetal-dma.md)
 
-# Zynq UltraScale+ tutorials
+# RFSoC 4x2 tutorials
 
 - [Setup (RFSoC 4x2)](tutorials/rfsoc/index.md)
   - [1. First light](tutorials/rfsoc/01-first-light.md)

@@ -1,4 +1,6 @@
-# Application tutorials
+# PYNQ-Z2: application tutorials
+
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal and RTOS (the real-time kernel)
 
 Programs that do something worth showing, built on the PYNQ **base overlay** (`fixtures/board/pynq_base_overlay.xsa`, see
 [PYNQ base overlay](../../reference/base-overlay.md)) with the [bare-metal](../baremetal/index.md) and [RTOS](../rtos/index.md)

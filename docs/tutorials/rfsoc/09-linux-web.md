@@ -1,5 +1,7 @@
 # RFSoC 9: A web page for the board
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** Linux
+
 What Linux adds over bare metal: the network and everything else in Rust's standard library, and drivers the kernel
 already has. `apps/rfsoc4x2/linux/dashboard.rs` serves a page showing the FPGA's temperature, the buttons, the switches
 and the nine power monitors, with controls for the LEDs.

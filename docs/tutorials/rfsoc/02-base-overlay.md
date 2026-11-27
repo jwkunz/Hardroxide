@@ -1,5 +1,7 @@
 # RFSoC 2: The base overlay
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** bare metal
+
 The [base overlay](../../reference/base-overlay.md#rfsoc-4x2) is the FPGA design all these tutorials use. You do not
 write its addresses down: the generator reads the design and writes a crate with a field for every block, each with its
 driver.

@@ -1,5 +1,7 @@
 # RFSoC 1: First light
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** bare metal
+
 `baremetal/psu-smoke` checks the processor system: clocks, caches, memory, timers and floating point.
 
 ```console

@@ -1,5 +1,7 @@
 # RFSoC 4: A mood light on the kernel
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** RTOS (the real-time kernel)
+
 `apps/rfsoc4x2/rtos/rt_lights.rs` is [tutorial 2](02-base-overlay.md)'s hardware run by the
 [real-time kernel](../../reference/rt.md): several things happen at once, each by its own deadline. Generate the crate
 again with the kernel in it:

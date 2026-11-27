@@ -1,5 +1,7 @@
 # Bare metal 2: A PL interrupt through the GIC
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 15 minutes · **Needs:** [Bare metal 1](01-jtag.md)
 
 Under [Linux](../linux/02-interrupts.md) an interrupt from the programmable logic arrives as a read on a UIO device.

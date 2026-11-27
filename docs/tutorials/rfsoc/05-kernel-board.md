@@ -1,5 +1,7 @@
 # RFSoC 5: The board's hardware as tasks
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** RTOS (the real-time kernel)
+
 `baremetal/rt-board` drives the chips of [tutorial 3](03-board-hardware.md) from the kernel. Some of them are slow (a
 display redraw takes milliseconds, setting up the clock chips half a second); the kernel keeps that from delaying
 anything urgent.

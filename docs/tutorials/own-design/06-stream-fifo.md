@@ -1,5 +1,7 @@
 # Your own design 6: AXI4-Stream FIFO
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/pynq_z2_fifo.xsa` · **Time:** 10 minutes · **Needs:**
 [setup](../linux/index.md#before-you-start-once); the interrupt overlay for step 3
 

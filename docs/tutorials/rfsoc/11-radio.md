@@ -1,5 +1,7 @@
 # RFSoC 11: A tone out and back
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** Linux, bare metal and RTOS (the real-time kernel)
+
 The board's reason to exist is its radio: converters that turn numbers into signals up to a few gigahertz, and back.
 Here a program sends a tone out of each DAC, brings it in through an ADC, and finds it in the spectrum. It is the same
 program on bare metal, on the kernel and under Linux.

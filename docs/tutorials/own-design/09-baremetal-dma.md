@@ -1,5 +1,7 @@
 # Your own design 9: DMA on bare metal with the caches on
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal
+
 **Design:** `fixtures/board/pynq_z2_dma_loopback.xsa` · **Time:** 15 minutes · **Needs:** [Bare metal 1](../baremetal/01-jtag.md)
 
 On Linux, DMA buffers come from the `u-dma-buf` kernel module ([tutorial 5](05-dma.md)). Bare metal has no kernel to ask,

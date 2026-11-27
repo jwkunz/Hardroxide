@@ -1,5 +1,7 @@
 # Applications 1: Lights and buttons on the base overlay
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal and RTOS (the real-time kernel)
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 30 minutes · **Needs:** [Bare metal 1](../baremetal/01-jtag.md)
 
 The PYNQ base overlay is the design every PYNQ-Z2 user already has: HDMI in and out, an audio codec, four MicroBlaze

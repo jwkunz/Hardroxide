@@ -1,4 +1,6 @@
-# Linux tutorials
+# PYNQ-Z2: Linux tutorials
+
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
 
 Four hands-on tutorials for the **Linux** flavor (`--platform linux`, the default): your Rust program runs as a Linux
 process on the board's ARM cores and manages the programmable logic. All four use the **PYNQ base overlay**, the design

@@ -1,5 +1,16 @@
 # Tutorials
 
+## Which board do you have?
+
+| Board | Tutorials | Also |
+|---|---|---|
+| [**PYNQ-Z2**](../boards/pynq-z2.md) (Zynq-7000) | the pages below: [Linux](linux/index.md), [bare metal](baremetal/index.md), [RTOS](rtos/index.md), [applications](apps/index.md), [your own design](own-design/index.md) | [every example for it](../examples.md#pynq-z2) |
+| [**RFSoC 4x2**](../boards/rfsoc-4x2.md) (Zynq UltraScale+) | [the RFSoC tutorials](rfsoc/index.md): Linux, bare metal, the real-time kernel and the radio | [every example for it](../examples.md#rfsoc-4x2) |
+
+Every tutorial page names its board and flavor at the top.
+
+## Choosing a flavor
+
 The tutorials are grouped by **flavor**, that is by what runs on the board's processor. Pick the one that
 matches how you will deploy; all three start from the same `.xsa` and the same generated API
 (`Design`, typed drivers, `pac`).
@@ -10,9 +21,6 @@ matches how you will deploy; all three start from the same `.xsa` and the same g
 | [**Bare metal**](baremetal/index.md) | `baremetal` | the only software on core 0: startup, interrupts, timers, UART and caches come from `hardroxide-ps7`; started over JTAG or from SD | [Bare metal 1: Run over JTAG](baremetal/01-jtag.md) |
 | [**RTOS**](rtos/index.md) | `rtos` | bare metal plus the `hardroxide-rt` kernel: prioritised tasks, semaphores, mutexes, queues, 10 ms control loops | [RTOS 1: A 10 ms control loop](rtos/01-control-loop.md) |
 
-**Zynq UltraScale+** (on the RFSoC 4x2: bare metal, the kernel, Linux and the radio) has
-[its own tutorials](rfsoc/index.md). The rest of this page is about the PYNQ-Z2.
-
 **Applications** ([setup](apps/index.md)) are programs that do something worth showing on the PYNQ base overlay, built with the bare-metal and RTOS flavors.
 
 Not sure which? Use Linux when you want the operating system's file system, network and tools next to your
@@ -22,7 +30,7 @@ several activities with deadlines must share the processor.
 You do **not** need Vivado for any of them: the `.xsa` files are in `fixtures/`. The output shown was
 captured on a PYNQ-Z2. See [Choosing a flavor](../guide/workflow.md#choosing-a-flavor) for the trade-offs.
 
-## The tutorials
+## The PYNQ-Z2 tutorials
 
 **Start on the board's base overlay.** The first tutorials of every flavor, and the applications, use the one FPGA
 design your board already has: the PYNQ base overlay (`fixtures/board/pynq_base_overlay.xsa`). Then

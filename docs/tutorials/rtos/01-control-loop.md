@@ -1,5 +1,7 @@
 # RTOS 1: A 10 ms control loop on the kernel
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** RTOS (the real-time kernel)
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 20 minutes · **Needs:** [Bare metal 1](../baremetal/01-jtag.md) (the host setup)
 
 Real-time control wants a loop that runs every 10 ms however busy the rest of the program is. `hardroxide-rt` is a

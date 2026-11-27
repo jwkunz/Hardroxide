@@ -1,5 +1,5 @@
 //! Bare metal: a PL timer interrupt every 10 ms, handled through the GIC; reports how regular
-//! the events are. Bare metal tutorial 2.
+//! the events are.
 
 #![no_std]
 #![no_main]

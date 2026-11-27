@@ -1,5 +1,7 @@
 # Your own design 5: AXI DMA
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/pynq_z2_dma_loopback.xsa` · **Time:** 15 minutes · **Needs:**
 [setup](../linux/index.md#before-you-start-once), `u-dma-buf` (see
 [tutorial 4](04-hls-pointers.md#1-get-u-dma-buf)), the interrupt overlay for step 4

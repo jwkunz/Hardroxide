@@ -1,5 +1,7 @@
 # Bare metal 1: Run over JTAG
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 20 minutes · **Needs:** the
 [bare-metal host setup](index.md#host-setup) (Vitis 2025.2, the JTAG udev rule, the board in
 JTAG boot mode)

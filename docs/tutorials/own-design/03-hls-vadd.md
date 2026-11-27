@@ -1,5 +1,7 @@
 # Your own design 3: An HLS kernel
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/pynq_z2_hls_vadd.xsa` · **Time:** 10 minutes · **Needs:**
 [setup](../linux/index.md#before-you-start-once); the interrupt overlay for step 4
 

@@ -1,5 +1,7 @@
 # Your own design 1: Timer, SPI and interrupts
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/pynq_z2_peripherals.xsa` · **Time:** 15 minutes · **Needs:**
 [setup](../linux/index.md#before-you-start-once); the interrupt overlay (step 4)
 

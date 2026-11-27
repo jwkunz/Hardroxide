@@ -1,5 +1,7 @@
 # RFSoC 3: The board's own hardware
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** bare metal
+
 `baremetal/rfsoc-board` uses everything on the board that the processor reaches directly:
 [`hardroxide-board`](../../reference/board.md) for the chips, and the SPI, I2C, GPIO and temperature drivers of
 [`hardroxide-psu`](../../reference/psu.md).

@@ -1,5 +1,7 @@
 # Applications 3: Sound
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Needs:** [Applications 1](01-base-lights.md), headphones in the **HPH OUT** jack and, for the recording programs, a source on **LINE IN**
 
 > **Status: run on a PYNQ-Z2 (2026-11-21).** Playing tones and a WAV file, recording, and the full-duplex loop all work, with no missed samples. Two programs need a separate

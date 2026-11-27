@@ -1,5 +1,7 @@
 # RFSoC 10: The FPGA's own memory
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** Linux
+
 The board has two separate DDR4 memories of 4 GiB: the processor's, where Linux runs, and one wired to the FPGA, which
 the base overlay connects to a controller (`ddr4_0`). Linux does not use the second one. A design streams data into it
 that would not fit anywhere else; here the processor reads and writes it, through the generated crate.

@@ -1,5 +1,7 @@
 # Linux 2: Interrupts: wait for a button
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 15 minutes · **Needs:** [Linux 1](01-lights.md)
 
 [Tutorial 1](01-lights.md)'s program asked the buttons their state fifty times a second. An **interrupt** is the other

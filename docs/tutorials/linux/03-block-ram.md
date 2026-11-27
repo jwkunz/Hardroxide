@@ -1,5 +1,7 @@
 # Linux 3: Memory inside the FPGA
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 10 minutes · **Needs:** [Linux 1](01-lights.md)
 
 An FPGA has small blocks of memory inside it (**block RAM**). An **AXI BRAM controller** gives the processor a window

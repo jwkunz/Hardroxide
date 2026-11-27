@@ -1,5 +1,7 @@
 # Applications 5: Ethernet and a web server
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal and RTOS (the real-time kernel)
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Needs:** [Applications 1](01-base-lights.md), an Ethernet cable from the board to a PC (or a router)
 
 > **Status: run on a PYNQ-Z2 (2026-11-21)** with the board cabled straight to a PC: link at 1000 Mbit/s, an address from the PC's DHCP server, `ping`, a web server (status page, JSON, LED control from

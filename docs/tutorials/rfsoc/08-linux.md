@@ -1,5 +1,7 @@
 # RFSoC 8: The base overlay under Linux
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** Linux
+
 The same FPGA design and the same drivers as in [tutorial 2](02-base-overlay.md), now in an ordinary program under the
 board's PYNQ Linux. Nothing here needs JTAG or the Vitis tools to run; what stays the same is the generated crate.
 

@@ -1,5 +1,7 @@
 # Linux 1: LEDs, buttons and switches
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Time:** 15 minutes · **Needs:** the
 [setup](index.md#before-you-start-once) done once
 

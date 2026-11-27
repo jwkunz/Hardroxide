@@ -1,4 +1,6 @@
-# Bare-metal tutorials
+# PYNQ-Z2: bare-metal tutorials
+
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal
 
 `--platform baremetal`: a `no_std` program that is the only software on core 0 of the Zynq. Startup code,
 exception vectors, the interrupt controller, timers, the UART console, the MMU and the caches come from

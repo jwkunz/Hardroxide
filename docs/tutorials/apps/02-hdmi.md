@@ -1,5 +1,7 @@
 # Applications 2: Pixels on the HDMI output
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal and RTOS (the real-time kernel)
+
 **Design:** `fixtures/board/pynq_base_overlay.xsa` · **Needs:** [Applications 1](01-base-lights.md), an HDMI monitor on the board's **HDMI OUT**
 
 > **Status: run on a PYNQ-Z2 and a monitor (2026-11-21).** 800x600, 1024x768, 1280x720, 1280x1024 and 1920x1080 work; 640x480 is rejected by the tested monitor (open item).

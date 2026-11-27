@@ -1,5 +1,7 @@
 # Your own design 4: An HLS kernel that reads memory
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/pynq_z2_hls_scale.xsa` · **Time:** 15 minutes · **Needs:**
 [setup](../linux/index.md#before-you-start-once) and the `u-dma-buf` module
 

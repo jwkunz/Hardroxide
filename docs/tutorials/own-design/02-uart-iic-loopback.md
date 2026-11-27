@@ -1,5 +1,7 @@
 # Your own design 2: UART and I2C without wires
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Design:** `fixtures/pynq_z2_loopback.xsa` · **Time:** 15 minutes · **Needs:**
 [setup](../linux/index.md#before-you-start-once); the interrupt overlay for step 5
 

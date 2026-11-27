@@ -1,5 +1,7 @@
 # Your own design 8: A timer's interrupt on bare metal
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** bare metal
+
 **Design:** `fixtures/board/pynq_z2_peripherals.xsa` · **Time:** 15 minutes · **Needs:** [Bare metal 1](../baremetal/01-jtag.md)
 
 Under [Linux](01-timer-spi-irq.md) an interrupt from the programmable logic arrives as a read on a UIO

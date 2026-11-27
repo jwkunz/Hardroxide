@@ -1,4 +1,6 @@
-# Zynq UltraScale+ on the RFSoC 4x2
+# RFSoC 4x2 tutorials
+
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** Linux, bare metal and RTOS (the real-time kernel)
 
 New in 3.0 ([plan and results](../../decisions/0005-ultrascale-plus.md)): **bare metal and the real-time kernel**
 (processor start-up, the kernel, SD, Ethernet, the board's own hardware) and **Linux** under the board's PYNQ image,

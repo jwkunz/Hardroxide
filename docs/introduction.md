@@ -46,6 +46,8 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 
 | You want to | Go to |
 |---|---|
+| know which boards it runs on, and what works on each | [The boards](boards/index.md) |
+| find an example program for your board | [Example projects](examples.md) |
 | see it work, step by step, with real output | [Tutorials](tutorials/index.md): start on the board's base overlay (Linux, bare metal, the real-time kernel, applications), then DMA, HLS and more on designs of your own |
 | decide between Linux, bare metal and RTOS | [Choosing a flavor](guide/workflow.md#choosing-a-flavor) |
 | understand the whole flow in one page | [The workflow](guide/workflow.md) |
@@ -56,6 +58,7 @@ The register layer, the typed drivers and the `Design` type are the same in all 
 
 ## How this book is organised
 
+- **Boards and examples**: the two boards it has been run on, and every example program by board and flavor.
 - **User Guide**: install, generate, use and update a crate; the workflow, and how
   to prepare a board.
 - **Tutorials**: for the PYNQ-Z2, twenty-three hands-on walk-throughs (four Linux, two bare metal, one RTOS and seven

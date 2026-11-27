@@ -1,5 +1,7 @@
 # Your own design 7: Updating a bitstream
 
+**Board:** [PYNQ-Z2](../../boards/pynq-z2.md) · **Runs:** Linux
+
 **Designs:** `fixtures/pynq_z2_peripherals.xsa` and two variants in
 `fixtures/variants/` · **Time:** 15 minutes · **Needs:**
 [setup](../linux/index.md#before-you-start-once)

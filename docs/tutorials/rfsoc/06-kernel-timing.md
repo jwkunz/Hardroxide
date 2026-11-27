@@ -1,5 +1,7 @@
 # RFSoC 6: The kernel's tests and timing
 
+**Board:** [RFSoC 4x2](../../boards/rfsoc-4x2.md) · **Runs:** RTOS (the real-time kernel)
+
 [`hardroxide-rt`](../../reference/rt.md) is the same kernel on both processor families, with the same API.
 `baremetal/rt-smoke` is one program for both.
 

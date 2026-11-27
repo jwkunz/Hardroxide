@@ -1,5 +1,6 @@
-//! The radio loopback measurement of the RFSoC 4x2 base overlay, shared by the bare-metal and Linux programs
-//! (`radio_loopback.rs`): send tones from the two DACs, record the four receivers, find the tones in the spectrum.
+//! The radio loopback measurement of the RFSoC 4x2 base overlay, shared by the bare-metal, kernel and Linux programs
+//! (`radio_loopback.rs`, `rt_radio_loopback.rs`): send tones from the two DACs, record the four receivers, find the
+//! tones in the spectrum.
 //!
 //! Wire SMA cables from DAC A to ADC A and from DAC B to ADC B. The clock chips must be programmed before
 //! [`measure`] is called: it starts the converters' tiles, which fails without clocks, before it touches any block
@@ -40,6 +41,67 @@ pub struct Receiver<'a, R: Mmio> {
     pub i: &'a AxiDma<R>,
     pub q: &'a AxiDma<R>,
 }
+
+/// The [`Bench`] on the base overlay's blocks, as a generated `Design` `$d` has them, with `$buffers` (a pair of
+/// [`BUFFER_BYTES`] bytes each), a [`Spectrum`] and somewhere to print.
+macro_rules! base_overlay_bench {
+    ($d:ident, $buffers:expr, $spectrum:expr, $print:expr) => {
+        $crate::loopback::Bench {
+            rfdc: &mut $d.radio_rfdc,
+            transmitters: [
+                $crate::loopback::Transmitter {
+                    name: "DAC A",
+                    tile: 2,
+                    amplitude: &mut $d.radio_transmitter_channel_20_amplitude_controller,
+                },
+                $crate::loopback::Transmitter {
+                    name: "DAC B",
+                    tile: 0,
+                    amplitude: &mut $d.radio_transmitter_channel_00_amplitude_controller,
+                },
+            ],
+            receivers: [
+                $crate::loopback::Receiver {
+                    name: "ADC A (receiver 21)",
+                    tile: 2,
+                    block: 1,
+                    generator: &mut $d.radio_receiver_channel_21_packet_generator,
+                    i: &$d.radio_receiver_channel_21_axi_dma_real,
+                    q: &$d.radio_receiver_channel_21_axi_dma_imag,
+                },
+                $crate::loopback::Receiver {
+                    name: "ADC B (receiver 20)",
+                    tile: 2,
+                    block: 0,
+                    generator: &mut $d.radio_receiver_channel_20_packet_generator,
+                    i: &$d.radio_receiver_channel_20_axi_dma_real,
+                    q: &$d.radio_receiver_channel_20_axi_dma_imag,
+                },
+                $crate::loopback::Receiver {
+                    name: "ADC C (receiver 01)",
+                    tile: 0,
+                    block: 1,
+                    generator: &mut $d.radio_receiver_channel_01_packet_generator,
+                    i: &$d.radio_receiver_channel_01_axi_dma_real,
+                    q: &$d.radio_receiver_channel_01_axi_dma_imag,
+                },
+                $crate::loopback::Receiver {
+                    name: "ADC D (receiver 00)",
+                    tile: 0,
+                    block: 0,
+                    generator: &mut $d.radio_receiver_channel_00_packet_generator,
+                    i: &$d.radio_receiver_channel_00_axi_dma_real,
+                    q: &$d.radio_receiver_channel_00_axi_dma_imag,
+                },
+            ],
+            buffers: Some($buffers),
+            spectrum: $spectrum,
+            print: $print,
+            failures: 0,
+        }
+    };
+}
+pub(crate) use base_overlay_bench;
 
 /// The sine and cosine of an angle of at most pi either way, by their series (there is no maths library here).
 fn cos_sin(x: f64) -> (f64, f64) {

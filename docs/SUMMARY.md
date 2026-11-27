@@ -76,6 +76,7 @@
   - [8. The base overlay under Linux](tutorials/rfsoc/08-linux.md)
   - [9. A web page for the board](tutorials/rfsoc/09-linux-web.md)
   - [10. The FPGA's own memory](tutorials/rfsoc/10-linux-memory.md)
+  - [11. A tone out and back](tutorials/rfsoc/11-radio.md)
 
 # Reference
 

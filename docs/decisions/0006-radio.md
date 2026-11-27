@@ -98,6 +98,10 @@ R1 and R2 are written and pass their host tests (2026-11-26). Of R3, the loopbac
 and Linux (`apps/rfsoc4x2/{baremetal,linux}/radio_loopback.rs`, shared measurement in `common/`); the kernel's is still
 to be written.
 
+The kernel's program (`rtos/rt_radio_loopback.rs`, the measurement under a 1 ms task) and the tutorial
+(`tutorials/rfsoc/11-radio.md`) are written; the kernel's has not yet run on the board, and the bare-metal one has not
+since its wiring and clock code moved into `common/`.
+
 **R3 on the board, bare metal** (RFSoC 4x2 over JTAG, 2026-11-26, cables DAC A to ADC A and DAC B to ADC B): acceptance
 1 to 3 passed. The four tiles started; each tone was at `f_tx - f_rx` for both signs, at -18.3 dBFS (DAC A) and -18.6
 dBFS (DAC B), with nothing above -105 dBFS at minus that frequency; half the value gave 6.02 and 6.03 dB less; the other

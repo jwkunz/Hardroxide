@@ -66,12 +66,13 @@ another card.
 no Zynq-7000 image has been booted from a card). Then 3.1, then the release.
 
 **3.1, the radio driver** ([ADR 0006](docs/decisions/0006-radio.md), accepted 2026-11-26: tones only on the base overlay,
-no common start of sending and recording, mixer frequency, phase and status only). R1 and R2 are done on the host
-(`hardroxide_ip::rfdc` and `::radio`, curated in generated crates); the R3 loopback program is written for bare metal and
-Linux (`apps/rfsoc4x2/*/radio_loopback.rs`), the kernel's not yet; **bare metal passed on the board** (2026-11-26;
-receiver 20 / ADC B fails beyond 30720 samples in RFSoC-PYNQ's bitstream, so the program records 16384). ADC C and D passed too (receivers 01 and 00). Linux passed, and PYNQ's `xrfdc` reads our settings back as
-written; PYNQ's own software shows the receiver 20 failure too. Next: the kernel's program (never touch the radio blocks outside `radio_rfdc` before the clock chips
-are programmed and the tiles run: the processor stalls), then R4, tutorials.
+no common start of sending and recording, mixer frequency, phase and status only). R1 and R2
+(`hardroxide_ip::rfdc` and `::radio`, curated in generated crates) are done. R3 on the board (2026-11-26): the loopback program passed on bare metal (all four ADCs; ADC C is receiver 01, D 00) and Linux, and
+PYNQ's `xrfdc` reads our settings back as written. Receiver 20 (ADC B) fails beyond 30720 samples in RFSoC-PYNQ's
+bitstream (PYNQ's own software too), so the program records 16384. Written since, **not yet run on the board**: the
+kernel's program (`rt_radio_loopback`), the shared `apps/rfsoc4x2/common/`, tutorial `rfsoc/11-radio.md`. Next: one
+board run with `HRX_RF_LOOPBACK=1 scripts/test-board-rfsoc.sh`. Never touch the radio blocks outside `radio_rfdc`
+before the clock chips are programmed and the tiles run: the processor stalls.
 The Vivado evaluation license for the part expires 2026-12-29; the maintainer has another to use after that (2026-11-26),
 so the date is no deadline.
 

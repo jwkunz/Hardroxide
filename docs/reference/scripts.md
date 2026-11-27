@@ -18,7 +18,9 @@ runs writes to a card. `scripts/test-qemu.sh` also runs the SD card (with `fsck.
 `scripts/test-board-rfsoc.sh` runs it on an RFSoC 4x2 in JTAG boot mode, with the loopback fixture in the PL and again without
 programming it, and then the kernel's test, `baremetal/rt-smoke` (which `test-qemu-psu.sh` also runs). The designs themselves are checked without Hardroxide code by `fixtures/rfsoc4x2/scripts/probe.py` (with
 `HRX_RF_KEEP_CLOCKS=1` it leaves a running board's clock chips alone, to check what a program set up). The board script
-also runs `baremetal/rfsoc-board`, the demonstration of the board's own hardware.
+also runs `baremetal/rfsoc-board`, the demonstration of the board's own hardware. With
+`HRX_RF_LOOPBACK=1`, which says SMA cables join DAC A to ADC A and DAC B to ADC B, it runs the radio loopback on bare
+metal and on the kernel ([RFSoC 11](../tutorials/rfsoc/11-radio.md)).
 
 ## `check-compat.py`: backward compatibility
 

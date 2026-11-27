@@ -29,6 +29,8 @@ unchanged.
   data converter's tiles and sets mixer frequency and phase; `hardroxide_ip::radio` drives the RFSoC base overlay's
   amplitude controllers and packet generators and records a receiver. Generated crates use these in place of raw register
   windows, so the interface hash of a design with these blocks changes from earlier `v3` builds.
+- RFSoC 4x2: the radio loopback application on bare metal, the kernel and Linux (`apps/rfsoc4x2/`), tutorial
+  [RFSoC 11](docs/tutorials/rfsoc/11-radio.md), and `HRX_RF_LOOPBACK=1` for `scripts/test-board-rfsoc.sh`.
 - New crate `hardroxide-psu`: bare-metal processor support for the Cortex-A53 (AArch64 at EL3): startup, MMU and caches, GIC,
   generic timer, clocks, console.
 - `hardroxide run` drives a Zynq UltraScale+ board when the XSA is one, and `hardroxide package` builds its `BOOT.BIN`

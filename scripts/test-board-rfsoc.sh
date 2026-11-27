@@ -8,6 +8,8 @@
 # chips, which forget at power-off), and the overlay and the board hardware on the kernel (apps/rfsoc4x2/rtos/rt_lights,
 # baremetal/rt-board). What the display shows, the buttons and the switches are for a person to check.
 # HRX_SD_SERIAL=0x... adds the SD card test, which ERASES that card (and refuses any other).
+# HRX_RF_LOOPBACK=1 adds the radio loopback (bare metal and the kernel; SMA cables from DAC A to ADC A and from DAC B to
+# ADC B).
 # HRX_NET=1 adds the Ethernet tests (bare metal, and the web page on the kernel; the board cabled to this computer,
 # which serves DHCP on that link).
 #
@@ -128,6 +130,30 @@ need "clocks: programmed, both synthesizers locked: true"
 need "monitor: [0-9]* updates (0 incomplete)"
 need "follows: true"
 need "RT BOARD OK"
+
+# The radio: only with HRX_RF_LOOPBACK=1, which says the two cables are fitted. Built as tutorial 11 has a student do it.
+radio() { # <platform> <application>
+  local platform=$1 app=$2 dir=$GEN/radio-$1
+  rm -rf "$dir"
+  target/debug/hardroxide generate "$XSA" --platform "$platform" --name design_1 -o "$dir" --hardroxide-path "$ROOT" >/dev/null
+  cp "apps/rfsoc4x2/$platform/$app.rs" "$dir/examples/"
+  cp -r apps/rfsoc4x2/common "$dir/examples/"
+  cp fixtures/rfsoc4x2/clocks/*.txt "$dir/examples/"
+  sed -i "s|^\[dev-dependencies\]\$|&\nhardroxide-board = { path = \"$ROOT/crates/hardroxide-board\" }|" "$dir/Cargo.toml"
+  printf '\n[workspace]\n' >>"$dir/Cargo.toml"
+  (cd "$dir" && CARGO_TARGET_DIR="$GEN/target-apps-$platform" cargo build -q --release --example "$app")
+  target/debug/hardroxide run "$GEN/target-apps-$platform/aarch64-unknown-none/release/examples/$app" \
+    --xsa "$XSA" --tty "$TTY" --watch 40 2>&1 | tr -d '\r' | tee "$OUT"
+}
+if [ -n "${HRX_RF_LOOPBACK:-}" ]; then
+  echo "== the radio loopback"
+  radio baremetal radio_loopback
+  need "^RADIO LOOPBACK OK$"
+  echo "== the radio loopback on the kernel"
+  radio rtos rt_radio_loopback
+  need "worst deviation from 1 ms: [0-9]* us"
+  need "^RT RADIO LOOPBACK OK$"
+fi
 
 # The generated crates: each design's crate runs its board check and its driver test (fixtures/board_tests_rfsoc), and the
 # base overlay's RTOS crate its control loop.

@@ -100,8 +100,8 @@ fn applications_build() {
                 std::fs::copy(e.path(), tmp.join("examples/common").join(e.file_name())).unwrap();
             }
         }
-        // The radio application programs the RFSoC board's clock chips from their register files.
-        if ultrascale && platform == Platform::BareMetal {
+        // The radio applications without Linux program the RFSoC board's clock chips from their register files.
+        if ultrascale && !linux {
             let clocks = root().join("fixtures/rfsoc4x2/clocks");
             for e in std::fs::read_dir(clocks).unwrap().flatten() {
                 if e.path().extension().is_some_and(|x| x == "txt") {
@@ -148,8 +148,8 @@ fn applications_build() {
                 ),
             );
         }
-        // As its tutorial says, the radio application adds the board's chip drivers.
-        if ultrascale && platform == Platform::BareMetal {
+        // As their tutorial says, those add the board's chip drivers.
+        if ultrascale && !linux {
             let section = "[dev-dependencies]\n";
             assert!(manifest.contains(section), "{manifest}");
             manifest = manifest.replace(

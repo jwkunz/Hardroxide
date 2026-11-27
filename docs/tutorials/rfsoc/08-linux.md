@@ -21,6 +21,7 @@ From the repository's root; Linux is the generator's default platform:
 ```console
 $ hardroxide generate fixtures/board/rfsoc4x2_base_overlay.xsa --name design_1 -o ../base-linux --hardroxide-path .
 $ cp apps/rfsoc4x2/linux/*.rs ../base-linux/examples/
+$ cp -r apps/rfsoc4x2/common ../base-linux/examples/
 ```
 
 ## 3. First contact

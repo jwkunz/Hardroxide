@@ -83,6 +83,7 @@ starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for
 | `rt_dashboard` | RTOS | a web page served beside a 10 ms control loop ([RFSoC 7](../tutorials/rfsoc/07-network-sd.md#a-web-page-on-the-kernel)) |
 | `lights` | Linux | the first one as a Linux program ([RFSoC 8](../tutorials/rfsoc/08-linux.md)) |
 | `dashboard` | Linux | a web page: temperature, buttons, switches, LEDs, power monitors ([RFSoC 9](../tutorials/rfsoc/09-linux-web.md)) |
+| `radio_loopback`, `rt_radio_loopback` | bare metal, RTOS, Linux | tones from the DACs, recorded by the ADCs and found in the spectrum ([RFSoC 11](../tutorials/rfsoc/11-radio.md)) |
 | `pl_memory` | Linux | the FPGA's 4 GiB of DDR4: address lines, patterns, speed ([RFSoC 10](../tutorials/rfsoc/10-linux-memory.md)) |
 
 | Block | Address | What it is | Interrupt controller input |

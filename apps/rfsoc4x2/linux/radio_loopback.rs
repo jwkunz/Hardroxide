@@ -15,7 +15,7 @@ use std::process::Command;
 
 #[path = "common/loopback.rs"]
 mod loopback;
-use loopback::{BUFFER_BYTES, Bench, Receiver, SAMPLES, Spectrum, Transmitter};
+use loopback::{BUFFER_BYTES, SAMPLES, Spectrum};
 
 /// Whether the image's start-up script has run and programmed the clocks: `systemctl show`'s answer about the service
 /// that runs it, and the script.
@@ -70,75 +70,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut re = vec![0.0; SAMPLES].into_boxed_slice();
     let mut im = vec![0.0; SAMPLES].into_boxed_slice();
 
-    macro_rules! receiver {
-        ($name:literal, $tile:literal, $block:literal, $generator:ident, $i:ident, $q:ident) => {
-            Receiver {
-                name: $name,
-                tile: $tile,
-                block: $block,
-                generator: &mut d.$generator,
-                i: &d.$i,
-                q: &d.$q,
-            }
-        };
-    }
     let mut print = |text: std::fmt::Arguments| print!("{text}");
-    let failures = loopback::measure(Bench {
-        rfdc: &mut d.radio_rfdc,
-        transmitters: [
-            Transmitter {
-                name: "DAC A",
-                tile: 2,
-                amplitude: &mut d.radio_transmitter_channel_20_amplitude_controller,
-            },
-            Transmitter {
-                name: "DAC B",
-                tile: 0,
-                amplitude: &mut d.radio_transmitter_channel_00_amplitude_controller,
-            },
-        ],
-        receivers: [
-            receiver!(
-                "ADC A (receiver 21)",
-                2,
-                1,
-                radio_receiver_channel_21_packet_generator,
-                radio_receiver_channel_21_axi_dma_real,
-                radio_receiver_channel_21_axi_dma_imag
-            ),
-            receiver!(
-                "ADC B (receiver 20)",
-                2,
-                0,
-                radio_receiver_channel_20_packet_generator,
-                radio_receiver_channel_20_axi_dma_real,
-                radio_receiver_channel_20_axi_dma_imag
-            ),
-            receiver!(
-                "ADC C (receiver 01)",
-                0,
-                1,
-                radio_receiver_channel_01_packet_generator,
-                radio_receiver_channel_01_axi_dma_real,
-                radio_receiver_channel_01_axi_dma_imag
-            ),
-            receiver!(
-                "ADC D (receiver 00)",
-                0,
-                0,
-                radio_receiver_channel_00_packet_generator,
-                radio_receiver_channel_00_axi_dma_real,
-                radio_receiver_channel_00_axi_dma_imag
-            ),
-        ],
-        buffers: Some(buffers),
-        spectrum: Spectrum::new(
-            (&mut *re).try_into().expect("the length"),
-            (&mut *im).try_into().expect("the length"),
-        ),
-        print: &mut print,
-        failures: 0,
-    });
+    let spectrum = Spectrum::new(
+        (&mut *re).try_into().expect("the length"),
+        (&mut *im).try_into().expect("the length"),
+    );
+    let failures = loopback::measure(loopback::base_overlay_bench!(
+        d, buffers, spectrum, &mut print
+    ));
     if failures != 0 {
         return Err(format!("RADIO LOOPBACK FAILED: {failures} check(s)").into());
     }

@@ -21,6 +21,7 @@ in `baremetal/`. The output shown was captured on one; addresses and serial numb
 | 8 | [The base overlay under Linux](08-linux.md) | the same design from a Linux program: loading, interrupts |
 | 9 | [A web page for the board](09-linux-web.md) | the network and the kernel's drivers alongside the FPGA |
 | 10 | [The FPGA's own memory](10-linux-memory.md) | the second 4 GiB of DDR4, and what must come first |
+| 11 | [A tone out and back](11-radio.md) | the radio: tones from the DACs, recorded and found in the spectrum, on all three platforms |
 
 ## One FPGA design: the base overlay
 

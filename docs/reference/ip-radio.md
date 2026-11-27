@@ -4,7 +4,8 @@
 `xilinx.com:ip:amplitude_controller` in front of a transmit converter and `xilinx.com:ip:packet_generator` after a
 receiver. With the [converter driver](ip-rfdc.md) they send a tone and record it.
 
-> **Not yet run on a board** with this driver. The registers are as RFSoC-PYNQ's drivers use them.
+> **Verified on an RFSoC 4x2**, bare metal, with `apps/rfsoc4x2/baremetal/radio_loopback.rs` (2026-11-26); not yet
+> under Linux. The registers are as RFSoC-PYNQ's drivers use them.
 
 ```rust,ignore
 pub const SAMPLES_PER_WORD: usize = 8;
@@ -44,7 +45,13 @@ it starts both DMAs, then asks for the packet, then waits for both.
 
 - `samples`: 16 to 32768 in steps of 8, signed 16-bit little-endian, I in the first buffer and Q in the second, each
   pair taken at the same instant. The buffers need `2 * samples` bytes.
-- On an error the DMAs are stopped and the buffers are not given back.
+- On an error the DMAs are stopped and the buffers are not given back. A record that does not arrive whole is an error
+  (`Short`, or the DMA's timeout), and whatever it left on the way is discarded by the next `record` before it asks for
+  a packet.
+- **RFSoC 4x2 base overlay: record at most 30720 samples from `radio_receiver_channel_20` (ADC B).** Its path to memory
+  has no data buffer in RFSoC-PYNQ's bitstream, and longer records lost their end every time; the other three receivers
+  take 32768. Measured with the processor otherwise idle, so leave a margin if it is busy
+  ([results](../decisions/0006-radio.md#steps)).
 - Receivers are recorded one at a time; nothing ties one receiver's start to another's or to a transmitter's.
 
 Which socket each receiver of the RFSoC 4x2's base overlay is: `radio_receiver_channel_21` is ADC A and

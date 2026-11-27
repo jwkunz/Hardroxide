@@ -4,8 +4,9 @@
 new in 3.0. It starts a tile, reports its state, and sets a block's mixer frequency and phase. Everything else stays as
 the bitstream configured it ([ADR 0006](../decisions/0006-radio.md)).
 
-> **Not yet run on a board** with this driver. The register offsets and the order of writes follow the vendor's `xrfdc`
-> driver; the DAC's frequency registers were exercised on an RFSoC 4x2 by the fixture's probe script, with raw accesses.
+> **Verified on an RFSoC 4x2**, bare metal (2026-11-26): starting tiles, and frequencies of transmit and receive mixers
+> shown by where a looped-back tone appears. Not checked there: the phase setting, and the settings read back by another
+> driver. Not yet run under Linux. The register offsets and the order of writes follow the vendor's `xrfdc` driver.
 
 ```rust,ignore
 pub enum Converter

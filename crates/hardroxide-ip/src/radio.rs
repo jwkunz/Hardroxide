@@ -2,15 +2,22 @@
 //! which feeds a transmit converter, and `xilinx.com:ip:packet_generator`, which cuts a packet out of a
 //! receiver's streams for two DMAs. Both are RFSoC-PYNQ's; their registers are as its drivers use them.
 
-use crate::dma::{AxiDma, Direction, DmaIpError};
+use crate::dma::{AxiDma, Direction, DmaIpError, Transfer};
 use core::time::Duration;
 use hardroxide_dma::DmaBuffer;
+use hardroxide_mmio::time::Instant;
 use hardroxide_mmio::{Mmio, MmioError};
 
 const ENABLE: usize = 0x00;
 const VALUE: usize = 0x04;
 const LENGTH: usize = 0x00;
 const SEND: usize = 0x04;
+/// The DMA's stream-to-memory length register: after a transfer, the bytes that arrived.
+const RECEIVED: usize = 0x58;
+/// How long a record's DMAs must stay waiting, before the packet is asked for, to show that nothing old is on its way.
+const SETTLE: Duration = Duration::from_micros(50);
+/// How many times a DMA may find something old before giving up.
+const STALE_LIMIT: usize = 16;
 
 /// Samples (of 16 bits) in one word of a receiver's streams.
 pub const SAMPLES_PER_WORD: usize = 8;
@@ -27,6 +34,10 @@ pub enum RadioError {
     PacketLength(usize),
     #[error("a record is 16 to 32768 samples in steps of 8, not {0}")]
     RecordLength(usize),
+    #[error("a DMA received {got} bytes of a record of {wanted}: the packet did not arrive whole")]
+    Short { got: usize, wanted: usize },
+    #[error("data keeps arriving at a DMA although no packet was asked for")]
+    Unrequested,
 }
 
 /// Puts one value, on both I and Q, into a transmit converter's stream for as long as it is on.
@@ -119,8 +130,10 @@ impl<R: Mmio> PacketGenerator<R> {
 /// signed 16-bit little-endian numbers, each pair taken at the same instant. The buffers need
 /// room for `2 * samples` bytes.
 ///
-/// Both DMAs are started before the packet is asked for, as they must be. On an error the DMAs
-/// are stopped and the buffers are not given back, as with
+/// Both DMAs are started before the packet is asked for, as they must be. Anything an earlier
+/// record that failed left on its way arrives first and is discarded. A record that does not
+/// arrive whole is an error: a receiver whose path to memory cannot keep up loses the end of a
+/// long one. On an error the DMAs are stopped and the buffers are not given back, as with
 /// [`Transfer::wait`](crate::dma::Transfer::wait).
 pub fn record<R: Mmio, B: DmaBuffer>(
     generator: &mut PacketGenerator<R>,
@@ -130,23 +143,68 @@ pub fn record<R: Mmio, B: DmaBuffer>(
     samples: usize,
     timeout: Duration,
 ) -> Result<(B, B), RadioError> {
+    record_after(generator, i_dma, q_dma, buffers, samples, timeout, SETTLE)
+}
+
+/// [`record`] with the quiet time to wait for before the request.
+fn record_after<R: Mmio, B: DmaBuffer>(
+    generator: &mut PacketGenerator<R>,
+    i_dma: &AxiDma<R>,
+    q_dma: &AxiDma<R>,
+    buffers: (B, B),
+    samples: usize,
+    timeout: Duration,
+    settle: Duration,
+) -> Result<(B, B), RadioError> {
     if !samples.is_multiple_of(SAMPLES_PER_WORD) || !(16..=32768).contains(&samples) {
         return Err(RadioError::RecordLength(samples));
     }
     let bytes = 2 * samples;
     generator.stop()?;
     generator.set_length(samples / SAMPLES_PER_WORD)?;
-    let i = i_dma
-        .start(Direction::StreamToMem, buffers.0, bytes)
-        .map_err(|e| e.error)?;
-    let q = q_dma
-        .start(Direction::StreamToMem, buffers.1, bytes)
-        .map_err(|e| e.error)?;
+    let mut i = arm(i_dma, buffers.0, bytes)?;
+    let mut q = arm(q_dma, buffers.1, bytes)?;
+    let mut quiet_since = Instant::now();
+    let mut stale = 0;
+    while quiet_since.elapsed() < settle {
+        if i.poll()? {
+            let buffer = i.wait(Duration::ZERO)?;
+            i = arm(i_dma, buffer, bytes)?;
+        } else if q.poll()? {
+            let buffer = q.wait(Duration::ZERO)?;
+            q = arm(q_dma, buffer, bytes)?;
+        } else {
+            core::hint::spin_loop();
+            continue;
+        }
+        stale += 1;
+        if stale > STALE_LIMIT {
+            return Err(RadioError::Unrequested);
+        }
+        quiet_since = Instant::now();
+    }
     generator.send()?;
     let i = i.wait(timeout);
     let q = q.wait(timeout);
     generator.stop()?;
-    Ok((i?, q?))
+    let buffers = (i?, q?);
+    for dma in [i_dma, q_dma] {
+        let got = dma.regs().read32(RECEIVED)? as usize;
+        if got != bytes {
+            return Err(RadioError::Short { got, wanted: bytes });
+        }
+    }
+    Ok(buffers)
+}
+
+fn arm<R: Mmio, B: DmaBuffer>(
+    dma: &AxiDma<R>,
+    buffer: B,
+    bytes: usize,
+) -> Result<Transfer<'_, R, B>, RadioError> {
+    Ok(dma
+        .start(Direction::StreamToMem, buffer, bytes)
+        .map_err(|e| e.error)?)
 }
 
 #[cfg(all(test, feature = "std"))]
@@ -154,6 +212,8 @@ mod tests {
     use super::*;
     use hardroxide_dma::MockBuffer;
     use hardroxide_mmio::{MmioBackend, MockAccess, MockBackend};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     const GENERATOR: u64 = 0xB002_0000;
     const I_DMA: u64 = 0xB001_0000;
@@ -183,6 +243,7 @@ mod tests {
         for dma in [I_DMA, Q_DMA] {
             // Halted until started; the status flags clear by writing them.
             be.poke(dma + 0x34, 1);
+            be.set_write1_clear(dma + 0x34);
         }
         let map = |at| be.map(at, 0x1000).unwrap();
         let mut generator = PacketGenerator::new(map(GENERATOR));
@@ -233,6 +294,101 @@ mod tests {
                 "length starts the transfer: before the packet"
             );
         }
+    }
+
+    /// Two DMAs and a packet generator, with hardware that hands `old` stale packets to the I engine before the
+    /// request, and completes both engines after it, the I engine having received `i_bytes`.
+    fn with_hardware(old: usize, i_bytes: u32) -> (MockBackend, Result<(), RadioError>) {
+        let be = MockBackend::new();
+        for dma in [I_DMA, Q_DMA] {
+            be.poke(dma + 0x34, 1);
+            be.set_write1_clear(dma + 0x34);
+        }
+        let map = |at| be.map(at, 0x1000).unwrap();
+        let mut generator = PacketGenerator::new(map(GENERATOR));
+        let i_dma = AxiDma::with_length_width(map(I_DMA), 26);
+        let q_dma = AxiDma::with_length_width(map(Q_DMA), 26);
+        let done = Arc::new(AtomicBool::new(false));
+        let hardware = {
+            let (be, done) = (be.clone(), done.clone());
+            std::thread::spawn(move || {
+                let armed = |be: &MockBackend| {
+                    be.log()
+                        .iter()
+                        .filter(|a| {
+                            matches!(a, MockAccess::Write { addr, .. } if *addr == I_DMA + 0x58)
+                        })
+                        .count()
+                };
+                for n in 1..=old {
+                    while armed(&be) < n && !done.load(Ordering::Relaxed) {
+                        std::thread::yield_now();
+                    }
+                    be.poke(I_DMA + 0x34, (1 << 12) | 2);
+                }
+                while be.peek(GENERATOR + 4) != 1 {
+                    if done.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    std::thread::yield_now();
+                }
+                be.poke(I_DMA + 0x58, i_bytes);
+                for dma in [I_DMA, Q_DMA] {
+                    be.poke(dma + 0x34, (1 << 12) | 2);
+                }
+            })
+        };
+        let buffers = (MockBuffer::new(64, 0x1000), MockBuffer::new(64, 0x2000));
+        // A thread of this computer answers far more slowly than data already waiting in the hardware.
+        let result = record_after(
+            &mut generator,
+            &i_dma,
+            &q_dma,
+            buffers,
+            32,
+            Duration::from_secs(5),
+            Duration::from_millis(200),
+        )
+        .map(|_| ());
+        done.store(true, Ordering::Relaxed);
+        hardware.join().unwrap();
+        (be, result)
+    }
+
+    #[test]
+    fn data_left_over_is_discarded_before_the_packet_is_asked_for() {
+        let (be, result) = with_hardware(3, 64);
+        result.unwrap();
+        let log = be.log();
+        let position = |addr: u64, value: u32| {
+            log.iter()
+                .enumerate()
+                .filter(|(_, a)| matches!(a, MockAccess::Write { addr: at, value: v } if (*at, *v) == (addr, value)))
+                .map(|(n, _)| n)
+                .collect::<Vec<_>>()
+        };
+        let arms = position(I_DMA + 0x58, 64);
+        assert_eq!(
+            arms.len(),
+            4,
+            "once, and again after each of three stale packets"
+        );
+        assert!(*arms.last().unwrap() < position(GENERATOR + 4, 1)[0]);
+    }
+
+    #[test]
+    fn a_record_that_arrives_short_is_an_error() {
+        let (_be, result) = with_hardware(0, 48);
+        assert!(
+            matches!(
+                result,
+                Err(RadioError::Short {
+                    got: 48,
+                    wanted: 64
+                })
+            ),
+            "{result:?}"
+        );
     }
 
     #[test]

@@ -51,6 +51,6 @@ Common conventions:
 - Register offsets and control-bit positions are asserted against real Vivado
   HWH output in the unit tests; behaviour on real hardware was checked on a PYNQ-Z2
   ([results](../08-verification-gaps.md#board-results)). `rfdc` and `radio` are the exception: their registers are not
-  in the handoff, and they have not yet run on a board.
+  in the handoff; they have run on an RFSoC 4x2.
 
 The crate re-exports `Mmio` and `MmioError`.

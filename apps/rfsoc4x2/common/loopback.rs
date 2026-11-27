@@ -14,13 +14,14 @@ use hardroxide_ip::rfdc::{Converter, Mixer, Rfdc};
 use hardroxide_mmio::Mmio;
 use hardroxide_mmio::time::sleep;
 
-/// Samples in one record: the most the packet generator sends. I and Q each.
-pub const SAMPLES: usize = 32768;
+/// Samples in one record, I and Q each. Half of the most the packet generator sends: in RFSoC-PYNQ's bitstream,
+/// receiver 20 has no data buffer on its way to memory and loses the end of records longer than about 30000 samples.
+pub const SAMPLES: usize = 16384;
 /// Room each of the two buffers needs.
 pub const BUFFER_BYTES: usize = 2 * SAMPLES;
 /// The receivers' rate after the converters' decimation by two.
 const RATE_HZ: i64 = 2_457_600_000;
-/// The width of one bin of a record's spectrum: 75 kHz.
+/// The width of one bin of a record's spectrum: 150 kHz.
 const BIN_HZ: i64 = RATE_HZ / SAMPLES as i64;
 const AMPLITUDE: u16 = 0x4000;
 
@@ -349,7 +350,11 @@ pub fn measure<R: Mmio, B: DmaBuffer>(mut b: Bench<'_, R, B>) -> u32 {
         sleep(Duration::from_millis(10));
         let mut heard = [0.0; 4];
         for (r, level) in heard.iter_mut().enumerate() {
-            attempt!(b, "recording", b.record(r));
+            attempt!(
+                b,
+                format_args!("recording {}", b.receivers[r].name),
+                b.record(r)
+            );
             *level = b.spectrum.level(baseband);
         }
         for (r, level) in heard.into_iter().enumerate() {

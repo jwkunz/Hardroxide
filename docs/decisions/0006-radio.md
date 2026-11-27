@@ -77,7 +77,7 @@ refusals.
 On the board, SMA cables from DAC A to ADC A and from DAC B to ADC B:
 
 1. Transmit mixer at `f_tx`, receive mixer at `-f_rx`: the recorded tone is at `f_tx - f_rx`, within one bin of the
-   spectrum (75 kHz), for several pairs, **negative differences among them**, with nothing comparable at minus that
+   spectrum (75 kHz in a record of 32768 samples; the program records 16384, 150 kHz, see R3 below), for several pairs, **negative differences among them**, with nothing comparable at minus that
    frequency (which shows that I and Q are not swapped). A real signal received through a mixer also appears, as strong,
    at `-(f_tx + f_rx)`; the check leaves that bin out.
 2. Halving the transmitted value lowers the tone by 6 dB; switching it off removes it.
@@ -95,8 +95,22 @@ On the board, SMA cables from DAC A to ADC A and from DAC B to ADC B:
 | R4 | reference pages and tutorials; then the release's full regression ([ADR 0005](0005-ultrascale-plus.md), decision 8) | yes |
 
 R1 and R2 are written and pass their host tests (2026-11-26). Of R3, the loopback program is written for bare metal
-and Linux (`apps/rfsoc4x2/{baremetal,linux}/radio_loopback.rs`, shared measurement in `common/`) and builds; the
-kernel's is still to be written. **Nothing has run on a board.**
+and Linux (`apps/rfsoc4x2/{baremetal,linux}/radio_loopback.rs`, shared measurement in `common/`); the kernel's is still
+to be written.
+
+**R3 on the board, bare metal** (RFSoC 4x2 over JTAG, 2026-11-26, cables DAC A to ADC A and DAC B to ADC B): acceptance
+1 to 3 passed. The four tiles started; each tone was at `f_tx - f_rx` for both signs, at -18.3 dBFS (DAC A) and -18.6
+dBFS (DAC B), with nothing above -105 dBFS at minus that frequency; half the value gave 6.02 and 6.03 dB less; the other
+three receivers were at least 77 dB down; switched off, the tone fell by more than 90 dB. Still open: Linux, acceptance 4
+(the vendor's driver as an independent reader) and 5 (ADC C and D).
+
+**Found: receiver 20 (ADC B) cannot take a full-length record.** Over JTAG with raw register accesses, from a clean
+state, 20 tries per length: receivers 00, 01 and 21 never failed up to 4096 words; receiver 20 never up to 3840 words
+(30720 samples) and every time from 4000. The last 4 KiB did not reach memory, a DMA waited forever, and the left-over
+words then made the next transfer on that DMA end early. In `base.hwh` receiver 20's path to memory is the only one of
+the four without a data FIFO (`S00_HAS_DATA_FIFO`), which is the likely cause; whether RFSoC-PYNQ's own software shows
+it has not been tried. `radio::record` now discards left-over data before asking for a packet and refuses a short result;
+on the board, after each of five failed full-length records the next record was correct.
 
 No new bitstream is needed. `fixtures/rfsoc4x2/rfsoc4x2_rf_loopback.xsa` (waveform playback, two inputs recorded
 together) stays a test of the converters with raw register access; its own blocks get no driver.

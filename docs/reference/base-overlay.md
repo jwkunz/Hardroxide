@@ -104,7 +104,9 @@ starts it, and `hardroxide generate --platform baremetal|rtos` gives a crate for
 > while starting). An access before that can stall the processor until the next reset.
 
 Generated crates drive `radio_rfdc` with [`hardroxide_ip::rfdc`](ip-rfdc.md) and the amplitude controllers and packet
-generators with [`hardroxide_ip::radio`](ip-radio.md) (3.1, not yet run on the board).
+generators with [`hardroxide_ip::radio`](ip-radio.md) (3.1). `apps/rfsoc4x2/baremetal/radio_loopback.rs` sends tones
+from both DACs and finds them with the ADCs over cables; it passed on the board. Receiver 20 takes shorter records than
+the others ([why](ip-radio.md#receive)).
 
 **Checked on a board** (`fixtures/rfsoc4x2/scripts/probe.py base`, raw register accesses): the LEDs, buttons and
 switches; the interrupt path from both GPIOs to the processor; the temperature; both Pmod memories; after programming
